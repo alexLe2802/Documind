@@ -21,6 +21,7 @@ frontend/.env
 .codex-review/
 .superpowers/
 .mcp.json
+skills-lock.json
 *.log
 *.docx
 
