@@ -15,6 +15,7 @@ frontend/.env
 # Local tooling and editor state
 .tools/
 .cache/
+.tmp-opennext-verify/
 .idea/
 .vscode/
 .agents/

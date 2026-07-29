@@ -16,6 +16,9 @@ dist-ssr
 .env
 *.local
 .next
+.open-next
+.wrangler
+cloudflare-env.d.ts
 next-env.d.ts
 
 # Editor directories and files

@@ -17,9 +17,13 @@ Build from `frontend/`:
 
 ```text
 Install: npm ci
-Build: npm run build
-Start: npm run start
+Cloudflare build: npm run cf:build
+Cloudflare deploy: npm run cf:deploy
 ```
+
+For Cloudflare Workers Builds, set the root directory to `/frontend`, the build
+command to `npm run cf:build`, and the deploy command to `npm run cf:deploy`.
+For preview branches, use `npm run cf:upload`.
 
 Configure:
 
