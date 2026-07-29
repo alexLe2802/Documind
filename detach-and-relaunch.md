@@ -9,7 +9,7 @@ Create a clean private-repository-ready copy of DocuMind for `documind.icu`, wit
 - [x] Replace old Render/Vercel URLs and deployment guidance with `documind.icu` production placeholders.
 - [x] Preserve Prisma schema and migrations and document applying them to a new Supabase project.
 - [x] Remove old Git metadata, initialize one new repository, and create an initial commit.
-- [ ] Create the private GitHub repository `documind` and push when GitHub authorization is available.
+- [x] Create the private GitHub repository `Documind` and push when GitHub authorization is available.
 - [x] Verify no old connection strings/domains or secrets remain, then run lint/build checks.
 
 ## Done When
