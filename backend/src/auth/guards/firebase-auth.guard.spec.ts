@@ -1,0 +1,149 @@
+import {
+  ConflictException,
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { RoleName, UserStatus } from '../../generated/prisma/client';
+import { FirebaseAuthGuard } from './firebase-auth.guard';
+
+describe('FirebaseAuthGuard', () => {
+  const originalMockAuth = process.env.MOCK_AUTH;
+  const originalNodeEnv = process.env.NODE_ENV;
+  const verifyIdToken = jest.fn();
+  const findUnique = jest.fn();
+  const findOrCreateFirebaseUser = jest.fn();
+  const guard = new FirebaseAuthGuard(
+    { verifyIdToken } as never,
+    { user: { findUnique } } as never,
+    { findOrCreateFirebaseUser } as never,
+  );
+
+  const createContext = (authorization?: string) => {
+    const request = { headers: { authorization } };
+    return {
+      request,
+      context: {
+        switchToHttp: () => ({ getRequest: () => request }),
+      } as ExecutionContext,
+    };
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.MOCK_AUTH;
+    process.env.NODE_ENV = 'test';
+  });
+
+  afterAll(() => {
+    if (originalMockAuth === undefined) {
+      delete process.env.MOCK_AUTH;
+    } else {
+      process.env.MOCK_AUTH = originalMockAuth;
+    }
+
+    if (originalNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+
+  it('rejects requests without a bearer token', async () => {
+    const { context } = createContext();
+
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('attaches a local mock admin without a bearer token when mock auth is enabled outside production', async () => {
+    process.env.MOCK_AUTH = 'true';
+    process.env.NODE_ENV = 'development';
+    const { context, request } = createContext();
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(request).toHaveProperty(
+      'user',
+      expect.objectContaining({
+        id: '00000000-0000-0000-0000-000000000000',
+        firebaseUid: 'mock-firebase-admin-uid',
+        email: 'admin.mock@documind.local',
+        fullName: 'Mock Admin',
+        status: UserStatus.ACTIVE,
+        role: { name: RoleName.ADMIN },
+      }),
+    );
+    expect(verifyIdToken).not.toHaveBeenCalled();
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it('does not enable mock auth in production', async () => {
+    process.env.MOCK_AUTH = 'true';
+    process.env.NODE_ENV = 'production';
+    const { context } = createContext();
+
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('attaches an active local user to the request', async () => {
+    verifyIdToken.mockResolvedValue({ uid: 'firebase-uid' });
+    const user = {
+      id: 'user-id',
+      firebaseUid: 'firebase-uid',
+      status: UserStatus.ACTIVE,
+      role: { name: RoleName.USER },
+    };
+    findUnique.mockResolvedValue(user);
+    const { context, request } = createContext('Bearer valid-token');
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(request).toHaveProperty('user', user);
+  });
+
+  it('rejects blocked local users', async () => {
+    verifyIdToken.mockResolvedValue({ uid: 'firebase-uid' });
+    findUnique.mockResolvedValue({
+      id: 'user-id',
+      status: UserStatus.BLOCKED,
+      role: { name: RoleName.USER },
+    });
+    const { context } = createContext('Bearer valid-token');
+
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('auto-provisions (findOrCreateFirebaseUser) the user when they do not have a local account', async () => {
+    const decodedToken = {
+      uid: 'firebase-uid',
+      email: 'new-user@documind.local',
+    };
+    verifyIdToken.mockResolvedValue(decodedToken);
+    findUnique.mockResolvedValue(null);
+    const provisionedUser = {
+      id: 'new-user-id',
+      firebaseUid: 'firebase-uid',
+      status: UserStatus.ACTIVE,
+      role: { name: RoleName.USER },
+    };
+    findOrCreateFirebaseUser.mockResolvedValue({ user: provisionedUser });
+
+    const { context, request } = createContext('Bearer valid-token');
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(findOrCreateFirebaseUser).toHaveBeenCalledWith(decodedToken);
+    expect(request).toHaveProperty('user', provisionedUser);
+  });
+
+  it('preserves HttpException instances raised during authentication', async () => {
+    const exception = new ConflictException('Authentication state conflict');
+    verifyIdToken.mockRejectedValue(exception);
+    const { context } = createContext('Bearer valid-token');
+
+    await expect(guard.canActivate(context)).rejects.toBe(exception);
+  });
+});

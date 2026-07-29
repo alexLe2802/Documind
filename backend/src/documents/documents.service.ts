@@ -1,0 +1,614 @@
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { extname } from 'node:path';
+import {
+  DocumentStatus,
+  DocumentVisibility,
+  ExtractionStatus,
+  ModerationStatus,
+  Prisma,
+  SourceType,
+} from '../generated/prisma/client';
+import { DocumentGetPayload } from '../generated/prisma/models/Document';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { DownloadLogService } from '../download-log/download-log.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import { ObjectUrlResponse, UploadedFile } from '../storage/storage.types';
+import {
+  DOCUMENT_FILE_EXTENSIONS,
+  DOCUMENT_MIME_TYPES,
+  MAX_DOCUMENT_FILE_SIZE,
+} from './documents.constants';
+import { CreateDocumentDto } from './dto/create-document.dto';
+import { DocumentListQueryDto } from './dto/document-list-query.dto';
+import { UpdateDocumentDto } from './dto/update-document.dto';
+import { OfficePreviewService } from './office-preview.service';
+
+const documentInclude = {
+  owner: {
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      avatarUrl: true,
+    },
+  },
+  subject: true,
+  category: true,
+  tags: { include: { tag: true } },
+  content: true,
+  savedBy: true,
+} as const;
+
+type DocumentPayload = DocumentGetPayload<{
+  include: typeof documentInclude;
+}>;
+
+export type UiReadyDocument = Omit<DocumentPayload, 'fileSize'> & {
+  fileSize: string;
+  aiStatus: ExtractionStatus;
+  summary: string | null;
+  saved: boolean;
+  owned: boolean;
+};
+
+export interface DocumentListResponse {
+  filters: DocumentListQueryDto;
+  data: UiReadyDocument[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+@Injectable()
+export class DocumentsService {
+  private readonly logger = new Logger(DocumentsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+    private readonly downloadLogService: DownloadLogService,
+    private readonly auditLogService: AuditLogService,
+    private readonly officePreview: OfficePreviewService,
+  ) {}
+
+  async upload(
+    ownerId: string,
+    dto: CreateDocumentDto,
+    file: UploadedFile,
+  ): Promise<UiReadyDocument> {
+    this.validateFile(file);
+    await this.validateRelations(
+      ownerId,
+      dto.subjectId,
+      dto.categoryId,
+      dto.tagIds,
+    );
+    const uploadedObject = await this.storage.uploadObject(ownerId, file);
+    const tagIds = await this.resolveTagIds(dto.tagIds ?? [], dto.tags ?? []);
+    const visibility = dto.visibility ?? DocumentVisibility.PRIVATE;
+
+    let document: DocumentPayload;
+    try {
+      document = await this.prisma.document.create({
+        data: {
+          ownerId,
+          subjectId: dto.subjectId,
+          categoryId: dto.categoryId,
+          title: dto.title.trim(),
+          description: dto.description?.trim(),
+          fileName: file.originalname,
+          fileType: file.mimetype,
+          fileSize: BigInt(file.size),
+          storagePath: uploadedObject.key,
+          fileUrl: uploadedObject.fileUrl,
+          visibility,
+          moderationStatus:
+            visibility === DocumentVisibility.PRIVATE
+              ? ModerationStatus.APPROVED
+              : ModerationStatus.PENDING,
+          extractionStatus: ExtractionStatus.PENDING,
+          tags: {
+            create: tagIds.map((tagId) => ({ tagId })),
+          },
+          content: {
+            create: {
+              sourceType: this.toSourceType(file.mimetype, file.originalname),
+              extractionStatus: ExtractionStatus.PENDING,
+              progress: 0,
+            },
+          },
+        },
+        include: documentInclude,
+      });
+    } catch (error) {
+      await Promise.resolve(
+        this.storage.deleteObject(ownerId, uploadedObject.key),
+      ).catch(() => undefined);
+      throw error;
+    }
+
+    await this.auditLogService.logDocumentUpload(ownerId, document.id, {
+      title: document.title,
+      fileName: document.fileName,
+      visibility: document.visibility,
+    });
+
+    return this.serialize(document, ownerId);
+  }
+
+  async findAll(
+    ownerId: string,
+    query: DocumentListQueryDto,
+  ): Promise<DocumentListResponse> {
+    const where = this.buildVisibleWhere(ownerId, query);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+
+    const [total, documents] = await Promise.all([
+      this.prisma.document.count({ where }),
+      this.prisma.document.findMany({
+        where,
+        include: documentInclude,
+        orderBy: [
+          { [query.sortBy ?? 'createdAt']: query.sortOrder ?? 'desc' },
+          { id: 'desc' },
+        ],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      filters: query,
+      data: documents.map((document) => this.serialize(document, ownerId)),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findOne(id: string, ownerId: string): Promise<UiReadyDocument> {
+    const document = await this.prisma.document.findFirst({
+      where: this.buildVisibleWhere(ownerId, { id }),
+      include: documentInclude,
+    });
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+    return this.serialize(document, ownerId);
+  }
+
+  async createDownloadUrl(
+    id: string,
+    ownerId: string,
+  ): Promise<ObjectUrlResponse> {
+    const document = await this.findOne(id, ownerId);
+    const downloadUrl = await this.storage.createObjectDownloadUrl(
+      document.storagePath,
+      document.fileName,
+      document.fileType,
+    );
+
+    await Promise.all([
+      this.prisma.document.update({
+        where: { id },
+        data: { downloadCount: { increment: 1 } },
+      }),
+      this.downloadLogService.create({
+        userId: ownerId,
+        documentId: id,
+      }),
+    ]);
+
+    return downloadUrl;
+  }
+
+  async createPreviewUrl(
+    id: string,
+    ownerId: string,
+  ): Promise<ObjectUrlResponse> {
+    const document = await this.findOne(id, ownerId);
+    const previewObject = await this.getPreviewObject(document);
+    const previewUrl = await this.storage.createObjectPreviewUrl(
+      previewObject.storagePath,
+      previewObject.fileType,
+    );
+
+    await this.prisma.document.update({
+      where: { id },
+      data: { viewCount: { increment: 1 } },
+    });
+
+    return {
+      ...previewUrl,
+      contentType: previewObject.fileType,
+      fallbackToOfficeViewer: previewObject.fallbackToOfficeViewer,
+    };
+  }
+
+  private async getPreviewObject(document: UiReadyDocument): Promise<{
+    storagePath: string;
+    fileType: string;
+    fallbackToOfficeViewer?: boolean;
+  }> {
+    if (this.isPdf(document.fileType, document.fileName)) {
+      return {
+        storagePath: document.storagePath,
+        fileType: document.fileType,
+      };
+    }
+
+    if (!this.isOfficeDocument(document.fileType, document.fileName)) {
+      return {
+        storagePath: document.storagePath,
+        fileType: document.fileType,
+      };
+    }
+
+    try {
+      const sourceBuffer = await this.storage.getObjectBuffer(
+        document.storagePath,
+      );
+      const previewBuffer = await this.officePreview.convertToPdf({
+        buffer: sourceBuffer,
+        fileName: document.fileName,
+      });
+      const previewStoragePath = this.buildPreviewStoragePath(document);
+
+      await this.storage.uploadObject({
+        objectKey: previewStoragePath,
+        body: previewBuffer,
+        contentType: 'application/pdf',
+        contentLength: previewBuffer.length,
+        metadata: {
+          sourceDocumentId: document.id,
+          sourceStoragePath: document.storagePath,
+        },
+      });
+
+      return {
+        storagePath: previewStoragePath,
+        fileType: 'application/pdf',
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Falling back to Office viewer for ${document.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+
+      return {
+        storagePath: document.storagePath,
+        fileType: document.fileType,
+        fallbackToOfficeViewer: true,
+      };
+    }
+  }
+
+  private buildPreviewStoragePath(document: UiReadyDocument): string {
+    return `users/${document.ownerId}/documents/${document.id}/preview.pdf`;
+  }
+
+  private isPdf(mimeType: string, fileName: string): boolean {
+    return (
+      mimeType === 'application/pdf' ||
+      extname(fileName).toLowerCase() === '.pdf'
+    );
+  }
+
+  private isOfficeDocument(mimeType: string, fileName: string): boolean {
+    const extension = extname(fileName).toLowerCase();
+    return (
+      [
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ].includes(mimeType) || ['.docx', '.pptx', '.xlsx'].includes(extension)
+    );
+  }
+
+  async update(
+    id: string,
+    ownerId: string,
+    dto: UpdateDocumentDto,
+  ): Promise<UiReadyDocument> {
+    const existingDocument = await this.findOne(id, ownerId);
+    if (dto.subjectId || dto.categoryId || dto.tagIds) {
+      await this.validateRelations(
+        ownerId,
+        dto.subjectId ?? existingDocument.subjectId,
+        dto.categoryId ?? existingDocument.categoryId,
+        dto.tagIds,
+      );
+    }
+    const { tagIds, status, ...data } = dto;
+    const targetVisibility = dto.visibility ?? existingDocument.visibility;
+    const becomesPublicFromPrivate =
+      targetVisibility === DocumentVisibility.PUBLIC &&
+      existingDocument.visibility === DocumentVisibility.PRIVATE;
+    const requiresPublicReview =
+      targetVisibility === DocumentVisibility.PUBLIC &&
+      (becomesPublicFromPrivate ||
+        existingDocument.moderationStatus !== ModerationStatus.PENDING);
+    const document = await this.prisma.document.update({
+      where: { id },
+      data: {
+        ...data,
+        status,
+        ...(targetVisibility === DocumentVisibility.PRIVATE
+          ? {
+              moderationStatus: ModerationStatus.APPROVED,
+              rejectionReason: null,
+              reviewedAt: null,
+              reviewedBy: null,
+            }
+          : requiresPublicReview
+            ? {
+                moderationStatus: ModerationStatus.PENDING,
+                rejectionReason: null,
+                reviewedAt: null,
+                reviewedBy: null,
+                submittedAt: new Date(),
+                version: { increment: 1 },
+              }
+            : {}),
+        tags:
+          tagIds === undefined
+            ? undefined
+            : {
+                deleteMany: {},
+                create: tagIds.map((tagId) => ({ tagId })),
+              },
+      },
+      include: documentInclude,
+    });
+    if (status === DocumentStatus.HIDDEN) {
+      await this.auditLogService.logDocumentHide(ownerId, id, { status });
+    }
+    return this.serialize(document, ownerId);
+  }
+
+  updateVisibility(
+    id: string,
+    ownerId: string,
+    visibility: DocumentVisibility,
+  ): Promise<UiReadyDocument> {
+    return this.update(id, ownerId, { visibility });
+  }
+
+  async remove(id: string, ownerId: string): Promise<void> {
+    await this.findOne(id, ownerId);
+    await this.prisma.document.update({
+      where: { id },
+      data: { status: DocumentStatus.DELETED },
+    });
+    await this.auditLogService.logDocumentDelete(ownerId, id);
+  }
+
+  private async validateRelations(
+    ownerId: string,
+    subjectId?: string,
+    categoryId?: string,
+    tagIds: string[] = [],
+  ): Promise<void> {
+    const [subject, category, tagCount] = await Promise.all([
+      subjectId
+        ? this.prisma.subject.findFirst({
+            where: {
+              id: subjectId,
+              deletedAt: null,
+              OR: [
+                { ownerId },
+                {
+                  ownerId: null,
+                  documents: {
+                    some: {
+                      ownerId,
+                      status: { not: DocumentStatus.DELETED },
+                    },
+                  },
+                },
+              ],
+            },
+          })
+        : Promise.resolve(true),
+      categoryId
+        ? this.prisma.category.findFirst({
+            where: {
+              id: categoryId,
+              deletedAt: null,
+              ...(subjectId ? { subjectId } : {}),
+              OR: [
+                { ownerId },
+                {
+                  ownerId: null,
+                  documents: {
+                    some: {
+                      ownerId,
+                      status: { not: DocumentStatus.DELETED },
+                      ...(subjectId ? { subjectId } : {}),
+                    },
+                  },
+                },
+              ],
+            },
+          })
+        : Promise.resolve(true),
+      tagIds.length
+        ? this.prisma.tag.count({ where: { id: { in: tagIds } } })
+        : Promise.resolve(0),
+    ]);
+    if (!subject) throw new NotFoundException('Subject not found');
+    if (!category) throw new NotFoundException('Category not found');
+    if (tagCount !== tagIds.length) {
+      throw new NotFoundException('One or more tags were not found');
+    }
+  }
+
+  private async resolveTagIds(
+    existingIds: string[],
+    names: string[],
+  ): Promise<string[]> {
+    const normalizedNames = [
+      ...new Set(
+        names.map((name) => name.trim().toLowerCase()).filter(Boolean),
+      ),
+    ];
+    const resolved = await Promise.all(
+      normalizedNames.map((name) =>
+        this.prisma.tag.upsert({
+          where: { name },
+          create: { name },
+          update: {},
+        }),
+      ),
+    );
+    return [...new Set([...existingIds, ...resolved.map((tag) => tag.id)])];
+  }
+
+  private validateFile(file: UploadedFile): void {
+    if (!file.buffer.length || file.size <= 0) {
+      throw new BadRequestException('Document file is empty');
+    }
+    if (file.size > MAX_DOCUMENT_FILE_SIZE) {
+      throw new BadRequestException('Document file exceeds 80 MB');
+    }
+    if (
+      !DOCUMENT_MIME_TYPES.includes(
+        file.mimetype as (typeof DOCUMENT_MIME_TYPES)[number],
+      )
+    ) {
+      throw new BadRequestException('Unsupported document MIME type');
+    }
+    if (
+      !DOCUMENT_FILE_EXTENSIONS.has(extname(file.originalname).toLowerCase())
+    ) {
+      throw new BadRequestException('Unsupported document file extension');
+    }
+  }
+
+  private buildVisibleWhere(
+    ownerId: string,
+    query: Partial<DocumentListQueryDto> & { id?: string } = {},
+  ): Prisma.DocumentWhereInput {
+    const accessFilter: Prisma.DocumentWhereInput = query.ownerOnly
+      ? { ownerId, status: { not: DocumentStatus.DELETED } }
+      : query.savedOnly
+        ? {
+            savedBy: { some: { userId: ownerId } },
+            visibility: DocumentVisibility.PUBLIC,
+            moderationStatus: ModerationStatus.APPROVED,
+            status: DocumentStatus.ACTIVE,
+          }
+        : {
+            OR: [
+              { ownerId, status: { not: DocumentStatus.DELETED } },
+              {
+                visibility: DocumentVisibility.PUBLIC,
+                status: DocumentStatus.ACTIVE,
+                moderationStatus: 'APPROVED',
+              },
+              {
+                savedBy: { some: { userId: ownerId } },
+                visibility: DocumentVisibility.PUBLIC,
+                moderationStatus: ModerationStatus.APPROVED,
+                status: DocumentStatus.ACTIVE,
+              },
+            ],
+          };
+
+    const filters: Prisma.DocumentWhereInput[] = [];
+    if (query.id) filters.push({ id: query.id });
+    if (query.subjectId) filters.push({ subjectId: query.subjectId });
+    if (query.categoryId) filters.push({ categoryId: query.categoryId });
+    if (query.visibility) filters.push({ visibility: query.visibility });
+    if (query.fileType) {
+      const mimeTypes: Record<string, string> = {
+        PDF: 'application/pdf',
+        DOCX: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        PPTX: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        XLSX: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      };
+      filters.push({ fileType: mimeTypes[query.fileType] });
+    }
+    if (query.aiStatus) {
+      filters.push({ extractionStatus: query.aiStatus });
+    }
+    if (query.tagIds?.length) {
+      filters.push({
+        tags: {
+          some: { tagId: { in: query.tagIds } },
+        },
+      });
+    }
+    if (query.search) {
+      filters.push({
+        OR: [
+          { title: { contains: query.search, mode: 'insensitive' } },
+          { description: { contains: query.search, mode: 'insensitive' } },
+          { fileName: { contains: query.search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    return {
+      status: { not: DocumentStatus.DELETED },
+      AND: [accessFilter, ...filters],
+    };
+  }
+
+  private serialize(
+    document: DocumentPayload,
+    currentUserId: string,
+  ): UiReadyDocument {
+    return {
+      ...document,
+      fileSize: document.fileSize.toString(),
+      aiStatus: document.extractionStatus,
+      summary: document.content?.contentSummary ?? null,
+      saved:
+        document.savedBy?.some((saved) => saved.userId === currentUserId) ??
+        false,
+      owned: document.ownerId === currentUserId,
+    };
+  }
+
+  private toSourceType(mimeType: string, fileName: string): SourceType {
+    const extension = extname(fileName).replace('.', '').toUpperCase();
+    const mapped =
+      extension === 'XLSX' || extension === 'XLS' ? 'EXCEL' : extension;
+
+    if (
+      mapped === SourceType.PDF ||
+      mapped === SourceType.DOC ||
+      mapped === SourceType.DOCX ||
+      mapped === SourceType.PPTX ||
+      mapped === SourceType.EXCEL
+    ) {
+      return mapped;
+    }
+
+    if (mimeType.includes('pdf')) return SourceType.PDF;
+    if (mimeType.includes('word')) return SourceType.DOCX;
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
+      return SourceType.EXCEL;
+    }
+    if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) {
+      return SourceType.PPTX;
+    }
+
+    return SourceType.MOCK;
+  }
+}
