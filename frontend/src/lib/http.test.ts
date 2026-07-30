@@ -1,9 +1,7 @@
 import { getFirebaseAuth } from './firebase'
 import {
   clearStoredAuthToken,
-  getStoredAuthToken,
   notifyUnauthorized,
-  setStoredAuthToken,
 } from './auth-token'
 import { API_BASE_URL, apiRequest, normalizeApiBaseUrl } from './http'
 
@@ -13,13 +11,10 @@ vi.mock('./firebase', () => ({
 
 vi.mock('./auth-token', () => ({
   clearStoredAuthToken: vi.fn(),
-  getStoredAuthToken: vi.fn(),
   notifyUnauthorized: vi.fn(),
-  setStoredAuthToken: vi.fn(),
 }))
 
 const mockedGetFirebaseAuth = vi.mocked(getFirebaseAuth)
-const mockedGetStoredAuthToken = vi.mocked(getStoredAuthToken)
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -34,7 +29,6 @@ describe('apiRequest', () => {
     mockedGetFirebaseAuth.mockReturnValue({ currentUser: null } as ReturnType<
       typeof getFirebaseAuth
     >)
-    mockedGetStoredAuthToken.mockReturnValue(null)
     vi.stubGlobal('fetch', vi.fn())
   })
 
@@ -62,19 +56,15 @@ describe('apiRequest', () => {
     const [, request] = vi.mocked(fetch).mock.calls[0]
     const headers = new Headers(request?.headers)
     expect(headers.get('Authorization')).toBe('Bearer fresh-token')
-    expect(setStoredAuthToken).toHaveBeenCalledWith('fresh-token')
   })
 
-  it('uses the stored token when Firebase has not restored its user yet', async () => {
-    mockedGetStoredAuthToken.mockReturnValue('stored-token')
+  it('does not attach a bearer token when Firebase has no active user', async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse({ success: true, data: [] }))
 
     await apiRequest('/admin/users')
 
     const [, request] = vi.mocked(fetch).mock.calls[0]
-    expect(new Headers(request?.headers).get('Authorization')).toBe(
-      'Bearer stored-token',
-    )
+    expect(new Headers(request?.headers).has('Authorization')).toBe(false)
   })
 
   it('preserves pagination metadata from the shared API envelope', async () => {

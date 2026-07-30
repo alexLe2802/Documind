@@ -24,6 +24,7 @@ import {
   Check,
   MoreVertical,
   Edit2,
+  RefreshCw,
   Trash2,
 } from "lucide-react";
 import {
@@ -37,6 +38,7 @@ import {
   fetchLibraryDocuments,
   fetchSubjects,
   formatFileSize,
+  retryExtraction,
   updateSubject,
   deleteSubject,
   updateCategory,
@@ -51,6 +53,11 @@ import { localize } from "../i18n/localize";
 import { ROUTES } from "../lib/routes";
 
 const PAGE_SIZE = 12;
+const EXTRACTION_POLL_INTERVAL_MS = 2_000;
+const EXTRACTION_POLL_ATTEMPTS = 45;
+
+const wait = (milliseconds: number) =>
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 function sortTaxonomyItems<T extends { name: string }>(items: T[]) {
   return [...items].sort((a, b) => a.name.localeCompare(b.name));
@@ -141,6 +148,7 @@ export function LibraryView() {
   // Document multi-select and delete
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [retryingDocumentIds, setRetryingDocumentIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -522,6 +530,80 @@ export function LibraryView() {
     }
   }
 
+  async function handleRetryExtraction(document: LibraryDocument) {
+    if (
+      document.indexStatus !== "FAILED" ||
+      retryingDocumentIds.has(document.id)
+    ) {
+      return;
+    }
+
+    setErrorMessage("");
+    setRetryingDocumentIds((current) => new Set(current).add(document.id));
+    setDocuments((current) =>
+      current.map((item) =>
+        item.id === document.id
+          ? { ...item, indexStatus: "PROCESSING" }
+          : item,
+      ),
+    );
+
+    let retryStarted = false;
+    try {
+      await retryExtraction(document.id);
+      retryStarted = true;
+
+      for (let attempt = 0; attempt < EXTRACTION_POLL_ATTEMPTS; attempt += 1) {
+        await wait(EXTRACTION_POLL_INTERVAL_MS);
+        const refreshedDocument = await fetchDocument(document.id);
+        setDocuments((current) =>
+          current.map((item) =>
+            item.id === document.id ? refreshedDocument : item,
+          ),
+        );
+
+        if (
+          refreshedDocument.indexStatus === "READY" ||
+          refreshedDocument.indexStatus === "FAILED"
+        ) {
+          return;
+        }
+      }
+
+      throw new Error(
+        text(
+          "Phân tích AI vẫn đang xử lý. Hãy kiểm tra lại sau ít phút.",
+          "AI analysis is still processing. Check again in a few minutes.",
+        ),
+      );
+    } catch (error) {
+      if (!retryStarted) {
+        setDocuments((current) =>
+          current.map((item) =>
+            item.id === document.id &&
+            item.indexStatus === "PROCESSING"
+              ? { ...item, indexStatus: "FAILED" }
+              : item,
+          ),
+        );
+      }
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : text(
+              "Không thể chạy lại phân tích AI.",
+              "Could not retry AI analysis.",
+            ),
+      );
+    } finally {
+      setRetryingDocumentIds((current) => {
+        const next = new Set(current);
+        next.delete(document.id);
+        return next;
+      });
+    }
+  }
+
   const getIndexStatusLabel = (indexStatus: LibraryDocument["indexStatus"]) => {
     if (indexStatus === "READY") return text("AI sẵn sàng", "AI ready");
     if (indexStatus === "PROCESSING") return text("Đang xử lý", "Processing");
@@ -747,17 +829,55 @@ export function LibraryView() {
           </div>
 
           {isLoading ? <div className="library-loading" aria-live="polite"><span className="spinner" />{text("Đang tải tài liệu...", "Loading documents...")}</div> : documents.length === 0 ? <div className="soft-empty-state library-empty"><Search size={28} /><strong>{text("Không có tài liệu phù hợp", "No matching documents")}</strong><p>{text("Thử thư mục khác, xóa bộ lọc hoặc tải tài liệu mới.", "Try another folder, clear filters, or upload a new document.")}</p></div> : view === "table" ? (
-            <div className="library-table-wrap"><table className="library-table"><thead><tr>
-              <th className="library-table-check"><input type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label={text("Chọn tất cả", "Select all")} /></th>
-              <th>{text("Tài liệu", "Document")}</th><th>{text("Môn học / Danh mục", "Subject / Category")}</th><th>{text("Ngày tải", "Uploaded")}</th><th>{text("AI", "AI status")}</th><th>{text("Thao tác", "Actions")}</th>
-            </tr></thead><tbody>{documents.map((document) => <tr key={document.id} className={selectedDocIds.has(document.id) ? "row-selected" : ""}>
-              <td className="library-table-check"><input type="checkbox" checked={selectedDocIds.has(document.id)} onChange={() => toggleDocSelection(document.id)} aria-label={text(`Chọn ${document.title}`, `Select ${document.title}`)} /></td>
-              <td><div className="library-document-cell"><span className="document-type-icon"><DocumentIcon type={document.fileType} /></span><span><strong>{document.title}</strong><small>{document.fileType} · {formatFileSize(document.fileSize)} · {document.visibility === "PRIVATE" ? text("riêng tư", "private") : text("công khai", "public")} · {document.moderationStatus === "APPROVED" ? text("đã duyệt", "approved") : document.moderationStatus === "REJECTED" ? text("bị từ chối", "rejected") : text("chờ duyệt", "pending review")}</small>{document.rejectionReason ? <small className="form-error">{document.rejectionReason}</small> : null}</span></div></td>
-              <td><span className="library-taxonomy-cell"><strong>{document.subject}</strong><small>{document.category}</small></span></td>
-              <td>{new Date(document.uploadedAt).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US")}</td>
-              <td><span className={`index-status index-status--${document.indexStatus.toLowerCase()}`}>{getIndexStatusLabel(document.indexStatus)}</span></td>
-              <td><DocumentActions document={document} text={text} onPreview={() => setPreviewDocument(document)} onDownload={() => void openObject(document, "download")} onDelete={() => void handleDeleteSingleDocument(document.id)} /></td>
-            </tr>)}</tbody></table></div>
+            <div className="library-table-wrap">
+              <table className="library-table">
+                <thead>
+                  <tr>
+                    <th className="library-table-check">
+                      <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label={text("Chọn tất cả", "Select all")} />
+                    </th>
+                    <th className="library-table-document">{text("Tên file", "File name")}</th>
+                    <th className="library-table-actions">{text("Thao tác", "Actions")}</th>
+                    <th className="library-table-ai">{text("AI", "AI status")}</th>
+                    <th className="library-table-date">{text("Ngày tải", "Uploaded")}</th>
+                    <th className="library-table-taxonomy">{text("Môn học / Danh mục", "Subject / Category")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((document) => (
+                    <tr key={document.id} className={selectedDocIds.has(document.id) ? "row-selected" : ""}>
+                      <td className="library-table-check">
+                        <input type="checkbox" checked={selectedDocIds.has(document.id)} onChange={() => toggleDocSelection(document.id)} aria-label={text(`Chọn ${document.title}`, `Select ${document.title}`)} />
+                      </td>
+                      <td className="library-table-document">
+                        <div className="library-document-cell">
+                          <span className="document-type-icon"><DocumentIcon type={document.fileType} /></span>
+                          <span>
+                            <strong title={document.title}>{document.title}</strong>
+                            <small>{document.fileType} · {formatFileSize(document.fileSize)} · {document.visibility === "PRIVATE" ? text("riêng tư", "private") : text("công khai", "public")} · {document.moderationStatus === "APPROVED" ? text("đã duyệt", "approved") : document.moderationStatus === "REJECTED" ? text("bị từ chối", "rejected") : text("chờ duyệt", "pending review")}</small>
+                            {document.rejectionReason ? <small className="form-error">{document.rejectionReason}</small> : null}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="library-table-actions">
+                        <DocumentActions
+                          document={document}
+                          text={text}
+                          isRetrying={retryingDocumentIds.has(document.id)}
+                          onPreview={() => setPreviewDocument(document)}
+                          onDownload={() => void openObject(document, "download")}
+                          onRetry={() => void handleRetryExtraction(document)}
+                          onDelete={() => void handleDeleteSingleDocument(document.id)}
+                        />
+                      </td>
+                      <td className="library-table-ai"><span className={`index-status index-status--${document.indexStatus.toLowerCase()}`}>{getIndexStatusLabel(document.indexStatus)}</span></td>
+                      <td className="library-table-date">{new Date(document.uploadedAt).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US")}</td>
+                      <td className="library-table-taxonomy"><span className="library-taxonomy-cell"><strong>{document.subject}</strong><small>{document.category}</small></span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <section className="library-card-grid">{documents.map((document) => <article className={`library-document-card${selectedDocIds.has(document.id) ? " card-selected" : ""}`} key={document.id}>
               <div className="library-card-top">
@@ -769,7 +889,7 @@ export function LibraryView() {
               </div>
               <div><h2>{document.title}</h2><p>{document.description || text("Chưa có mô tả.", "No description yet.")}</p></div>
               <div className="library-card-meta"><span>{document.subject}</span><span>{document.category}</span><span>{formatFileSize(document.fileSize)}</span></div>
-              <DocumentActions document={document} text={text} onPreview={() => setPreviewDocument(document)} onDownload={() => void openObject(document, "download")} onDelete={() => void handleDeleteSingleDocument(document.id)} />
+              <DocumentActions document={document} text={text} isRetrying={retryingDocumentIds.has(document.id)} onPreview={() => setPreviewDocument(document)} onDownload={() => void openObject(document, "download")} onRetry={() => void handleRetryExtraction(document)} onDelete={() => void handleDeleteSingleDocument(document.id)} />
             </article>)}</section>
           )}
 
@@ -782,6 +902,41 @@ export function LibraryView() {
   );
 }
 
-function DocumentActions({ document, text, onPreview, onDownload, onDelete }: { document: LibraryDocument; text: (vi: string, en: string) => string; onPreview: () => void; onDownload: () => void; onDelete: () => void }) {
-  return <div className="document-actions"><button type="button" title={text("Xem", "View")} onClick={onPreview}><Eye size={16} /></button><button type="button" title={text("Tải xuống", "Download")} onClick={onDownload}><Download size={16} /></button>{document.indexStatus === "READY" ? <Link href={`${ROUTES.aiChat}?scope=document&document=${document.id}`} className="ask-document-action"><Bot size={16} />{text("Hỏi AI", "Ask AI")}</Link> : <button type="button" className="ask-document-action disabled" disabled><Bot size={16} />{text("Hỏi AI", "Ask AI")}</button>}<button type="button" className="delete-document-action" title={text("Xóa", "Delete")} onClick={onDelete}><Trash2 size={16} /></button></div>;
+function DocumentActions({
+  document,
+  text,
+  isRetrying,
+  onPreview,
+  onDownload,
+  onRetry,
+  onDelete,
+}: {
+  document: LibraryDocument;
+  text: (vi: string, en: string) => string;
+  isRetrying: boolean;
+  onPreview: () => void;
+  onDownload: () => void;
+  onRetry: () => void;
+  onDelete: () => void;
+}) {
+  const retryLabel = isRetrying
+    ? text("Đang chạy lại", "Retrying")
+    : text("Chạy lại AI", "Retry AI");
+
+  return (
+    <div className="document-actions">
+      <button type="button" title={text("Xem", "View")} aria-label={text(`Xem ${document.title}`, `View ${document.title}`)} onClick={onPreview}><Eye size={16} /></button>
+      <button type="button" title={text("Tải xuống", "Download")} aria-label={text(`Tải ${document.title}`, `Download ${document.title}`)} onClick={onDownload}><Download size={16} /></button>
+      {document.indexStatus === "READY" ? (
+        <Link href={`${ROUTES.aiChat}?scope=document&document=${document.id}`} className="ask-document-action"><Bot size={16} /><span>{text("Hỏi AI", "Ask AI")}</span></Link>
+      ) : document.indexStatus === "FAILED" || isRetrying ? (
+        <button type="button" className="ask-document-action retry-document-action" title={retryLabel} aria-label={`${retryLabel}: ${document.title}`} onClick={onRetry} disabled={isRetrying}>
+          <RefreshCw size={16} className={isRetrying ? "spin" : ""} /><span>{retryLabel}</span>
+        </button>
+      ) : (
+        <button type="button" className="ask-document-action disabled" disabled><Bot size={16} /><span>{text("Hỏi AI", "Ask AI")}</span></button>
+      )}
+      <button type="button" className="delete-document-action" title={text("Xóa", "Delete")} aria-label={text(`Xóa ${document.title}`, `Delete ${document.title}`)} onClick={onDelete}><Trash2 size={16} /></button>
+    </div>
+  );
 }

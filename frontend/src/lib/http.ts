@@ -1,5 +1,5 @@
 import { getFirebaseAuth } from './firebase'
-import { clearStoredAuthToken, getStoredAuthToken, notifyUnauthorized, setStoredAuthToken } from './auth-token'
+import { clearStoredAuthToken, notifyUnauthorized } from './auth-token'
 
 export function normalizeApiBaseUrl(value: string) {
   const baseUrl = value.replace(/\/+$/, '')
@@ -14,11 +14,9 @@ export const API_BASE_URL = '/api'
 export async function getApiAuthorizationToken() {
   const firebaseAuth = getFirebaseAuth()
   if (firebaseAuth.currentUser) {
-    const token = await firebaseAuth.currentUser.getIdToken()
-    setStoredAuthToken(token)
-    return token
+    return firebaseAuth.currentUser.getIdToken()
   }
-  return getStoredAuthToken()
+  return null
 }
 
 type RequestOptions = Omit<RequestInit, 'body'> & {

@@ -1266,7 +1266,7 @@
 }
 
 .library-table-wrap {
-  overflow-x: auto;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -1276,14 +1276,34 @@
 .library-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 900px;
+  table-layout: fixed;
 }
 
 .library-table th,
 .library-table td {
   border-bottom: 1px solid var(--border);
-  padding: 14px 16px;
+  padding: 11px 10px;
   text-align: left;
+}
+
+.library-table-document {
+  width: 29%;
+}
+
+.library-table-actions {
+  width: 218px;
+}
+
+.library-table-ai {
+  width: 108px;
+}
+
+.library-table-date {
+  width: 104px;
+}
+
+.library-table-taxonomy {
+  width: auto;
 }
 
 .library-table th {
@@ -1319,10 +1339,13 @@
 }
 
 .library-document-cell strong {
+  display: -webkit-box;
   overflow: hidden;
   color: var(--ink);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .library-document-cell small,
@@ -1332,9 +1355,9 @@
 
 .document-type-icon {
   display: grid;
-  flex: 0 0 38px;
-  width: 38px;
-  height: 38px;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border-radius: 10px;
   color: var(--amber-dark);
@@ -1374,8 +1397,8 @@
 
 .document-actions > button {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border: 1px solid var(--border);
   border-radius: 9px;
@@ -1394,10 +1417,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 36px;
+  height: 34px;
   border: 1px solid #f1c589;
   border-radius: 9px;
-  padding: 0 10px;
+  padding: 0 8px;
   color: var(--amber-dark);
   background: var(--amber-soft);
   font-size: 0.85rem;
@@ -1415,11 +1438,23 @@
   pointer-events: none;
 }
 
+.retry-document-action {
+  width: auto !important;
+  color: var(--danger) !important;
+  border-color: #fecaca !important;
+  background: var(--danger-soft) !important;
+}
+
+.retry-document-action:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 /* Delete document button in actions */
 .delete-document-action {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border: 1px solid var(--border);
   border-radius: 9px;
@@ -1436,8 +1471,8 @@
 
 /* Checkbox column in table */
 .library-table-check {
-  width: 40px;
-  padding: 14px 8px 14px 16px !important;
+  width: 38px;
+  padding: 11px 6px 11px 12px !important;
 }
 
 .library-table-check input[type="checkbox"] {
@@ -5383,16 +5418,18 @@
 }
 
 .selected-file-copy strong,
-.upload-summary-list dd {
+.upload-summary-list dd span {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .selected-file-copy strong {
-  display: block;
+  display: -webkit-box;
   max-width: 100%;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .file-valid {
@@ -5475,6 +5512,13 @@
   font-size: 0.78rem;
   font-weight: 800;
   text-align: right;
+}
+
+.upload-summary-list dd span {
+  display: -webkit-box;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .upload-summary-list dd.ready svg {
@@ -6066,6 +6110,15 @@
 }
 
 @media (max-width: 1100px) {
+  .upload-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .upload-main,
+  .upload-side {
+    min-width: 0;
+  }
+
   .upload-side--sticky,
   .library-folder-panel {
     position: static;
@@ -6124,6 +6177,152 @@
 }
 
 @media (max-width: 720px) {
+  .library-table-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .library-table,
+  .library-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .library-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .library-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .library-table tbody tr {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "check document document"
+      "check actions actions"
+      "check ai date"
+      "check taxonomy taxonomy";
+    gap: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .library-table th,
+  .library-table td {
+    width: auto;
+    border: 0;
+    padding: 0;
+  }
+
+  .library-table-check {
+    grid-area: check;
+    width: auto;
+    padding: 3px 0 0 !important;
+  }
+
+  .library-table-document {
+    grid-area: document;
+  }
+
+  .library-table-actions {
+    grid-area: actions;
+    align-self: start;
+    justify-self: start;
+  }
+
+  .library-table-ai {
+    grid-area: ai;
+  }
+
+  .library-table-date {
+    grid-area: date;
+    align-self: center;
+    color: var(--subtle);
+    font-size: 0.75rem !important;
+    text-align: right !important;
+  }
+
+  .library-table-taxonomy {
+    grid-area: taxonomy;
+    border-top: 1px solid var(--border) !important;
+    padding-top: 9px !important;
+  }
+
+  .library-document-cell {
+    align-items: flex-start;
+  }
+
+  .library-document-cell small {
+    display: -webkit-box;
+    overflow: hidden;
+    line-height: 1.25;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .library-table .document-actions {
+    gap: 5px;
+  }
+
+  .library-table .document-actions > button,
+  .library-table .ask-document-action {
+    min-width: 40px;
+    height: 40px;
+  }
+
+  .library-table .document-actions > button {
+    width: 40px;
+  }
+
+  .library-table .ask-document-action span {
+    display: none;
+  }
+
+  .library-table .ask-document-action {
+    width: 40px !important;
+    padding: 0;
+  }
+
+  .library-taxonomy-cell {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .library-taxonomy-cell strong,
+  .library-taxonomy-cell small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .upload-workspace {
+    gap: 14px;
+  }
+
+  .upload-side {
+    gap: 14px;
+  }
+
+  .upload-dropzone.selected {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
   .visibility-options--cards {
     grid-template-columns: 1fr;
   }
@@ -6135,6 +6334,17 @@
 
   .upload-section-card {
     padding: 18px;
+  }
+
+  .upload-summary-card,
+  .upload-progress-stack,
+  .upload-error-card {
+    padding: 16px;
+  }
+
+  .upload-summary-list > div {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 8px;
   }
 
   .folder-quick-add {

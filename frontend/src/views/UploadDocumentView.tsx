@@ -47,6 +47,8 @@ import { ROUTES } from "../lib/routes";
 
 type UploadPhase = "idle" | "uploading" | "extracting" | "success" | "error";
 
+const MAX_DOCUMENT_TITLE_LENGTH = 120;
+
 const wait = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
@@ -164,7 +166,13 @@ export function UploadDocumentView() {
     setInvalidFileName("");
     setFileError("");
     setErrorMessage("");
-    if (!title.trim()) setTitle(nextFile.name.replace(/\.[^.]+$/, ""));
+    if (!title.trim()) {
+      setTitle(
+        nextFile.name
+          .replace(/\.[^.]+$/, "")
+          .slice(0, MAX_DOCUMENT_TITLE_LENGTH),
+      );
+    }
   }
 
   function clearFile() {
@@ -366,7 +374,7 @@ export function UploadDocumentView() {
                 <>
                   <span className="upload-file-icon"><FileText size={24} /></span>
                   <div className="selected-file-copy">
-                    <strong>{file.name}</strong>
+                    <strong title={file.name}>{file.name}</strong>
                     <p>{file.name.split(".").pop()?.toUpperCase()} · {formatFileSize(file.size)}</p>
                     <span className="file-valid"><CheckCircle2 size={14} /> {text("Tệp hợp lệ", "Valid file")}</span>
                   </div>
@@ -396,7 +404,7 @@ export function UploadDocumentView() {
           <div className="upload-form-section upload-section-card">
             <SectionHeading number="02" title={text("Thông tin tài liệu", "Document information")} />
             <div className="upload-form-grid">
-              <label className="full-field">{text("Tiêu đề", "Title")}<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={200} required disabled={isBusy} /></label>
+              <label className="full-field">{text("Tiêu đề", "Title")}<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={MAX_DOCUMENT_TITLE_LENGTH} required disabled={isBusy} /></label>
               <label className="full-field">{text("Mô tả", "Description")}<textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={4} maxLength={2000} disabled={isBusy} /></label>
             </div>
           </div>
@@ -492,7 +500,7 @@ function QuickTaxonomyField({ label, adding, setAdding, value, setValue, options
 }
 
 function SummaryRow({ label, value, ready }: { label: string; value: string; ready: boolean }) {
-  return <div><dt>{label}</dt><dd className={ready ? "ready" : ""}>{value}{ready ? <CheckCircle2 size={14} /> : null}</dd></div>;
+  return <div><dt>{label}</dt><dd className={ready ? "ready" : ""} title={value}><span>{value}</span>{ready ? <CheckCircle2 size={14} /> : null}</dd></div>;
 }
 
 function Progress({ label, value, active }: { label: string; value: number; active: boolean }) {

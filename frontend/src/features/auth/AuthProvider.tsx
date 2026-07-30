@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { onIdTokenChanged, signInWithPopup, signOut } from "firebase/auth";
 import * as authApi from "../../api/auth.api";
 import * as profileApi from "../../api/profile.api";
-import { clearStoredAuthToken, setStoredAuthToken } from "../../lib/auth-token";
+import { clearStoredAuthToken } from "../../lib/auth-token";
 import { getFirebaseAuth, getGoogleAuthProvider } from "../../lib/firebase";
 import {
   clearPendingGoogleRegistration,
@@ -42,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const firebaseAuth = getFirebaseAuth();
+    clearStoredAuthToken();
     const unsubscribe = onIdTokenChanged(firebaseAuth, async (firebaseUser) => {
       setIsLoading(true);
 
@@ -54,7 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const idToken = await firebaseUser.getIdToken();
-        setStoredAuthToken(idToken);
         const currentUser = await authApi.loginWithFirebaseToken({ idToken });
         setUser(currentUser);
       } catch {
@@ -107,7 +107,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         googleAuthProvider,
       );
       const idToken = await credential.user.getIdToken();
-      setStoredAuthToken(idToken);
       try {
         const currentUser = await authApi.loginWithFirebaseToken({ idToken });
         clearPendingGoogleRegistration();
