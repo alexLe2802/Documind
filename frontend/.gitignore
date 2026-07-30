@@ -12,6 +12,7 @@ docs/
 dist
 dist-ssr
 .next
+.next-*/
 .tools/
 .env
 *.local

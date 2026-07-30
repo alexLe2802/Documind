@@ -1,22 +1,12 @@
 const AUTH_TOKEN_KEY = 'ai-study-hub.firebaseIdToken'
 
-function canUseStorage() {
-  return typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined'
-}
-
-export function getStoredAuthToken() {
-  if (!canUseStorage()) return null
-  return window.sessionStorage.getItem(AUTH_TOKEN_KEY)
-}
-
-export function setStoredAuthToken(token: string) {
-  if (!canUseStorage()) return
-  window.sessionStorage.setItem(AUTH_TOKEN_KEY, token)
-}
-
 export function clearStoredAuthToken() {
-  if (!canUseStorage()) return
-  window.sessionStorage.removeItem(AUTH_TOKEN_KEY)
+  if (typeof window === 'undefined') return
+
+  // Remove legacy copies written by older DocuMind builds. Firebase remains
+  // the sole owner of its authentication state.
+  window.sessionStorage?.removeItem(AUTH_TOKEN_KEY)
+  window.localStorage?.removeItem(AUTH_TOKEN_KEY)
 }
 
 export function notifyUnauthorized() {
