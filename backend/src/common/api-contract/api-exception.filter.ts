@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ApiErrorEnvelope } from './api-contract.types';
@@ -20,6 +21,8 @@ interface RequestWithId extends Request {
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(ApiExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
     const request = context.getRequest<RequestWithId>();
@@ -30,6 +33,16 @@ export class ApiExceptionFilter implements ExceptionFilter {
         : HttpStatus.INTERNAL_SERVER_ERROR;
     const payload = this.getPayload(exception);
     const requestId = request.requestId ?? 'unknown';
+
+    if (status >= 500) {
+      const message =
+        exception instanceof Error ? exception.message : String(exception);
+      const stack = exception instanceof Error ? exception.stack : undefined;
+      this.logger.error(
+        `[${requestId}] ${request.method} ${request.originalUrl}: ${message}`,
+        stack,
+      );
+    }
 
     const body: ApiErrorEnvelope = {
       success: false,
