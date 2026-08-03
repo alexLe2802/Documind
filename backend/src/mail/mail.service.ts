@@ -4,7 +4,9 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import nodemailer, { Transporter } from 'nodemailer';
+
+const RESEND_EMAIL_ENDPOINT = 'https://api.resend.com/emails';
+const EMAIL_REQUEST_TIMEOUT_MS = 15_000;
 
 export type SendMailInput = {
   from: string;
@@ -13,67 +15,50 @@ export type SendMailInput = {
   html: string;
 };
 
-type SmtpErrorDetails = {
-  code?: string;
-  command?: string;
-  responseCode?: number;
-  response?: string;
-  message: string;
-};
-
-export function getSmtpErrorDetails(error: unknown): SmtpErrorDetails {
-  if (typeof error !== 'object' || error === null) {
-    return { message: String(error) };
-  }
-
-  const smtpError = error as Record<string, unknown>;
-  return {
-    ...(typeof smtpError.code === 'string' && { code: smtpError.code }),
-    ...(typeof smtpError.command === 'string' && {
-      command: smtpError.command,
-    }),
-    ...(typeof smtpError.responseCode === 'number' && {
-      responseCode: smtpError.responseCode,
-    }),
-    ...(typeof smtpError.response === 'string' && {
-      response: smtpError.response,
-    }),
-    message:
-      typeof smtpError.message === 'string'
-        ? smtpError.message
-        : 'Unknown SMTP error',
-  };
-}
-
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly transporter?: Transporter;
+  private readonly apiKey?: string;
 
   constructor(private readonly config: ConfigService) {
-    if (!this.config.get<boolean>('SMTP_ENABLED')) return;
-
-    this.transporter = nodemailer.createTransport({
-      host: this.config.getOrThrow<string>('SMTP_HOST'),
-      port: this.config.getOrThrow<number>('SMTP_PORT'),
-      secure: this.config.getOrThrow<boolean>('SMTP_SECURE'),
-      auth: {
-        user: this.config.getOrThrow<string>('SMTP_USER'),
-        pass: this.config.getOrThrow<string>('SMTP_PASSWORD'),
-      },
-    });
+    this.apiKey = this.config.get<string>('RESEND_API_KEY')?.trim();
   }
 
   async send(input: SendMailInput): Promise<void> {
-    if (!this.transporter) {
+    if (!this.apiKey) {
       throw new ServiceUnavailableException('Email delivery is not configured');
     }
 
     try {
-      await this.transporter.sendMail(input);
-    } catch (error) {
+      const response = await fetch(RESEND_EMAIL_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'documind/1.0',
+        },
+        body: JSON.stringify(input),
+        signal: AbortSignal.timeout(EMAIL_REQUEST_TIMEOUT_MS),
+      });
+
+      if (response.ok) return;
+
+      const responseBody = (await response.text()).slice(0, 1_000);
       this.logger.error(
-        `SMTP delivery failed: ${JSON.stringify(getSmtpErrorDetails(error))}`,
+        `Resend delivery rejected: ${JSON.stringify({
+          status: response.status,
+          response: responseBody,
+        })}`,
+      );
+      throw new ServiceUnavailableException('Email delivery failed');
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
+
+      this.logger.error(
+        `Resend API request failed: ${JSON.stringify({
+          name: error instanceof Error ? error.name : 'UnknownError',
+          message: error instanceof Error ? error.message : String(error),
+        })}`,
       );
       throw new ServiceUnavailableException('Email delivery failed');
     }

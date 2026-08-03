@@ -81,24 +81,16 @@ and `/reset-password` on the frontend.
 
 ## Transactional authentication email
 
-Cloudflare DNS does not provide an SMTP server or create sender addresses.
-Choose a transactional email provider that supports a custom sending domain,
-verify `documind.icu` there, and copy its SMTP credentials to the backend:
+Cloudflare DNS does not create sender addresses. Verify `documind.icu` in
+Resend, create a sending API key, and configure the backend to use Resend's
+HTTPS API. HTTPS is required because free Render services block SMTP ports.
 
 ```env
-SMTP_ENABLED=true
-SMTP_HOST=<provider SMTP host>
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=<provider SMTP user>
-SMTP_PASSWORD=<provider SMTP password>
+RESEND_API_KEY=re_xxxxxxxxx
 AUTH_EMAIL_FRONTEND_URL=https://documind.icu
 REGISTRATION_EMAIL_FROM=registration@documind.icu
 RESET_PASSWORD_EMAIL_FROM=reset-password@documind.icu
 ```
-
-Port 587 normally uses `SMTP_SECURE=false` with STARTTLS. Port 465 normally
-uses `SMTP_SECURE=true`. Follow the provider's exact values.
 
 Add the provider's DKIM records in Cloudflare and merge its SPF requirement
 with the existing Firebase SPF record; a domain must not have two separate SPF
