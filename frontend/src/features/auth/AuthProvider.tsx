@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { onIdTokenChanged, signInWithPopup, signOut } from "firebase/auth";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { signInWithPopup, signOut } from "firebase/auth";
 import * as authApi from "../../api/auth.api";
 import * as profileApi from "../../api/profile.api";
 import { clearStoredAuthToken } from "../../lib/auth-token";
@@ -46,40 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const firebaseAuth = getFirebaseAuth();
     clearStoredAuthToken();
-    const restoreTimeout = window.setTimeout(() => {
-      hasResolvedInitialSession.current = true;
-      setIsLoading(false);
-    }, SESSION_RESTORE_TIMEOUT_MS);
-
-    const unsubscribe = onIdTokenChanged(firebaseAuth, async (firebaseUser) => {
-      const isInitialRestore = !hasResolvedInitialSession.current;
-      if (isInitialRestore) setIsLoading(true);
-
-      if (!firebaseUser) {
-        clearStoredAuthToken();
-        setUser(null);
-        hasResolvedInitialSession.current = true;
-        window.clearTimeout(restoreTimeout);
-        if (isInitialRestore) setIsLoading(false);
-        return;
-      }
-
-      try {
-        const idToken = await firebaseUser.getIdToken();
-        const currentUser = await authApi.loginWithFirebaseToken({ idToken });
-        setUser(currentUser);
-      } catch {
-        clearStoredAuthToken();
-        // A transient token refresh/backend failure must not blank an already
-        // authenticated workspace. Firebase will emit `null` if the session
-        // is actually signed out.
-        if (isInitialRestore) setUser(null);
-      } finally {
-        hasResolvedInitialSession.current = true;
-        window.clearTimeout(restoreTimeout);
-        if (isInitialRestore) setIsLoading(false);
-      }
-    });
+    void refreshUser();
 
     function handleUnauthorized() {
       clearStoredAuthToken();
@@ -90,14 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("ai-study-hub:unauthorized", handleUnauthorized);
 
     return () => {
-      window.clearTimeout(restoreTimeout);
-      unsubscribe();
       window.removeEventListener(
         "ai-study-hub:unauthorized",
         handleUnauthorized,
       );
     };
-  }, []);
+  }, [refreshUser]);
 
   const handleLogin = useCallback(async (payload: LoginPayload) => {
     const currentUser = await authApi.login(payload);
@@ -126,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const idToken = await credential.user.getIdToken();
       try {
         const currentUser = await authApi.loginWithFirebaseToken({ idToken });
+        await signOut(firebaseAuth);
         clearPendingGoogleRegistration();
         setPendingGoogleRegistration(null);
         setUser(currentUser);
@@ -160,8 +126,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearStoredAuthToken();
     clearPendingGoogleRegistration();
     setPendingGoogleRegistration(null);
-    await signOut(getFirebaseAuth());
-    setUser(null);
+    try {
+      await authApi.logout();
+    } finally {
+      await signOut(getFirebaseAuth());
+      setUser(null);
+    }
   }, []);
 
   const handleUpdateProfile = useCallback(

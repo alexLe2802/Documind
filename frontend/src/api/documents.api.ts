@@ -1,5 +1,5 @@
 import type { Locale } from '../i18n/translations'
-import { API_BASE_URL, ApiError, apiRequest, getApiAuthorizationToken } from '../lib/http'
+import { API_BASE_URL, ApiError, apiRequest } from '../lib/http'
 import type {
   DocumentIndexStatus,
   DocumentVisibility,
@@ -255,8 +255,6 @@ export async function uploadDocument(
   input: UploadDocumentInput,
   onProgress: (progress: number) => void,
 ): Promise<LibraryDocument> {
-  const token = await getApiAuthorizationToken()
-  if (!token) throw new ApiError('Authentication required', 401)
   const body = new FormData()
   body.append('file', input.file)
   body.append('title', input.title)
@@ -269,7 +267,7 @@ export async function uploadDocument(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${API_BASE_URL}/documents`)
-    xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.withCredentials = true
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100))
     }

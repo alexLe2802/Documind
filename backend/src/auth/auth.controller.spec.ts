@@ -1,11 +1,12 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
 describe('AuthController', () => {
   const authService = {
     firebaseLogin: jest.fn(),
+    createSessionCookie: jest.fn(),
     register: jest.fn(),
     getCurrentUser: jest.fn(),
   };
@@ -21,18 +22,39 @@ describe('AuthController', () => {
     } as Request;
   }
 
+  const response = {
+    cookie: jest.fn(),
+    clearCookie: jest.fn(),
+  } as unknown as Response;
+
   it('uses the Firebase ID token from the authorization header', async () => {
     authService.firebaseLogin.mockResolvedValue({ user: { id: 'user-1' } });
+    authService.createSessionCookie.mockResolvedValue('session-cookie');
 
     await controller.firebaseLogin(
       requestWithAuthorization('Bearer header-token'),
+      response,
     );
 
     expect(authService.firebaseLogin).toHaveBeenCalledWith('header-token');
+    expect(authService.createSessionCookie).toHaveBeenCalledWith(
+      'header-token',
+    );
+    expect(response.cookie).toHaveBeenCalledWith(
+      'documind_session',
+      'session-cookie',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'strict',
+        path: '/',
+      }),
+    );
   });
 
-  it('rejects login when no Firebase ID token is provided', () => {
-    expect(() => controller.firebaseLogin(requestWithAuthorization())).toThrow(
+  it('rejects login when no Firebase ID token is provided', async () => {
+    await expect(
+      controller.firebaseLogin(requestWithAuthorization(), response),
+    ).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
   });
@@ -49,6 +71,19 @@ describe('AuthController', () => {
     expect(authService.register).toHaveBeenCalledWith(
       'register-token',
       payload,
+    );
+  });
+
+  it('clears the secure session cookie on logout', () => {
+    controller.logout(response);
+
+    expect(response.clearCookie).toHaveBeenCalledWith(
+      'documind_session',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'strict',
+        path: '/',
+      }),
     );
   });
 });

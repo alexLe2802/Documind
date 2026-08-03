@@ -6,10 +6,11 @@ import {
   HttpStatus,
   Post,
   Req,
+  Res,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -26,6 +27,10 @@ import { FirebaseAuthGuard } from './guards/firebase-auth.guard';
 import { AuthLoginResponse, AuthMeResponse, AuthService } from './auth.service';
 import { AuthenticatedUser } from './auth.types';
 import { RegisterUserDto } from './dto/register-user.dto';
+import {
+  AUTH_SESSION_COOKIE_NAME,
+  getAuthSessionCookieOptions,
+} from './auth-session';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -43,13 +48,24 @@ export class AuthController {
     'Firebase token verified and user loaded.',
   )
   @ApiUnauthorizedResponse({ description: 'Invalid Firebase ID token.' })
-  firebaseLogin(@Req() request: Request): Promise<AuthLoginResponse> {
+  async firebaseLogin(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthLoginResponse> {
     const authorization = request.headers.authorization;
     const token = this.extractBearerToken(authorization);
     if (!token) {
       throw new UnauthorizedException('Missing Firebase bearer token');
     }
-    return this.authService.firebaseLogin(token);
+
+    const result = await this.authService.firebaseLogin(token);
+    const sessionCookie = await this.authService.createSessionCookie(token);
+    response.cookie(
+      AUTH_SESSION_COOKIE_NAME,
+      sessionCookie,
+      getAuthSessionCookieOptions(),
+    );
+    return result;
   }
 
   @Post('register')
@@ -87,6 +103,16 @@ export class AuthController {
   })
   me(@CurrentUser() user: AuthenticatedUser): Promise<AuthMeResponse> {
     return this.authService.getCurrentUser(user);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Clear the secure authentication session' })
+  logout(@Res({ passthrough: true }) response: Response): void {
+    response.clearCookie(AUTH_SESSION_COOKIE_NAME, {
+      ...getAuthSessionCookieOptions(),
+      maxAge: undefined,
+    });
   }
 
   private extractBearerToken(authorization?: string): string | undefined {
