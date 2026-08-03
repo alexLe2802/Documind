@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { onIdTokenChanged, signInWithPopup, signOut } from "firebase/auth";
 import * as authApi from "../../api/auth.api";
 import * as profileApi from "../../api/profile.api";
@@ -21,11 +21,14 @@ import type {
 } from "../../types/auth";
 import { AuthContext } from "./auth-context";
 
+const SESSION_RESTORE_TIMEOUT_MS = 8_000;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [pendingGoogleRegistration, setPendingGoogleRegistration] =
     useState<GoogleRegistrationProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const hasResolvedInitialSession = useRef(false);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -43,13 +46,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const firebaseAuth = getFirebaseAuth();
     clearStoredAuthToken();
+    const restoreTimeout = window.setTimeout(() => {
+      hasResolvedInitialSession.current = true;
+      setIsLoading(false);
+    }, SESSION_RESTORE_TIMEOUT_MS);
+
     const unsubscribe = onIdTokenChanged(firebaseAuth, async (firebaseUser) => {
-      setIsLoading(true);
+      const isInitialRestore = !hasResolvedInitialSession.current;
+      if (isInitialRestore) setIsLoading(true);
 
       if (!firebaseUser) {
         clearStoredAuthToken();
         setUser(null);
-        setIsLoading(false);
+        hasResolvedInitialSession.current = true;
+        window.clearTimeout(restoreTimeout);
+        if (isInitialRestore) setIsLoading(false);
         return;
       }
 
@@ -59,9 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(currentUser);
       } catch {
         clearStoredAuthToken();
-        setUser(null);
+        // A transient token refresh/backend failure must not blank an already
+        // authenticated workspace. Firebase will emit `null` if the session
+        // is actually signed out.
+        if (isInitialRestore) setUser(null);
       } finally {
-        setIsLoading(false);
+        hasResolvedInitialSession.current = true;
+        window.clearTimeout(restoreTimeout);
+        if (isInitialRestore) setIsLoading(false);
       }
     });
 
@@ -74,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("ai-study-hub:unauthorized", handleUnauthorized);
 
     return () => {
+      window.clearTimeout(restoreTimeout);
       unsubscribe();
       window.removeEventListener(
         "ai-study-hub:unauthorized",
