@@ -2,8 +2,10 @@ import { beforeEach, vi } from 'vitest'
 import {
   MAX_FILE_SIZE,
   fetchLibraryDocuments,
+  fetchExtractionStatus,
   getMissingUploadFields,
   mapApiDocument,
+  retryExtraction,
   validateDocumentFile,
 } from './documents.api'
 import { apiRequest } from '../lib/http'
@@ -100,5 +102,17 @@ describe('documents API helpers', () => {
     await fetchLibraryDocuments({ limit: 100 })
 
     expect(apiRequest).toHaveBeenCalledWith('/documents?ownerOnly=true&limit=100')
+  })
+
+  it('starts extraction again and reads progress from the status endpoint', async () => {
+    vi.mocked(apiRequest).mockResolvedValue({})
+
+    await retryExtraction('doc-id')
+    await fetchExtractionStatus('doc-id')
+
+    expect(apiRequest).toHaveBeenNthCalledWith(1, '/documents/doc-id/extract', {
+      method: 'POST',
+    })
+    expect(apiRequest).toHaveBeenNthCalledWith(2, '/documents/doc-id/extraction-status')
   })
 })

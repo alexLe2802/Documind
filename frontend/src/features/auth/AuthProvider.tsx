@@ -21,11 +21,14 @@ import type {
 } from "../../types/auth";
 import { AuthContext } from "./auth-context";
 
+const SESSION_RESTORE_TIMEOUT_MS = 8_000;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [pendingGoogleRegistration, setPendingGoogleRegistration] =
     useState<GoogleRegistrationProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const hasResolvedInitialSession = useRef(false);
 
   const refreshUser = useCallback(async () => {
     try {
