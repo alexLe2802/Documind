@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app'
-import { browserLocalPersistence, getAuth, GoogleAuthProvider, setPersistence, type Auth } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider, inMemoryPersistence, setPersistence, type Auth } from 'firebase/auth'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
 const firebaseEnvironment = {
@@ -47,7 +47,9 @@ export function getFirebaseApp(): FirebaseApp {
 export function getFirebaseAuth(): Auth {
   if (!firebaseAuth) {
     firebaseAuth = getAuth(getFirebaseApp())
-    void setPersistence(firebaseAuth, browserLocalPersistence)
+    // The backend owns the durable session in an HttpOnly cookie. Firebase is
+    // kept in memory only for the short login/registration exchange.
+    void setPersistence(firebaseAuth, inMemoryPersistence)
   }
   return firebaseAuth
 }

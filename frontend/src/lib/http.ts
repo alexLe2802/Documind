@@ -1,4 +1,3 @@
-import { getFirebaseAuth } from './firebase'
 import { clearStoredAuthToken, notifyUnauthorized } from './auth-token'
 
 export function normalizeApiBaseUrl(value: string) {
@@ -10,14 +9,6 @@ export function normalizeApiBaseUrl(value: string) {
 // configured backend, so transient upstream responses cannot be hidden by the
 // browser as CORS failures.
 export const API_BASE_URL = '/api'
-
-export async function getApiAuthorizationToken() {
-  const firebaseAuth = getFirebaseAuth()
-  if (firebaseAuth.currentUser) {
-    return firebaseAuth.currentUser.getIdToken()
-  }
-  return null
-}
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: BodyInit | Record<string, unknown> | null
@@ -57,12 +48,6 @@ export class ApiError extends Error {
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers)
   let body = options.body
-  if (!headers.has('Authorization')) {
-    const token = await getApiAuthorizationToken()
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`)
-    }
-  }
 
   if (body && !(body instanceof FormData) && typeof body !== 'string') {
     headers.set('Content-Type', 'application/json')

@@ -20,6 +20,7 @@ describe('AuthService', () => {
   };
   const firebaseAuth = {
     verifyIdToken: jest.fn(),
+    createSessionCookie: jest.fn(),
     updateUser: jest.fn(),
   };
   const prisma = {

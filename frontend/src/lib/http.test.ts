@@ -1,20 +1,13 @@
-import { getFirebaseAuth } from './firebase'
 import {
   clearStoredAuthToken,
   notifyUnauthorized,
 } from './auth-token'
 import { API_BASE_URL, apiRequest, normalizeApiBaseUrl } from './http'
 
-vi.mock('./firebase', () => ({
-  getFirebaseAuth: vi.fn(),
-}))
-
 vi.mock('./auth-token', () => ({
   clearStoredAuthToken: vi.fn(),
   notifyUnauthorized: vi.fn(),
 }))
-
-const mockedGetFirebaseAuth = vi.mocked(getFirebaseAuth)
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -26,9 +19,6 @@ function jsonResponse(body: unknown, status = 200) {
 describe('apiRequest', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockedGetFirebaseAuth.mockReturnValue({ currentUser: null } as ReturnType<
-      typeof getFirebaseAuth
-    >)
     vi.stubGlobal('fetch', vi.fn())
   })
 
@@ -36,11 +26,7 @@ describe('apiRequest', () => {
     vi.unstubAllGlobals()
   })
 
-  it('attaches a fresh Firebase ID token and unwraps the shared response', async () => {
-    const getIdToken = vi.fn().mockResolvedValue('fresh-token')
-    mockedGetFirebaseAuth.mockReturnValue({
-      currentUser: { getIdToken },
-    } as unknown as ReturnType<typeof getFirebaseAuth>)
+  it('uses the HttpOnly session cookie and unwraps the shared response', async () => {
     vi.mocked(fetch).mockResolvedValue(
       jsonResponse({
         success: true,
@@ -55,10 +41,11 @@ describe('apiRequest', () => {
 
     const [, request] = vi.mocked(fetch).mock.calls[0]
     const headers = new Headers(request?.headers)
-    expect(headers.get('Authorization')).toBe('Bearer fresh-token')
+    expect(headers.has('Authorization')).toBe(false)
+    expect(request?.credentials).toBe('include')
   })
 
-  it('does not attach a bearer token when Firebase has no active user', async () => {
+  it('does not attach a bearer token to protected API requests', async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse({ success: true, data: [] }))
 
     await apiRequest('/admin/users')

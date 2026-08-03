@@ -94,7 +94,9 @@ export async function login(payload: LoginPayload) {
     // Get fresh token after reload to ensure it reflects current emailVerified
     const idToken = await refreshedUser.getIdToken(true);
 
-    return loginWithFirebaseToken({ idToken });
+    const currentUser = await loginWithFirebaseToken({ idToken });
+    await signOut(firebaseAuth);
+    return currentUser;
   } catch (error) {
     throw normalizeAuthError(error);
   }
@@ -113,6 +115,10 @@ export function getCurrentUser() {
   return apiRequest<AuthMeResponse>("/auth/me").then(
     (response) => response.user,
   );
+}
+
+export function logout() {
+  return apiRequest<void>("/auth/logout", { method: "POST" });
 }
 
 export function forgotPassword(email: string) {

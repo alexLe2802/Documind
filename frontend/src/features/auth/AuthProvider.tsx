@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { onIdTokenChanged, signInWithPopup, signOut } from "firebase/auth";
+import { signInWithPopup, signOut } from "firebase/auth";
 import * as authApi from "../../api/auth.api";
 import * as profileApi from "../../api/profile.api";
 import { clearStoredAuthToken } from "../../lib/auth-token";
@@ -43,27 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const firebaseAuth = getFirebaseAuth();
     clearStoredAuthToken();
-    const unsubscribe = onIdTokenChanged(firebaseAuth, async (firebaseUser) => {
-      setIsLoading(true);
-
-      if (!firebaseUser) {
-        clearStoredAuthToken();
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const idToken = await firebaseUser.getIdToken();
-        const currentUser = await authApi.loginWithFirebaseToken({ idToken });
-        setUser(currentUser);
-      } catch {
-        clearStoredAuthToken();
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    });
+    void refreshUser();
 
     function handleUnauthorized() {
       clearStoredAuthToken();
@@ -74,13 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("ai-study-hub:unauthorized", handleUnauthorized);
 
     return () => {
-      unsubscribe();
       window.removeEventListener(
         "ai-study-hub:unauthorized",
         handleUnauthorized,
       );
     };
-  }, []);
+  }, [refreshUser]);
 
   const handleLogin = useCallback(async (payload: LoginPayload) => {
     const currentUser = await authApi.login(payload);
@@ -109,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const idToken = await credential.user.getIdToken();
       try {
         const currentUser = await authApi.loginWithFirebaseToken({ idToken });
+        await signOut(firebaseAuth);
         clearPendingGoogleRegistration();
         setPendingGoogleRegistration(null);
         setUser(currentUser);
@@ -143,8 +123,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearStoredAuthToken();
     clearPendingGoogleRegistration();
     setPendingGoogleRegistration(null);
-    await signOut(getFirebaseAuth());
-    setUser(null);
+    try {
+      await authApi.logout();
+    } finally {
+      await signOut(getFirebaseAuth());
+      setUser(null);
+    }
   }, []);
 
   const handleUpdateProfile = useCallback(

@@ -16,6 +16,7 @@ import { FIREBASE_AUTH } from '../firebase/firebase.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from './auth.types';
 import { RegisterUserDto } from './dto/register-user.dto';
+import { AUTH_SESSION_DURATION_MS } from './auth-session';
 
 export type CurrentUserResponse = {
   id: string;
@@ -93,6 +94,18 @@ export class AuthService {
 
     await this.createAuditLog(user.id, 'auth.firebase_login');
     return this.toAuthLoginResponse(user, false);
+  }
+
+  async createSessionCookie(idToken: string): Promise<string> {
+    try {
+      return await this.firebaseAuth.createSessionCookie(idToken, {
+        expiresIn: AUTH_SESSION_DURATION_MS,
+      });
+    } catch {
+      throw new UnauthorizedException(
+        'Could not create a secure authentication session',
+      );
+    }
   }
 
   async register(
