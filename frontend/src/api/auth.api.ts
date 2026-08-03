@@ -5,8 +5,6 @@ import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   linkWithCredential,
-  sendEmailVerification,
-  sendPasswordResetEmail,
   signOut,
   signInWithEmailAndPassword,
   updateProfile,
@@ -14,7 +12,6 @@ import {
 } from "firebase/auth";
 import { apiRequest } from "../lib/http";
 import { getFirebaseAuth } from "../lib/firebase";
-import { ROUTES } from "../lib/routes";
 import type {
   CurrentUser,
   GoogleLoginPayload,
@@ -68,11 +65,6 @@ export async function register(payload: RegisterPayload) {
     },
   });
 
-  await sendEmailVerification(credential.user, {
-    // Firebase's hosted handler consumes the code before redirecting here.
-    url: `${window.location.origin}${ROUTES.verifyEmail}?verified=true`,
-    handleCodeInApp: false,
-  });
   await signOut(firebaseAuth);
 }
 
@@ -122,8 +114,9 @@ export function logout() {
 }
 
 export function forgotPassword(email: string) {
-  return sendPasswordResetEmail(getFirebaseAuth(), email, {
-    url: `${window.location.origin}${ROUTES.login}?reset=success`,
+  return apiRequest<void>('/auth/forgot-password', {
+    method: 'POST',
+    body: { email },
   });
 }
 

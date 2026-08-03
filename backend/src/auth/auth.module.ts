@@ -5,9 +5,10 @@ import { AuthService } from './auth.service';
 import { FirebaseAuthGuard } from './guards/firebase-auth.guard';
 import { OptionalFirebaseAuthGuard } from './guards/optional-firebase-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
-  imports: [forwardRef(() => AuditLogModule)],
+  imports: [forwardRef(() => AuditLogModule), MailModule],
   controllers: [AuthController],
   providers: [
     AuthService,
