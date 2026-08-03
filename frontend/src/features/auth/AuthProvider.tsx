@@ -28,7 +28,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pendingGoogleRegistration, setPendingGoogleRegistration] =
     useState<GoogleRegistrationProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const hasResolvedInitialSession = useRef(false);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -46,7 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const firebaseAuth = getFirebaseAuth();
     clearStoredAuthToken();
-    void refreshUser();
+    const restoreTimeout = window.setTimeout(
+      () => setIsLoading(false),
+      SESSION_RESTORE_TIMEOUT_MS,
+    );
+    void refreshUser().finally(() => window.clearTimeout(restoreTimeout));
 
     function handleUnauthorized() {
       clearStoredAuthToken();
@@ -57,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("ai-study-hub:unauthorized", handleUnauthorized);
 
     return () => {
+      window.clearTimeout(restoreTimeout);
       window.removeEventListener(
         "ai-study-hub:unauthorized",
         handleUnauthorized,

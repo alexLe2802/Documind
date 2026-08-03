@@ -22,9 +22,11 @@ describe('AuthController', () => {
     } as Request;
   }
 
+  const cookie = jest.fn();
+  const clearCookie = jest.fn();
   const response = {
-    cookie: jest.fn(),
-    clearCookie: jest.fn(),
+    cookie,
+    clearCookie,
   } as unknown as Response;
 
   it('uses the Firebase ID token from the authorization header', async () => {
@@ -40,7 +42,7 @@ describe('AuthController', () => {
     expect(authService.createSessionCookie).toHaveBeenCalledWith(
       'header-token',
     );
-    expect(response.cookie).toHaveBeenCalledWith(
+    expect(cookie).toHaveBeenCalledWith(
       'documind_session',
       'session-cookie',
       expect.objectContaining({
@@ -77,7 +79,7 @@ describe('AuthController', () => {
   it('clears the secure session cookie on logout', () => {
     controller.logout(response);
 
-    expect(response.clearCookie).toHaveBeenCalledWith(
+    expect(clearCookie).toHaveBeenCalledWith(
       'documind_session',
       expect.objectContaining({
         httpOnly: true,
