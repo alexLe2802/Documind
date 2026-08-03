@@ -35,6 +35,7 @@ import {
   deleteDocument,
   fetchCategories,
   fetchDocument,
+  fetchExtractionStatus,
   fetchLibraryDocuments,
   fetchSubjects,
   formatFileSize,
@@ -54,7 +55,7 @@ import { ROUTES } from "../lib/routes";
 
 const PAGE_SIZE = 12;
 const EXTRACTION_POLL_INTERVAL_MS = 2_000;
-const EXTRACTION_POLL_ATTEMPTS = 45;
+const EXTRACTION_POLL_ATTEMPTS = 150;
 
 const wait = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -115,7 +116,7 @@ export function LibraryView() {
   const [visibility, setVisibility] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [page, setPage] = useState(1);
-  const [view, setView] = useState<"table" | "grid">("table");
+  const [view, setView] = useState<"table" | "grid">("grid");
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -550,23 +551,25 @@ export function LibraryView() {
 
     let retryStarted = false;
     try {
-      await retryExtraction(document.id);
+      const retryJob = await retryExtraction(document.id);
       retryStarted = true;
 
       for (let attempt = 0; attempt < EXTRACTION_POLL_ATTEMPTS; attempt += 1) {
         await wait(EXTRACTION_POLL_INTERVAL_MS);
-        const refreshedDocument = await fetchDocument(document.id);
-        setDocuments((current) =>
-          current.map((item) =>
-            item.id === document.id ? refreshedDocument : item,
-          ),
-        );
+        const status = await fetchExtractionStatus(document.id);
 
-        if (
-          refreshedDocument.indexStatus === "READY" ||
-          refreshedDocument.indexStatus === "FAILED"
-        ) {
+        // Ignore a stale response from an older extraction attempt.
+        if (status.jobId !== retryJob.jobId) continue;
+
+        if (status.extractionStatus === "COMPLETED" || status.extractionStatus === "MOCKED") {
+          const refreshedDocument = await fetchDocument(document.id);
+          setDocuments((current) => current.map((item) => item.id === document.id ? refreshedDocument : item));
           return;
+        }
+
+        if (status.extractionStatus === "FAILED") {
+          setDocuments((current) => current.map((item) => item.id === document.id ? { ...item, indexStatus: "FAILED" } : item));
+          throw new Error(status.errorMessage || text("AI không thể đọc nội dung tài liệu này. Vui lòng kiểm tra tệp rồi thử lại.", "AI could not read this document. Check the file and try again."));
         }
       }
 
