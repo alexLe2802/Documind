@@ -1,4 +1,8 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { Transporter } from 'nodemailer';
 
@@ -9,8 +13,41 @@ export type SendMailInput = {
   html: string;
 };
 
+type SmtpErrorDetails = {
+  code?: string;
+  command?: string;
+  responseCode?: number;
+  response?: string;
+  message: string;
+};
+
+export function getSmtpErrorDetails(error: unknown): SmtpErrorDetails {
+  if (typeof error !== 'object' || error === null) {
+    return { message: String(error) };
+  }
+
+  const smtpError = error as Record<string, unknown>;
+  return {
+    ...(typeof smtpError.code === 'string' && { code: smtpError.code }),
+    ...(typeof smtpError.command === 'string' && {
+      command: smtpError.command,
+    }),
+    ...(typeof smtpError.responseCode === 'number' && {
+      responseCode: smtpError.responseCode,
+    }),
+    ...(typeof smtpError.response === 'string' && {
+      response: smtpError.response,
+    }),
+    message:
+      typeof smtpError.message === 'string'
+        ? smtpError.message
+        : 'Unknown SMTP error',
+  };
+}
+
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
   private readonly transporter?: Transporter;
 
   constructor(private readonly config: ConfigService) {
@@ -34,7 +71,10 @@ export class MailService {
 
     try {
       await this.transporter.sendMail(input);
-    } catch {
+    } catch (error) {
+      this.logger.error(
+        `SMTP delivery failed: ${JSON.stringify(getSmtpErrorDetails(error))}`,
+      );
       throw new ServiceUnavailableException('Email delivery failed');
     }
   }
