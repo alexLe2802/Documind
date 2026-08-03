@@ -37,10 +37,15 @@ describe('AuthService', () => {
   const auditLogService = {
     create: jest.fn(),
   };
+  const authEmailService = {
+    sendRegistrationEmail: jest.fn(),
+    sendPasswordResetEmail: jest.fn(),
+  };
   const service = new AuthService(
     firebaseAuth as never,
     prisma as unknown as PrismaService,
     auditLogService as never,
+    authEmailService as never,
   );
 
   beforeEach(() => {
@@ -184,7 +189,46 @@ describe('AuthService', () => {
       targetType: 'User',
       targetId: baseUser.id,
     });
+    expect(authEmailService.sendRegistrationEmail).toHaveBeenCalledWith(
+      'google@example.com',
+      'Google Student',
+    );
     expect(result.isNewUser).toBe(true);
+  });
+
+  it('resends verification for an existing inactive registration', async () => {
+    firebaseAuth.verifyIdToken.mockResolvedValue({
+      uid: baseUser.firebaseUid,
+      email: baseUser.email,
+      email_verified: false,
+      firebase: { sign_in_provider: 'password', identities: {} },
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      ...baseUser,
+      status: UserStatus.INACTIVE,
+    });
+    prisma.user.update.mockResolvedValue({
+      ...baseUser,
+      status: UserStatus.INACTIVE,
+    });
+
+    await service.register('token', {
+      fullName: 'Student Updated',
+      acceptedTerms: true,
+    });
+
+    expect(authEmailService.sendRegistrationEmail).toHaveBeenCalledWith(
+      baseUser.email,
+      'Student Updated',
+    );
+  });
+
+  it('delegates password-reset delivery to the auth email service', async () => {
+    await service.forgotPassword('student@example.com');
+
+    expect(authEmailService.sendPasswordResetEmail).toHaveBeenCalledWith(
+      'student@example.com',
+    );
   });
 
   it('requires acceptance of the terms before registration', async () => {

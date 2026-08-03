@@ -14,6 +14,7 @@ import {
 } from '../generated/prisma/client';
 import { FIREBASE_AUTH } from '../firebase/firebase.constants';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthEmailService } from '../mail/auth-email.service';
 import { AuthenticatedUser } from './auth.types';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { AUTH_SESSION_DURATION_MS } from './auth-session';
@@ -67,6 +68,7 @@ export class AuthService {
     @Inject(FIREBASE_AUTH) private readonly firebaseAuth: Auth,
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
+    private readonly authEmailService: AuthEmailService,
   ) {}
 
   async firebaseLogin(idToken: string): Promise<AuthLoginResponse> {
@@ -140,6 +142,10 @@ export class AuthService {
           },
           select: AUTH_USER_SELECT,
         });
+        await this.authEmailService.sendRegistrationEmail(
+          email,
+          payload.fullName.trim(),
+        );
         return this.toAuthLoginResponse(pendingUser, false);
       }
       throw new ForbiddenException('Account is already registered');
@@ -178,7 +184,15 @@ export class AuthService {
     });
 
     await this.createAuditLog(user.id, 'auth.registration_pending');
+    await this.authEmailService.sendRegistrationEmail(
+      email,
+      payload.fullName.trim(),
+    );
     return this.toAuthLoginResponse(user, true);
+  }
+
+  forgotPassword(email: string): Promise<void> {
+    return this.authEmailService.sendPasswordResetEmail(email);
   }
 
   async getCurrentUser(

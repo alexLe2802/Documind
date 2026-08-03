@@ -27,6 +27,7 @@ import { FirebaseAuthGuard } from './guards/firebase-auth.guard';
 import { AuthLoginResponse, AuthMeResponse, AuthService } from './auth.service';
 import { AuthenticatedUser } from './auth.types';
 import { RegisterUserDto } from './dto/register-user.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import {
   AUTH_SESSION_COOKIE_NAME,
   getAuthSessionCookieOptions,
@@ -88,6 +89,13 @@ export class AuthController {
       throw new UnauthorizedException('Missing Firebase bearer token');
     }
     return this.authService.register(token, payload);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Send a custom password-reset email' })
+  forgotPassword(@Body() payload: ForgotPasswordDto): Promise<void> {
+    return this.authService.forgotPassword(payload.email);
   }
 
   @Get('me')

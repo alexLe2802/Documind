@@ -8,6 +8,7 @@ describe('AuthController', () => {
     firebaseLogin: jest.fn(),
     createSessionCookie: jest.fn(),
     register: jest.fn(),
+    forgotPassword: jest.fn(),
     getCurrentUser: jest.fn(),
   };
   const controller = new AuthController(authService as unknown as AuthService);
@@ -56,9 +57,7 @@ describe('AuthController', () => {
   it('rejects login when no Firebase ID token is provided', async () => {
     await expect(
       controller.firebaseLogin(requestWithAuthorization(), response),
-    ).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('registers with the Firebase token and validated form data', async () => {
@@ -73,6 +72,16 @@ describe('AuthController', () => {
     expect(authService.register).toHaveBeenCalledWith(
       'register-token',
       payload,
+    );
+  });
+
+  it('accepts a password-reset request without exposing account state', async () => {
+    authService.forgotPassword.mockResolvedValue(undefined);
+
+    await controller.forgotPassword({ email: 'student@example.com' });
+
+    expect(authService.forgotPassword).toHaveBeenCalledWith(
+      'student@example.com',
     );
   });
 
