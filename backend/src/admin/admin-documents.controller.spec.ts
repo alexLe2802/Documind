@@ -23,11 +23,13 @@ describe('AdminDocumentsController', () => {
   const storageService = {
     createObjectPreviewUrl: jest.fn(),
   };
+  const notifications = { create: jest.fn() };
 
   const controller = new AdminDocumentsController(
     prisma as never,
     auditLogService as never,
     storageService as never,
+    notifications as never,
   );
 
   beforeEach(() => {
@@ -320,7 +322,7 @@ describe('AdminDocumentsController', () => {
     ).rejects.toThrow('Document not found');
     expect(prisma.document.findUnique).toHaveBeenCalledWith({
       where: { id: 'doc-1', visibility: DocumentVisibility.PUBLIC },
-      select: { id: true },
+      select: { id: true, ownerId: true, title: true },
     });
     expect(prisma.document.update).not.toHaveBeenCalled();
   });

@@ -9,6 +9,7 @@ import { StorageModule } from '../storage/storage.module';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { OfficePreviewService } from './office-preview.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { OfficePreviewService } from './office-preview.service';
     ContentExtractionModule,
     DownloadLogModule,
     AuditLogModule,
+    NotificationsModule,
   ],
   controllers: [DocumentsController],
   providers: [DocumentsService, OfficePreviewService],

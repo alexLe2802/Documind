@@ -28,6 +28,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentListQueryDto } from './dto/document-list-query.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { OfficePreviewService } from './office-preview.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const documentInclude = {
   owner: {
@@ -78,6 +79,7 @@ export class DocumentsService {
     private readonly downloadLogService: DownloadLogService,
     private readonly auditLogService: AuditLogService,
     private readonly officePreview: OfficePreviewService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async upload(
@@ -140,6 +142,13 @@ export class DocumentsService {
       title: document.title,
       fileName: document.fileName,
       visibility: document.visibility,
+    });
+    await this.notifications.create({
+      userId: ownerId,
+      type: 'DOCUMENT_UPLOADED',
+      title: 'Tải tài liệu thành công',
+      message: `Tài liệu “${document.title}” đã được tải lên thành công.`,
+      documentId: document.id,
     });
 
     return this.serialize(document, ownerId);
@@ -389,12 +398,18 @@ export class DocumentsService {
   }
 
   async remove(id: string, ownerId: string): Promise<void> {
-    await this.findOne(id, ownerId);
-    await this.prisma.document.update({
+    const document = await this.findOne(id, ownerId);
+    await this.prisma.document.delete({
       where: { id },
-      data: { status: DocumentStatus.DELETED },
     });
     await this.auditLogService.logDocumentDelete(ownerId, id);
+    await Promise.resolve(
+      this.storage.deleteObject(ownerId, document.storagePath),
+    ).catch((error: unknown) => {
+      this.logger.warn(
+        `Document ${id} was deleted from the database, but its storage object could not be removed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
   }
 
   private async validateRelations(

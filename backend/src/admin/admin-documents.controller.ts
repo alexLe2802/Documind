@@ -39,6 +39,7 @@ import {
 import { Type } from 'class-transformer';
 import { StorageService } from '../storage/storage.service';
 import { ObjectUrlResponse } from '../storage/storage.types';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type ModerationActionResponse = {
   id: string;
@@ -115,6 +116,7 @@ export class AdminDocumentsController {
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
     private readonly storageService: StorageService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   @Get()
@@ -294,7 +296,7 @@ export class AdminDocumentsController {
   ): Promise<ModerationActionResponse> {
     const existing = await this.prisma.document.findUnique({
       where: { id, visibility: DocumentVisibility.PUBLIC },
-      select: { id: true },
+      select: { id: true, ownerId: true, title: true },
     });
     if (!existing) throw new NotFoundException('Document not found');
     const updated = await this.prisma.document.update({
@@ -319,6 +321,13 @@ export class AdminDocumentsController {
       action: 'APPROVED',
       moderationFlag: updated.moderationFlag,
     });
+    await this.notifications.create({
+      userId: existing.ownerId,
+      type: 'DOCUMENT_APPROVED',
+      title: 'Tài liệu đã được duyệt',
+      message: `Tài liệu “${existing.title}” đã được admin duyệt và đăng lên cộng đồng.`,
+      documentId: id,
+    });
     return updated;
   }
 
@@ -333,7 +342,7 @@ export class AdminDocumentsController {
     if (!reason) throw new BadRequestException('Rejection reason is required');
     const existing = await this.prisma.document.findUnique({
       where: { id, visibility: DocumentVisibility.PUBLIC },
-      select: { id: true },
+      select: { id: true, ownerId: true, title: true },
     });
     if (!existing) throw new NotFoundException('Document not found');
     const updated = await this.prisma.document.update({
@@ -357,6 +366,13 @@ export class AdminDocumentsController {
     await this.auditLogService.logDocumentHide(admin.id, id, {
       action: 'REJECTED',
       reason,
+    });
+    await this.notifications.create({
+      userId: existing.ownerId,
+      type: 'DOCUMENT_REJECTED',
+      title: 'Tài liệu đã bị từ chối',
+      message: `Tài liệu “${existing.title}” đã bị từ chối. Lý do: ${reason}`,
+      documentId: id,
     });
     return updated;
   }

@@ -175,7 +175,7 @@ export class DocumentsController {
 
   @Delete(':id')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Soft-delete a document' })
+  @ApiOperation({ summary: 'Permanently delete an owned document' })
   @ApiNoContentResponse({ description: 'Document deleted.' })
   remove(
     @Param('id', ParseUUIDPipe) id: string,

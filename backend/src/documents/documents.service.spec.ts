@@ -21,6 +21,7 @@ describe('DocumentsService', () => {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
   };
   const storage = {
@@ -41,12 +42,14 @@ describe('DocumentsService', () => {
   const officePreviewService = {
     convertToPdf: jest.fn(),
   };
+  const notifications = { create: jest.fn() };
   const service = new DocumentsService(
     prisma as never,
     storage as never,
     downloadLogService as never,
     auditLogService as never,
     officePreviewService as never,
+    notifications as never,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -836,23 +839,24 @@ describe('DocumentsService', () => {
     );
   });
 
-  it('soft deletes documents by marking them deleted', async () => {
+  it('permanently deletes owned documents from the database and storage', async () => {
     prisma.document.findFirst.mockResolvedValue({
       id: 'doc-id',
       fileSize: BigInt(42),
+      storagePath: 'users/owner-id/file.pdf',
     });
-    prisma.document.update.mockResolvedValue({
-      id: 'doc-id',
-      fileSize: BigInt(42),
-      status: DocumentStatus.DELETED,
-    });
+    prisma.document.delete.mockResolvedValue({ id: 'doc-id' });
+    storage.deleteObject.mockResolvedValue(undefined);
 
     await service.remove('doc-id', 'owner-id');
 
-    expect(prisma.document.update).toHaveBeenCalledWith({
+    expect(prisma.document.delete).toHaveBeenCalledWith({
       where: { id: 'doc-id' },
-      data: { status: DocumentStatus.DELETED },
     });
+    expect(storage.deleteObject).toHaveBeenCalledWith(
+      'owner-id',
+      'users/owner-id/file.pdf',
+    );
     expect(auditLogService.logDocumentDelete).toHaveBeenCalledWith(
       'owner-id',
       'doc-id',

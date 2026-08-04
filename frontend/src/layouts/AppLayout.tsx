@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bot,
+  Bell,
   Bookmark,
   CreditCard,
   FileUp,
@@ -26,6 +27,12 @@ import { useAuth } from "../features/auth/useAuth";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { localize } from "../i18n/localize";
 import { ROUTES } from "../lib/routes";
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type UserNotification,
+} from "../api/notifications.api";
 
 type NavItem = {
   href: string;
@@ -49,6 +56,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<UserNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const initial = user?.fullName?.charAt(0).toUpperCase() ?? "D";
 
   const workspaceNav: NavItem[] = [
@@ -84,6 +95,48 @@ export function AppLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     setIsMobileNavOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    const load = () => {
+      void getNotifications().then((result) => {
+        if (!active) return;
+        setNotifications(result.items);
+        setUnreadCount(result.unreadCount);
+      }).catch(() => undefined);
+    };
+    load();
+    const timer = window.setInterval(load, 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [user, pathname]);
+
+  useEffect(() => {
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!notificationsRef.current?.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, []);
+
+  async function readNotification(notification: UserNotification) {
+    if (!notification.isRead) {
+      await markNotificationRead(notification.id);
+      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, isRead: true } : item));
+      setUnreadCount((count) => Math.max(0, count - 1));
+    }
+  }
+
+  async function readAllNotifications() {
+    await markAllNotificationsRead();
+    setNotifications((items) => items.map((item) => ({ ...item, isRead: true })));
+    setUnreadCount(0);
+  }
 
   async function handleLogout() {
     await logout();
@@ -223,6 +276,43 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <div>
               <strong>{user?.fullName}</strong>
               <span>{user?.email}</span>
+            </div>
+            <div className="notification-center" ref={notificationsRef}>
+              <button
+                type="button"
+                className="notification-bell"
+                aria-label={text("Thông báo", "Notifications")}
+                aria-expanded={isNotificationsOpen}
+                onClick={() => setIsNotificationsOpen((open) => !open)}
+              >
+                <Bell size={19} />
+                {unreadCount > 0 ? <span className="notification-badge">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
+              </button>
+              {isNotificationsOpen ? (
+                <section className="notification-popover">
+                  <header>
+                    <strong>{text("Thông báo", "Notifications")}</strong>
+                    {unreadCount > 0 ? <button type="button" onClick={() => void readAllNotifications()}>{text("Đánh dấu đã đọc", "Mark all read")}</button> : null}
+                  </header>
+                  <div className="notification-list">
+                    {notifications.length ? notifications.map((notification) => (
+                      <button
+                        type="button"
+                        key={notification.id}
+                        className={`notification-item${notification.isRead ? "" : " unread"}`}
+                        onClick={() => void readNotification(notification)}
+                      >
+                        <span className={`notification-dot notification-dot--${notification.type.toLowerCase()}`} />
+                        <span>
+                          <strong>{notification.title}</strong>
+                          <small>{notification.message}</small>
+                          <time>{new Date(notification.createdAt).toLocaleString(locale === "vi" ? "vi-VN" : "en-US")}</time>
+                        </span>
+                      </button>
+                    )) : <p className="notification-empty">{text("Chưa có thông báo nào.", "No notifications yet.")}</p>}
+                  </div>
+                </section>
+              ) : null}
             </div>
           </div>
           <div className="app-topbar-actions">

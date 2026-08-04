@@ -41,11 +41,28 @@ model User {
   savedDocuments  SavedDocument[]
   subscription    Subscription?
   subscriptions   UserSubscription[]
+  notifications   Notification[]
   role            Role               @relation(fields: [roleId], references: [id])
 
   @@index([roleId])
   @@index([status])
   @@map("users")
+}
+
+model Notification {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  type       String
+  title      String
+  message    String
+  documentId String?   @map("document_id") @db.Uuid
+  isRead     Boolean   @default(false) @map("is_read")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  readAt     DateTime? @map("read_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
 }
 
 model PaymentOrder {
