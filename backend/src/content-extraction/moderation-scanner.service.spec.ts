@@ -36,4 +36,36 @@ describe('ModerationScannerService', () => {
     expect(result.flag).toBe('NORMAL');
     expect(result.priority).toBe(2);
   });
+
+  it.each(['gian lận', 'ma túy', 'bạo lực', 'mã độc', 'nội dung 18+'])(
+    'flags the default Vietnamese keyword "%s"',
+    (keyword) => {
+      delete process.env.MODERATION_KEYWORDS;
+      expect(
+        new ModerationScannerService().scan(
+          `Tài liệu có đề cập đến ${keyword} cần được xem xét.`,
+        ).flag,
+      ).toBe('FLAGGED');
+    },
+  );
+
+  it.each([
+    'địt',
+    'mẹ kiếp',
+    'vãi lồn',
+    'fuck',
+    'chính trị',
+    'đảng cộng sản',
+    'bầu cử',
+    'biểu tình',
+    'nhân quyền',
+    'lật đổ',
+  ])('flags the extended moderation keyword "%s"', (keyword) => {
+    delete process.env.MODERATION_KEYWORDS;
+    expect(
+      new ModerationScannerService().scan(
+        `Nội dung có cụm từ ${keyword} cần kiểm tra thủ công.`,
+      ).flag,
+    ).toBe('FLAGGED');
+  });
 });

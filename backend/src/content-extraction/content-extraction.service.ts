@@ -9,8 +9,10 @@ import { DocumentContentResponseDto } from '../document-content/dto/document-con
 import { ExtractionJobResponseDto } from '../document-content/dto/extraction-job-response.dto';
 import { ExtractionStatusResponseDto } from '../document-content/dto/extraction-status-response.dto';
 import {
+  DocumentVisibility,
   ExtractionQuality,
   ExtractionStatus,
+  ModerationStatus,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -219,6 +221,8 @@ export class ContentExtractionService implements OnApplicationBootstrap {
           fileType: true,
           fileSize: true,
           storagePath: true,
+          description: true,
+          visibility: true,
         },
       });
 
@@ -277,13 +281,29 @@ export class ContentExtractionService implements OnApplicationBootstrap {
         }
       }
 
+      const moderationResult = this.moderationScanner.scan(
+        [
+          document.title,
+          document.fileName,
+          document.description,
+          result.extractedText,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      );
       await this.prisma.document.update({
         where: { id: documentId },
         data: {
           extractionStatus: result.extractionStatus,
-          ...this.toModerationData(
-            this.moderationScanner.scan(result.extractedText),
-          ),
+          ...(document.visibility === DocumentVisibility.PUBLIC
+            ? {
+                moderationStatus:
+                  moderationResult.flag === 'NORMAL'
+                    ? ModerationStatus.APPROVED
+                    : ModerationStatus.PENDING,
+              }
+            : {}),
+          ...this.toModerationData(moderationResult),
         },
       });
     } catch (error) {

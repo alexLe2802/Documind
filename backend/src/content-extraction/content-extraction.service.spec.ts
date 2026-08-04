@@ -1,5 +1,10 @@
 import { ContentExtractionService } from './content-extraction.service';
-import { ExtractionStatus, RoleName } from '../generated/prisma/client';
+import {
+  DocumentVisibility,
+  ExtractionStatus,
+  ModerationStatus,
+  RoleName,
+} from '../generated/prisma/client';
 import { UploadedContentFile } from './interfaces/uploaded-file.interface';
 
 interface UpdateManyArgs {
@@ -479,6 +484,7 @@ describe('ContentExtractionService', () => {
       title: 'Security Notes',
       fileName: 'security.pdf',
       fileType: 'pdf',
+      visibility: DocumentVisibility.PUBLIC,
     });
     pdfExtractor.extract.mockResolvedValue(
       'Academic discussion mentioning malware in context.',
@@ -501,6 +507,7 @@ describe('ContentExtractionService', () => {
       where: { id: documentId },
       data: {
         extractionStatus: ExtractionStatus.COMPLETED,
+        moderationStatus: ModerationStatus.PENDING,
         moderationFlag: 'FLAGGED',
         moderationPriority: 0,
         matchedKeywords: ['malware'],
@@ -510,6 +517,39 @@ describe('ContentExtractionService', () => {
             excerpt: 'Academic discussion mentioning malware in context.',
           },
         ],
+      },
+    });
+  });
+
+  it('automatically approves a clean public document after extraction', async () => {
+    const documentId = '22222222-2222-4222-8222-222222222222';
+    const jobId = '33333333-3333-4333-8333-333333333333';
+    prisma.documentContent.updateMany.mockResolvedValue({ count: 1 });
+    prisma.document.update.mockResolvedValue({});
+    prisma.document.findUnique.mockResolvedValue({
+      id: documentId,
+      title: 'Ordinary lecture notes',
+      fileName: 'lecture.pdf',
+      fileType: 'pdf',
+      visibility: DocumentVisibility.PUBLIC,
+    });
+    pdfExtractor.extract.mockResolvedValue('Ordinary academic content');
+
+    await service.processExtraction(documentId, jobId, {
+      originalname: 'lecture.pdf',
+      mimetype: 'application/pdf',
+      buffer: Buffer.from('pdf'),
+    });
+
+    expect(prisma.document.update).toHaveBeenLastCalledWith({
+      where: { id: documentId },
+      data: {
+        extractionStatus: ExtractionStatus.COMPLETED,
+        moderationStatus: ModerationStatus.APPROVED,
+        moderationFlag: 'NORMAL',
+        moderationPriority: 2,
+        matchedKeywords: [],
+        matchedContexts: [],
       },
     });
   });
