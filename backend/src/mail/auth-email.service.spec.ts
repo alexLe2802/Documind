@@ -45,6 +45,7 @@ describe('AuthEmailService', () => {
     expect(message.html).toContain(
       'https://documind.icu/verify-email?mode=verifyEmail&amp;oobCode=verify-code',
     );
+    expect(message.html).toContain('src="https://documind.icu/Logo.png"');
   });
 
   it('sends a password-reset email from the reset address', async () => {
@@ -61,6 +62,7 @@ describe('AuthEmailService', () => {
     expect(message.html).toContain(
       'https://documind.icu/reset-password?mode=resetPassword&amp;oobCode=reset-code',
     );
+    expect(message.html).toContain('src="https://documind.icu/Logo.png"');
   });
 
   it('does not reveal an unknown password-reset account', async () => {

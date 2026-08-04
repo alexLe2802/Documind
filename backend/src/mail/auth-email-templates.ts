@@ -1,10 +1,12 @@
 type RegistrationEmailInput = {
   fullName: string;
   actionUrl: string;
+  logoUrl: string;
 };
 
 type PasswordResetEmailInput = {
   actionUrl: string;
+  logoUrl: string;
 };
 
 function escapeHtml(value: string): string {
@@ -29,8 +31,10 @@ function buildEmailLayout(input: {
   buttonLabel: string;
   actionUrl: string;
   notice: string;
+  logoUrl: string;
 }): string {
   const actionUrl = escapeHtml(input.actionUrl);
+  const logoUrl = escapeHtml(input.logoUrl);
 
   return `<!doctype html>
 <html lang="vi">
@@ -40,7 +44,12 @@ function buildEmailLayout(input: {
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb;padding:32px 12px">
       <tr><td align="center">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 8px 28px rgba(23,32,51,.08)">
-          <tr><td style="background:#163b65;padding:24px 32px;color:#ffffff;font-size:24px;font-weight:700">DocuMind</td></tr>
+          <tr><td style="background:#163b65;padding:20px 32px">
+            <table role="presentation" cellspacing="0" cellpadding="0"><tr>
+              <td style="padding-right:12px"><img src="${logoUrl}" width="48" height="48" alt="DocuMind" style="display:block;width:48px;height:48px;border:0;border-radius:12px;object-fit:contain;background:#ffffff"></td>
+              <td style="color:#ffffff;font-size:24px;font-weight:700;line-height:1.2">DocuMind</td>
+            </tr></table>
+          </td></tr>
           <tr><td style="padding:36px 32px">
             <h1 style="margin:0 0 20px;font-size:28px;line-height:1.25;color:#172033">${escapeHtml(input.title)}</h1>
             <p style="margin:0 0 14px;font-size:16px;line-height:1.65">${escapeHtml(input.greeting)}</p>
@@ -66,6 +75,7 @@ export function buildRegistrationEmail(input: RegistrationEmailInput): string {
     body: 'Cảm ơn bạn đã đăng ký DocuMind. Hãy xác thực địa chỉ email để kích hoạt tài khoản của bạn.',
     buttonLabel: 'Xác thực email',
     actionUrl: input.actionUrl,
+    logoUrl: input.logoUrl,
     notice:
       'Nếu bạn không tạo tài khoản DocuMind, bạn có thể bỏ qua email này.',
   });
@@ -81,6 +91,7 @@ export function buildPasswordResetEmail(
     body: 'DocuMind nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Chọn nút bên dưới để tạo mật khẩu mới.',
     buttonLabel: 'Đặt lại mật khẩu',
     actionUrl: input.actionUrl,
+    logoUrl: input.logoUrl,
     notice:
       'Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này. Mật khẩu hiện tại của bạn vẫn được giữ nguyên.',
   });

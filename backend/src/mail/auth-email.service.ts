@@ -11,6 +11,7 @@ import { MailService } from './mail.service';
 @Injectable()
 export class AuthEmailService {
   private readonly frontendUrl: string;
+  private readonly logoUrl: string;
 
   constructor(
     @Inject(FIREBASE_AUTH) private readonly firebaseAuth: Auth,
@@ -20,6 +21,7 @@ export class AuthEmailService {
     this.frontendUrl = this.config
       .getOrThrow<string>('AUTH_EMAIL_FRONTEND_URL')
       .replace(/\/+$/, '');
+    this.logoUrl = `${this.frontendUrl}/Logo.png`;
   }
 
   async sendRegistrationEmail(email: string, fullName: string): Promise<void> {
@@ -37,7 +39,11 @@ export class AuthEmailService {
       from: this.config.getOrThrow<string>('REGISTRATION_EMAIL_FROM'),
       to: email,
       subject: 'Xác thực tài khoản DocuMind',
-      html: buildRegistrationEmail({ fullName, actionUrl }),
+      html: buildRegistrationEmail({
+        fullName,
+        actionUrl,
+        logoUrl: this.logoUrl,
+      }),
     });
   }
 
@@ -61,7 +67,7 @@ export class AuthEmailService {
       from: this.config.getOrThrow<string>('RESET_PASSWORD_EMAIL_FROM'),
       to: email,
       subject: 'Đặt lại mật khẩu DocuMind',
-      html: buildPasswordResetEmail({ actionUrl }),
+      html: buildPasswordResetEmail({ actionUrl, logoUrl: this.logoUrl }),
     });
   }
 
