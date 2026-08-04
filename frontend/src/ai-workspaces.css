@@ -1266,7 +1266,11 @@
 }
 
 .library-table-wrap {
-  overflow: hidden;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -1275,6 +1279,7 @@
 
 .library-table {
   width: 100%;
+  min-width: 980px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -6196,137 +6201,7 @@
 
 @media (max-width: 720px) {
   .library-table-wrap {
-    overflow: visible;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .library-table,
-  .library-table tbody {
-    display: block;
-    width: 100%;
-  }
-
-  .library-table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .library-table tbody {
-    display: grid;
-    gap: 10px;
-  }
-
-  .library-table tbody tr {
-    display: grid;
-    grid-template-columns: 24px minmax(0, 1fr) auto;
-    grid-template-areas:
-      "check document document"
-      "check actions actions"
-      "check ai date"
-      "check taxonomy taxonomy";
-    gap: 9px 10px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px;
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .library-table th,
-  .library-table td {
-    width: auto;
-    border: 0;
-    padding: 0;
-  }
-
-  .library-table-check {
-    grid-area: check;
-    width: auto;
-    padding: 3px 0 0 !important;
-  }
-
-  .library-table-document {
-    grid-area: document;
-  }
-
-  .library-table-actions {
-    grid-area: actions;
-    align-self: start;
-    justify-self: start;
-  }
-
-  .library-table-ai {
-    grid-area: ai;
-  }
-
-  .library-table-date {
-    grid-area: date;
-    align-self: center;
-    color: var(--subtle);
-    font-size: 0.75rem !important;
-    text-align: right !important;
-  }
-
-  .library-table-taxonomy {
-    grid-area: taxonomy;
-    border-top: 1px solid var(--border) !important;
-    padding-top: 9px !important;
-  }
-
-  .library-document-cell {
-    align-items: flex-start;
-  }
-
-  .library-document-cell small {
-    display: -webkit-box;
-    overflow: hidden;
-    line-height: 1.25;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-
-  .library-table .document-actions {
-    gap: 5px;
-  }
-
-  .library-table .document-actions > button,
-  .library-table .ask-document-action {
-    min-width: 40px;
-    height: 40px;
-  }
-
-  .library-table .document-actions > button {
-    width: 40px;
-  }
-
-  .library-table .ask-document-action span {
-    display: none;
-  }
-
-  .library-table .ask-document-action {
-    width: 40px !important;
-    padding: 0;
-  }
-
-  .library-taxonomy-cell {
-    display: flex;
-    min-width: 0;
-    align-items: baseline;
-    gap: 6px;
-  }
-
-  .library-taxonomy-cell strong,
-  .library-taxonomy-cell small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-x: auto;
   }
 
   .upload-workspace {
