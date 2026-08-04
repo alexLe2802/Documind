@@ -7,11 +7,12 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { Auth } from 'firebase-admin/auth';
+import type { Auth, DecodedIdToken } from 'firebase-admin/auth';
 import { Prisma, UserStatus } from '../../generated/prisma/client';
 import { FIREBASE_AUTH } from '../../firebase/firebase.constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from '../auth.service';
+import { getAuthSessionCookie } from '../auth-session';
 import { AuthenticatedRequest, AuthenticatedUser } from '../auth.types';
 import { createMockAdminUser, isMockAuthEnabled } from '../mock-auth';
 
@@ -40,14 +41,20 @@ export class FirebaseAuthGuard implements CanActivate {
       return true;
     }
 
-    const token = this.extractBearerToken(request.headers.authorization);
+    const bearerToken = this.extractBearerToken(
+      request.headers.authorization,
+    );
+    const sessionCookie = getAuthSessionCookie(request);
 
-    if (!token) {
-      throw new UnauthorizedException('Missing Firebase bearer token');
+    if (!bearerToken && !sessionCookie) {
+      throw new UnauthorizedException('Missing authentication session');
     }
 
     try {
-      const decodedToken = await this.firebaseAuth.verifyIdToken(token);
+      const decodedToken = await this.verifyCredential(
+        bearerToken,
+        sessionCookie,
+      );
       const dbUser = await this.prisma.user.findUnique({
         where: { firebaseUid: decodedToken.uid },
         select: AUTHENTICATED_USER_SELECT,
@@ -82,5 +89,16 @@ export class FirebaseAuthGuard implements CanActivate {
   private extractBearerToken(authorization?: string): string | undefined {
     const [scheme, token] = authorization?.split(' ') ?? [];
     return scheme === 'Bearer' && token ? token : undefined;
+  }
+
+  private verifyCredential(
+    bearerToken?: string,
+    sessionCookie?: string,
+  ): Promise<DecodedIdToken> {
+    if (bearerToken) {
+      return this.firebaseAuth.verifyIdToken(bearerToken);
+    }
+
+    return this.firebaseAuth.verifySessionCookie(sessionCookie!, true);
   }
 }

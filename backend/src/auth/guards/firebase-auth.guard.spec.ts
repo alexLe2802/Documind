@@ -11,16 +11,17 @@ describe('FirebaseAuthGuard', () => {
   const originalMockAuth = process.env.MOCK_AUTH;
   const originalNodeEnv = process.env.NODE_ENV;
   const verifyIdToken = jest.fn();
+  const verifySessionCookie = jest.fn();
   const findUnique = jest.fn();
   const findOrCreateFirebaseUser = jest.fn();
   const guard = new FirebaseAuthGuard(
-    { verifyIdToken } as never,
+    { verifyIdToken, verifySessionCookie } as never,
     { user: { findUnique } } as never,
     { findOrCreateFirebaseUser } as never,
   );
 
-  const createContext = (authorization?: string) => {
-    const request = { headers: { authorization } };
+  const createContext = (authorization?: string, cookie?: string) => {
+    const request = { headers: { authorization, cookie } };
     return {
       request,
       context: {
@@ -100,6 +101,29 @@ describe('FirebaseAuthGuard', () => {
     const { context, request } = createContext('Bearer valid-token');
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(request).toHaveProperty('user', user);
+  });
+
+  it('authenticates protected requests with the HttpOnly session cookie', async () => {
+    verifySessionCookie.mockResolvedValue({ uid: 'firebase-uid' });
+    const user = {
+      id: 'user-id',
+      firebaseUid: 'firebase-uid',
+      status: UserStatus.ACTIVE,
+      role: { name: RoleName.USER },
+    };
+    findUnique.mockResolvedValue(user);
+    const { context, request } = createContext(
+      undefined,
+      'other=value; documind_session=secure-session',
+    );
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(verifySessionCookie).toHaveBeenCalledWith(
+      'secure-session',
+      true,
+    );
+    expect(verifyIdToken).not.toHaveBeenCalled();
     expect(request).toHaveProperty('user', user);
   });
 

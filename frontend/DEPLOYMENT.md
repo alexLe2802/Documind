@@ -75,12 +75,30 @@ The existing `backend/prisma/migrations/` directory is intentionally preserved.
 ## Domain and Authentication
 
 Point `documind.icu` to the frontend and `api.documind.icu` to the backend.
-Add `documind.icu` to Firebase Authentication's authorized domains. Configure
-the Firebase password-reset action URL as:
+Add `documind.icu` to Firebase Authentication's authorized domains. The backend
+generates Firebase action codes, and branded emails point to `/verify-email`
+and `/reset-password` on the frontend.
 
-```text
-https://documind.icu/__/auth/action
+## Transactional authentication email
+
+Cloudflare DNS does not create sender addresses. Verify `documind.icu` in
+Resend, create a sending API key, and configure the backend to use Resend's
+HTTPS API. HTTPS is required because free Render services block SMTP ports.
+
+```env
+RESEND_API_KEY=re_xxxxxxxxx
+AUTH_EMAIL_FRONTEND_URL=https://documind.icu
+REGISTRATION_EMAIL_FROM=registration@documind.icu
+RESET_PASSWORD_EMAIL_FROM=reset-password@documind.icu
 ```
+
+Add the provider's DKIM records in Cloudflare and merge its SPF requirement
+with the existing Firebase SPF record; a domain must not have two separate SPF
+TXT records. Add a DMARC TXT record after SPF and DKIM pass. Keep all mail
+records set to **DNS only**.
+
+These sender identities do not need inboxes unless replies must be received.
+The templates tell recipients not to reply.
 
 ## Verification
 
@@ -90,4 +108,8 @@ After deployment:
 2. Confirm frontend requests resolve through `https://api.documind.icu/api`.
 3. Confirm the backend health endpoint succeeds.
 4. Run the Prisma migration status command against the new database.
-5. Test sign-in, document upload, AI chat, and password reset.
+5. Register a test account and confirm the verification email arrives from
+   `registration@documind.icu`.
+6. Request a password reset and confirm it arrives from
+   `reset-password@documind.icu` and opens the DocuMind reset form.
+7. Test sign-in, document upload, and AI chat.

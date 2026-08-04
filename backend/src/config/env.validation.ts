@@ -30,6 +30,10 @@ export interface Environment {
   SEPAY_STUDENT_PRICE_VND: number;
   SEPAY_PRO_PRICE_VND: number;
   CORS_ORIGIN: string;
+  RESEND_API_KEY: string;
+  AUTH_EMAIL_FRONTEND_URL: string;
+  REGISTRATION_EMAIL_FROM: string;
+  RESET_PASSWORD_EMAIL_FROM: string;
   LLAMA_CLOUD_API_KEY?: string;
   LLAMA_PARSE_PREMIUM_MODE: boolean;
   OCR_MAX_PAGES: number;
@@ -110,6 +114,14 @@ const environmentSchema = Joi.object<Environment>({
   SEPAY_STUDENT_PRICE_VND: Joi.number().integer().positive().default(149000),
   SEPAY_PRO_PRICE_VND: Joi.number().integer().positive().default(349000),
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
+  RESEND_API_KEY: Joi.string().allow('').default(''),
+  AUTH_EMAIL_FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
+  REGISTRATION_EMAIL_FROM: Joi.string()
+    .email()
+    .default('registration@documind.icu'),
+  RESET_PASSWORD_EMAIL_FROM: Joi.string()
+    .email()
+    .default('reset-password@documind.icu'),
   LLAMA_CLOUD_API_KEY: Joi.string().allow('').optional(),
   LLAMA_PARSE_PREMIUM_MODE: Joi.boolean()
     .truthy('true')

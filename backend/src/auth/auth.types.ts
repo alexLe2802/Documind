@@ -9,6 +9,6 @@ export type AuthenticatedUser = Pick<
 };
 
 export interface AuthenticatedRequest {
-  headers: { authorization?: string };
+  headers: { authorization?: string; cookie?: string };
   user?: AuthenticatedUser;
 }
