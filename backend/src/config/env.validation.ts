@@ -86,7 +86,9 @@ const environmentSchema = Joi.object<Environment>({
   GEMINI_MODEL: Joi.string().trim().default('gemini-2.5-flash'),
   GEMINI_FALLBACK_MODELS: Joi.string().allow('').default(''),
   GEMINI_TIMEOUT_MS: Joi.number().integer().positive().default(15000),
-  EXTRACTION_TIMEOUT_MS: Joi.number().integer().positive().default(120000),
+  // LlamaParse can poll for up to three minutes, so the enclosing extraction
+  // timeout must leave enough room for upload, download, and persistence.
+  EXTRACTION_TIMEOUT_MS: Joi.number().integer().positive().default(240000),
   SEPAY_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
   SEPAY_ENV: Joi.string().valid('sandbox', 'production').default('sandbox'),
   SEPAY_MERCHANT_ID: Joi.string().when('SEPAY_ENABLED', {

@@ -64,6 +64,7 @@ keys stored in an environment variable may use escaped newlines (`\n`).
 | `LLAMA_CLOUD_API_KEY`          | Optional OCR fallback; local PDF extraction runs first                                   |
 | `LLAMA_PARSE_PREMIUM_MODE`     | Opt in to higher-credit premium OCR; defaults to `false`                                 |
 | `OCR_MAX_PAGES`                | Maximum unreadable pages allowed before cloud OCR; defaults to `20`                      |
+| `EXTRACTION_TIMEOUT_MS`        | Extraction timeout; defaults to `240000` so cloud OCR can finish                         |
 | `CORS_ORIGIN`                  | Comma-separated allowed frontend origins                                                 |
 
 ## Cloudflare R2 Storage

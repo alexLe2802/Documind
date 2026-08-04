@@ -539,7 +539,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
       Number.isInteger(configured) &&
       configured > 0
       ? configured
-      : 120_000;
+      : 240_000;
   }
 
   private toModerationData(
