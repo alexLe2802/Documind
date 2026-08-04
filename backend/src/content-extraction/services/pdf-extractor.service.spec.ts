@@ -168,4 +168,48 @@ describe('PdfExtractorService', () => {
     );
     expect(cloud).not.toHaveBeenCalled();
   });
+
+  it('rejects upload validation when image-only pages exceed the OCR limit', async () => {
+    configService.get.mockImplementation((key: string) =>
+      key === 'OCR_MAX_PAGES' ? '2' : '',
+    );
+    (PDFParse as unknown as jest.Mock).mockImplementation(() => ({
+      getText: jest.fn().mockResolvedValue({
+        pages: [
+          { num: 1, text: '' },
+          { num: 2, text: 'Readable text' },
+          { num: 3, text: '' },
+          { num: 4, text: '' },
+        ],
+        text: 'Readable text',
+      }),
+      destroy: jest.fn().mockResolvedValue(undefined),
+    }));
+    const service = new PdfExtractorService(configService as never);
+
+    await expect(
+      service.validateOcrPageLimit(Buffer.from('scan')),
+    ).rejects.toThrow('3 image-only pages; the OCR limit is 2 pages');
+  });
+
+  it('allows upload validation when image-only pages are within the OCR limit', async () => {
+    configService.get.mockImplementation((key: string) =>
+      key === 'OCR_MAX_PAGES' ? '2' : '',
+    );
+    (PDFParse as unknown as jest.Mock).mockImplementation(() => ({
+      getText: jest.fn().mockResolvedValue({
+        pages: [
+          { num: 1, text: '' },
+          { num: 2, text: 'Readable text' },
+        ],
+        text: 'Readable text',
+      }),
+      destroy: jest.fn().mockResolvedValue(undefined),
+    }));
+    const service = new PdfExtractorService(configService as never);
+
+    await expect(
+      service.validateOcrPageLimit(Buffer.from('scan')),
+    ).resolves.toBeUndefined();
+  });
 });

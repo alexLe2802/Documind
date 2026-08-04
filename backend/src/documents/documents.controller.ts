@@ -102,6 +102,7 @@ export class DocumentsController {
     )
     file: StorageUploadedFile,
   ): ReturnType<DocumentsService['upload']> {
+    await this.extractionService.validateUpload(file);
     const document = await this.service.upload(user.id, dto, file);
     await this.extractionService.startExtraction(document.id, user);
     return document;

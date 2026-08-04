@@ -354,6 +354,12 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     }
   }
 
+  async validateUpload(file: UploadedContentFile): Promise<void> {
+    if (this.detectFileType(file.originalname, file.mimetype) === 'pdf') {
+      await this.pdfExtractor.validateOcrPageLimit(file.buffer);
+    }
+  }
+
   private detectFileType(fileName: string, mimetype: string): DetectedFileType {
     const ext = fileName.split('.').pop()?.toLowerCase();
     const normalizedMime = mimetype.toLowerCase();

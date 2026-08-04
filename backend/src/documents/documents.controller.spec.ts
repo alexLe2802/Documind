@@ -5,6 +5,7 @@ describe('DocumentsController', () => {
     upload: jest.fn(),
   };
   const extraction = {
+    validateUpload: jest.fn(),
     startExtraction: jest.fn(),
   };
   const controller = new DocumentsController(
@@ -28,10 +29,15 @@ describe('DocumentsController', () => {
       documentId: 'document-id',
       extractionStatus: 'PENDING',
     });
+    extraction.validateUpload.mockResolvedValue(undefined);
 
     await expect(
       controller.upload(user as never, dto as never, file as never),
     ).resolves.toBe(uploaded);
+    expect(extraction.validateUpload).toHaveBeenCalledWith(file);
+    expect(extraction.validateUpload.mock.invocationCallOrder[0]).toBeLessThan(
+      documents.upload.mock.invocationCallOrder[0],
+    );
     expect(extraction.startExtraction).toHaveBeenCalledWith(
       'document-id',
       user,
@@ -42,6 +48,7 @@ describe('DocumentsController', () => {
   });
 
   it('does not queue extraction when upload fails', async () => {
+    extraction.validateUpload.mockResolvedValue(undefined);
     documents.upload.mockRejectedValue(new Error('R2 unavailable'));
 
     await expect(
@@ -55,6 +62,26 @@ describe('DocumentsController', () => {
         { originalname: 'file.pdf' } as never,
       ),
     ).rejects.toThrow('R2 unavailable');
+    expect(extraction.startExtraction).not.toHaveBeenCalled();
+  });
+
+  it('rejects an oversized OCR document before uploading it', async () => {
+    extraction.validateUpload.mockRejectedValue(
+      new Error('PDF has 21 image-only pages; the OCR limit is 20 pages.'),
+    );
+
+    await expect(
+      controller.upload(
+        { id: 'owner-id' } as never,
+        {
+          subjectId: 'subject-id',
+          categoryId: 'category-id',
+          title: 'Scanned document',
+        },
+        { originalname: 'scan.pdf' } as never,
+      ),
+    ).rejects.toThrow('OCR limit is 20 pages');
+    expect(documents.upload).not.toHaveBeenCalled();
     expect(extraction.startExtraction).not.toHaveBeenCalled();
   });
 });

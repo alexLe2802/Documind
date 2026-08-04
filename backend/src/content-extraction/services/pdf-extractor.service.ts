@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import { PDFParse } from 'pdf-parse';
@@ -9,6 +9,25 @@ export class PdfExtractorService {
   private readonly ocrCache = new Map<string, Promise<string>>();
 
   constructor(private readonly configService: ConfigService) {}
+
+  async validateOcrPageLimit(buffer: Buffer): Promise<void> {
+    const parser = new PDFParse({ data: buffer });
+    try {
+      const textResult = await parser.getText();
+      const imageOnlyPageCount = textResult.pages.filter(
+        (page) => !this.normalize(page.text ?? ''),
+      ).length;
+      const maxOcrPages = this.getMaxOcrPages();
+
+      if (imageOnlyPageCount > maxOcrPages) {
+        throw new BadRequestException(
+          `PDF has ${imageOnlyPageCount} image-only pages; the OCR limit is ${maxOcrPages} pages. Please split the PDF into smaller files before uploading.`,
+        );
+      }
+    } finally {
+      await parser.destroy();
+    }
+  }
 
   async extract(buffer: Buffer, originalName?: string): Promise<string> {
     const localResult = await this.extractLocally(buffer);
