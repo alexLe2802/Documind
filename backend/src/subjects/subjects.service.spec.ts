@@ -13,13 +13,16 @@ describe('SubjectsService', () => {
     document: {
       count: jest.fn(),
       updateMany: jest.fn(),
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
     },
     category: {
       updateMany: jest.fn(),
     },
     $transaction: jest.fn(),
   };
-  const service = new SubjectsService(prisma as never);
+  const storage = { deleteObject: jest.fn() };
+  const service = new SubjectsService(prisma as never, storage as never);
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -93,21 +96,30 @@ describe('SubjectsService', () => {
     expect(prisma.subject.update).not.toHaveBeenCalled();
   });
 
-  it('soft deletes an owned subject and its documents', async () => {
+  it('deletes owned subject documents from the database and storage', async () => {
     prisma.subject.findFirst.mockResolvedValue({
       id: 'sub-2',
       ownerId: 'owner-id',
       code: 'EMPTY',
       name: 'Empty',
     });
-    prisma.document.updateMany.mockResolvedValue({ count: 0 });
+    prisma.document.findMany.mockResolvedValue([
+      { id: 'doc-1', storagePath: 'users/owner-id/doc-1.pdf' },
+    ]);
+    prisma.document.deleteMany.mockResolvedValue({ count: 1 });
     prisma.category.updateMany.mockResolvedValue({ count: 0 });
     prisma.subject.update.mockResolvedValue({ id: 'sub-2' });
     prisma.$transaction.mockResolvedValue([]);
 
     const result = await service.remove('sub-2', 'owner-id');
     expect(result).toEqual({ message: 'Subject deleted' });
-    expect(prisma.document.updateMany).toHaveBeenCalled();
+    expect(prisma.document.deleteMany).toHaveBeenCalledWith({
+      where: { ownerId: 'owner-id', subjectId: 'sub-2' },
+    });
+    expect(storage.deleteObject).toHaveBeenCalledWith(
+      'owner-id',
+      'users/owner-id/doc-1.pdf',
+    );
     type UpdateArgs = {
       data: { deletedAt: unknown };
       where: { id: string };

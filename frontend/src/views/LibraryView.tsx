@@ -280,14 +280,19 @@ export function LibraryView() {
 
   async function handleDeleteSubject(id: string, event: React.MouseEvent) {
     event.stopPropagation();
-    if (!window.confirm(text("Bạn có chắc chắn muốn xóa môn học này không? Tất cả tài liệu liên quan sẽ có thể bị lỗi liên kết.", "Are you sure you want to delete this subject? Associated documents might have broken links."))) {
+    if (!window.confirm(text("Bạn có chắc chắn muốn xóa môn học này không? Tất cả danh mục và tài liệu bên trong sẽ bị xóa vĩnh viễn.", "Are you sure you want to delete this subject? All categories and documents inside it will be permanently deleted."))) {
       return;
     }
     setIsCreating(true);
     setErrorMessage("");
     try {
       await deleteSubject(id);
+      const deletedDocumentIds = new Set(documents.filter((document) => document.subjectId === id).map((document) => document.id));
       setSubjects((current) => current.filter((s) => s.id !== id));
+      setCategories((current) => current.filter((category) => category.subjectId !== id));
+      setDocuments((current) => current.filter((document) => document.subjectId !== id));
+      setPagination((current) => ({ ...current, total: Math.max(0, current.total - deletedDocumentIds.size) }));
+      setSelectedDocIds((current) => new Set([...current].filter((documentId) => !deletedDocumentIds.has(documentId))));
       setSubjectCategoriesMap((current) => {
         const next = { ...current };
         delete next[id];
@@ -329,14 +334,18 @@ export function LibraryView() {
 
   async function handleDeleteCategory(id: string, event: React.MouseEvent) {
     event.stopPropagation();
-    if (!window.confirm(text("Bạn có chắc chắn muốn xóa danh mục này không?", "Are you sure you want to delete this category?"))) {
+    if (!window.confirm(text("Bạn có chắc chắn muốn xóa danh mục này không? Tất cả tài liệu bên trong sẽ bị xóa vĩnh viễn.", "Are you sure you want to delete this category? All documents inside it will be permanently deleted."))) {
       return;
     }
     setIsCreating(true);
     setErrorMessage("");
     try {
       await deleteCategory(id);
+      const deletedDocumentIds = new Set(documents.filter((document) => document.categoryId === id).map((document) => document.id));
       setCategories((current) => current.filter((c) => c.id !== id));
+      setDocuments((current) => current.filter((document) => document.categoryId !== id));
+      setPagination((current) => ({ ...current, total: Math.max(0, current.total - deletedDocumentIds.size) }));
+      setSelectedDocIds((current) => new Set([...current].filter((documentId) => !deletedDocumentIds.has(documentId))));
       setSubjectCategoriesMap((current) => {
         const next = { ...current };
         Object.keys(next).forEach((subId) => {

@@ -1575,7 +1575,7 @@
 
 .library-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
   gap: 12px;
 }
 
@@ -1604,13 +1604,18 @@
 }
 
 .library-document-card h2 {
+  display: -webkit-box;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  overflow-wrap: break-word;
   word-break: break-word;
   margin: 0 0 4px;
   font-family: var(--font-body), Arial, sans-serif;
   font-size: 0.96rem;
+  line-height: 1.4;
   letter-spacing: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .library-document-card p {

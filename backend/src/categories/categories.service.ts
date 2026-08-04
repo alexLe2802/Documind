@@ -2,16 +2,23 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Category, DocumentStatus, Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(CategoriesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async create(ownerId: string, dto: CreateCategoryDto): Promise<Category> {
     await this.findSubjectForUser(dto.subjectId, ownerId);
@@ -93,15 +100,13 @@ export class CategoriesService {
       );
     }
 
+    const documentWhere = { ownerId, categoryId: id };
+    const documents = await this.prisma.document.findMany({
+      where: documentWhere,
+      select: { id: true, storagePath: true },
+    });
     const operations: Prisma.PrismaPromise<unknown>[] = [
-      this.prisma.document.updateMany({
-        where: {
-          ownerId,
-          categoryId: id,
-          status: { not: DocumentStatus.DELETED },
-        },
-        data: { status: DocumentStatus.DELETED },
-      }),
+      this.prisma.document.deleteMany({ where: documentWhere }),
     ];
 
     if (category.ownerId === ownerId) {
@@ -114,8 +119,25 @@ export class CategoriesService {
     }
 
     await this.prisma.$transaction(operations);
+    await this.deleteStorageObjects(ownerId, documents);
 
     return { message: 'Category deleted' };
+  }
+
+  private async deleteStorageObjects(
+    ownerId: string,
+    documents: Array<{ id: string; storagePath: string }>,
+  ): Promise<void> {
+    await Promise.all(
+      documents.map((document) =>
+        Promise.resolve(this.storage.deleteObject(ownerId, document.storagePath)).catch(
+          (error: unknown) =>
+            this.logger.warn(
+              `Document ${document.id} was deleted from the database, but its storage object could not be removed: ${error instanceof Error ? error.message : String(error)}`,
+            ),
+        ),
+      ),
+    );
   }
 
   private buildVisibleWhere(

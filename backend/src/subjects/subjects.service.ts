@@ -2,16 +2,23 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { DocumentStatus, Prisma, Subject } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubjectDto } from './dto/create-subject.dto';
 import { UpdateSubjectDto } from './dto/update-subject.dto';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class SubjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(SubjectsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async create(ownerId: string, dto: CreateSubjectDto): Promise<Subject> {
     const code = dto.code.trim().toUpperCase();
@@ -104,15 +111,13 @@ export class SubjectsService {
       );
     }
 
+    const documentWhere = { ownerId, subjectId: id };
+    const documents = await this.prisma.document.findMany({
+      where: documentWhere,
+      select: { id: true, storagePath: true },
+    });
     const operations: Prisma.PrismaPromise<unknown>[] = [
-      this.prisma.document.updateMany({
-        where: {
-          ownerId,
-          subjectId: id,
-          status: { not: DocumentStatus.DELETED },
-        },
-        data: { status: DocumentStatus.DELETED },
-      }),
+      this.prisma.document.deleteMany({ where: documentWhere }),
     ];
 
     if (subject.ownerId === ownerId) {
@@ -133,8 +138,25 @@ export class SubjectsService {
     }
 
     await this.prisma.$transaction(operations);
+    await this.deleteStorageObjects(ownerId, documents);
 
     return { message: 'Subject deleted' };
+  }
+
+  private async deleteStorageObjects(
+    ownerId: string,
+    documents: Array<{ id: string; storagePath: string }>,
+  ): Promise<void> {
+    await Promise.all(
+      documents.map((document) =>
+        Promise.resolve(this.storage.deleteObject(ownerId, document.storagePath)).catch(
+          (error: unknown) =>
+            this.logger.warn(
+              `Document ${document.id} was deleted from the database, but its storage object could not be removed: ${error instanceof Error ? error.message : String(error)}`,
+            ),
+        ),
+      ),
+    );
   }
 
   private buildVisibleWhere(ownerId: string): Prisma.SubjectWhereInput {

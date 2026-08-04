@@ -16,10 +16,13 @@ describe('CategoriesService', () => {
     document: {
       count: jest.fn(),
       updateMany: jest.fn(),
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
     },
     $transaction: jest.fn(),
   };
-  const service = new CategoriesService(prisma as never);
+  const storage = { deleteObject: jest.fn() };
+  const service = new CategoriesService(prisma as never, storage as never);
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -48,19 +51,28 @@ describe('CategoriesService', () => {
     expect(prisma.category.update).not.toHaveBeenCalled();
   });
 
-  it('soft deletes an owned category and its documents', async () => {
+  it('deletes owned category documents from the database and storage', async () => {
     prisma.category.findFirst.mockResolvedValue({
       id: 'cat-2',
       ownerId: 'owner-id',
       name: 'Empty',
     });
-    prisma.document.updateMany.mockResolvedValue({ count: 0 });
+    prisma.document.findMany.mockResolvedValue([
+      { id: 'doc-1', storagePath: 'users/owner-id/doc-1.pdf' },
+    ]);
+    prisma.document.deleteMany.mockResolvedValue({ count: 1 });
     prisma.category.update.mockResolvedValue({ id: 'cat-2' });
     prisma.$transaction.mockResolvedValue([]);
 
     const result = await service.remove('cat-2', 'owner-id');
     expect(result).toEqual({ message: 'Category deleted' });
-    expect(prisma.document.updateMany).toHaveBeenCalled();
+    expect(prisma.document.deleteMany).toHaveBeenCalledWith({
+      where: { ownerId: 'owner-id', categoryId: 'cat-2' },
+    });
+    expect(storage.deleteObject).toHaveBeenCalledWith(
+      'owner-id',
+      'users/owner-id/doc-1.pdf',
+    );
     type UpdateArgs = {
       data: { deletedAt: unknown };
       where: { id: string };
