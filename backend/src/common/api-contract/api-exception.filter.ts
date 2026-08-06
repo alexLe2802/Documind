@@ -39,7 +39,16 @@ export class ApiExceptionFilter implements ExceptionFilter {
         exception instanceof Error ? exception.message : String(exception);
       const stack = exception instanceof Error ? exception.stack : undefined;
       this.logger.error(
-        `[${requestId}] ${request.method} ${request.originalUrl}: ${message}`,
+        JSON.stringify({
+          event: 'http.unhandled_error',
+          severity: 'error',
+          requestId,
+          method: request.method,
+          path: request.originalUrl,
+          statusCode: status,
+          message,
+          timestamp: new Date().toISOString(),
+        }),
         stack,
       );
     }

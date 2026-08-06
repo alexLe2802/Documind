@@ -71,13 +71,16 @@ export class ContentExtractionService implements OnApplicationBootstrap {
   }
 
   async recoverQueuedExtractions(): Promise<void> {
+    const staleBefore = new Date(
+      Date.now() - this.getExtractionLeaseTimeoutMs(),
+    );
     const jobs = await this.prisma.documentContent.findMany({
       where: {
         OR: [
+          { extractionStatus: ExtractionStatus.PENDING },
           {
-            extractionStatus: {
-              in: [ExtractionStatus.PENDING, ExtractionStatus.PROCESSING],
-            },
+            extractionStatus: ExtractionStatus.PROCESSING,
+            updatedAt: { lte: staleBefore },
           },
           {
             extractionStatus: ExtractionStatus.FAILED,
@@ -120,6 +123,32 @@ export class ContentExtractionService implements OnApplicationBootstrap {
         continue;
       }
 
+      if (job.extractionStatus === ExtractionStatus.PROCESSING) {
+        const retryJobId = randomUUID();
+        const reclaimed = await this.prisma.documentContent.updateMany({
+          where: {
+            documentId: job.documentId,
+            jobId: job.jobId,
+            extractionStatus: ExtractionStatus.PROCESSING,
+            updatedAt: { lte: staleBefore },
+          },
+          data: {
+            jobId: retryJobId,
+            extractionStatus: ExtractionStatus.PENDING,
+            progress: 0,
+            errorCode: null,
+            errorMessage: null,
+          },
+        });
+        if (reclaimed.count > 0) {
+          this.extractionQueue.enqueue({
+            documentId: job.documentId,
+            jobId: retryJobId,
+          });
+        }
+        continue;
+      }
+
       this.extractionQueue.enqueue(job);
     }
   }
@@ -133,10 +162,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
       user,
     );
 
-    if (
-      job.extractionStatus === ExtractionStatus.PENDING ||
-      job.extractionStatus === ExtractionStatus.PROCESSING
-    ) {
+    if (job.extractionStatus === ExtractionStatus.PENDING) {
       this.extractionQueue.enqueue({ jobId: job.jobId, documentId });
     }
 
@@ -167,17 +193,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
         where: {
           documentId,
           jobId,
-          OR: [
-            {
-              extractionStatus: {
-                in: [ExtractionStatus.PENDING, ExtractionStatus.PROCESSING],
-              },
-            },
-            {
-              extractionStatus: ExtractionStatus.FAILED,
-              retryCount: { lt: ContentExtractionService.MAX_RETRIES },
-            },
-          ],
+          extractionStatus: ExtractionStatus.PENDING,
         },
         data: {
           extractionStatus: ExtractionStatus.PROCESSING,
@@ -372,6 +388,12 @@ export class ContentExtractionService implements OnApplicationBootstrap {
         error instanceof Error ? error.message : 'Extraction failed',
       );
     }
+  }
+
+  private getExtractionLeaseTimeoutMs(): number {
+    return (
+      this.configService.get<number>('EXTRACTION_LEASE_TIMEOUT_MS') ?? 600_000
+    );
   }
 
   async validateUpload(file: UploadedContentFile): Promise<void> {

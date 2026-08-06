@@ -14,13 +14,18 @@ interface UpdateManyArgs {
     OR?: unknown[];
     extractionStatus?: ExtractionStatus;
     retryCount?: { lt: number };
+    updatedAt?: { lte: Date };
   };
   data: Record<string, unknown>;
 }
 
 interface FindManyArgs {
   where?: {
-    OR?: unknown[];
+    OR?: Array<{
+      extractionStatus?: ExtractionStatus;
+      retryCount?: { lt: number };
+      updatedAt?: { lte: Date };
+    }>;
   };
 }
 
@@ -90,7 +95,11 @@ describe('ContentExtractionService', () => {
   };
   const configService = {
     get: jest.fn<number | undefined, [string]>((key: string) =>
-      key === 'EXTRACTION_TIMEOUT_MS' ? 120_000 : undefined,
+      key === 'EXTRACTION_TIMEOUT_MS'
+        ? 120_000
+        : key === 'EXTRACTION_LEASE_TIMEOUT_MS'
+          ? 600_000
+          : undefined,
     ),
   };
   const user = {
@@ -120,7 +129,7 @@ describe('ContentExtractionService', () => {
     );
   });
 
-  it('restarts a processing job after a server restart', async () => {
+  it('does not enqueue an already-processing job from an API request', async () => {
     const documentId = '22222222-2222-4222-8222-222222222222';
     const jobId = '33333333-3333-4333-8333-333333333333';
     documentContentService.requestExtraction.mockResolvedValue({
@@ -144,48 +153,68 @@ describe('ContentExtractionService', () => {
     await service.startExtraction(documentId, user as never);
     await new Promise<void>((resolve) => setImmediate(resolve));
 
-    expect(extractionQueue.enqueue).toHaveBeenCalledWith({ jobId, documentId });
-    expect(processSpy).toHaveBeenCalledWith(documentId, jobId);
+    expect(extractionQueue.enqueue).not.toHaveBeenCalled();
+    expect(processSpy).not.toHaveBeenCalled();
   });
 
-  it('recovers pending, processing, and retryable failed jobs on startup', async () => {
+  it('recovers pending jobs but leaves a fresh processing lease alone', async () => {
     prisma.documentContent.findMany.mockResolvedValue([
       {
         documentId: '22222222-2222-4222-8222-222222222222',
         jobId: '33333333-3333-4333-8333-333333333333',
         extractionStatus: ExtractionStatus.PENDING,
       },
-      {
-        documentId: '44444444-4444-4444-8444-444444444444',
-        jobId: '55555555-5555-4555-8555-555555555555',
-        extractionStatus: ExtractionStatus.PROCESSING,
-      },
     ]);
 
     await service.recoverQueuedExtractions();
 
-    expect(prisma.documentContent.findMany).toHaveBeenCalledWith({
-      where: {
-        OR: [
-          {
-            extractionStatus: {
-              in: [ExtractionStatus.PENDING, ExtractionStatus.PROCESSING],
-            },
-          },
-          {
-            extractionStatus: ExtractionStatus.FAILED,
-            retryCount: { lt: 3 },
-          },
-        ],
-      },
-      select: {
-        documentId: true,
-        jobId: true,
-        extractionStatus: true,
-      },
-      orderBy: { updatedAt: 'asc' },
+    const [findManyArgs] = prisma.documentContent.findMany.mock.calls[0];
+    const recoveryClauses = findManyArgs?.where?.OR ?? [];
+    expect(recoveryClauses[0]).toEqual({
+      extractionStatus: ExtractionStatus.PENDING,
     });
-    expect(extractionQueue.enqueue).toHaveBeenCalledTimes(2);
+    expect(recoveryClauses[1]?.extractionStatus).toBe(
+      ExtractionStatus.PROCESSING,
+    );
+    expect(recoveryClauses[1]?.updatedAt?.lte).toBeInstanceOf(Date);
+    expect(extractionQueue.enqueue).toHaveBeenCalledTimes(1);
+    expect(extractionQueue.enqueue).toHaveBeenCalledWith({
+      documentId: '22222222-2222-4222-8222-222222222222',
+      jobId: '33333333-3333-4333-8333-333333333333',
+      extractionStatus: ExtractionStatus.PENDING,
+    });
+  });
+
+  it('reclaims a stale processing lease with a new job identity', async () => {
+    const documentId = '44444444-4444-4444-8444-444444444444';
+    const staleJobId = '55555555-5555-4555-8555-555555555555';
+    prisma.documentContent.findMany.mockResolvedValue([
+      {
+        documentId,
+        jobId: staleJobId,
+        extractionStatus: ExtractionStatus.PROCESSING,
+      },
+    ]);
+    prisma.documentContent.updateMany.mockResolvedValue({ count: 1 });
+
+    await service.recoverQueuedExtractions();
+
+    const reclaim = prisma.documentContent.updateMany.mock.calls[0]?.[0];
+    expect(reclaim.where).toMatchObject({
+      documentId,
+      jobId: staleJobId,
+      extractionStatus: ExtractionStatus.PROCESSING,
+    });
+    expect(reclaim.where.updatedAt?.lte).toBeInstanceOf(Date);
+    expect(reclaim.data).toMatchObject({
+      extractionStatus: ExtractionStatus.PENDING,
+      progress: 0,
+    });
+    expect(reclaim.data.jobId).not.toBe(staleJobId);
+    expect(extractionQueue.enqueue).toHaveBeenCalledWith({
+      documentId,
+      jobId: reclaim.data.jobId,
+    });
   });
 
   it('creates a new job identity before retrying a failed extraction', async () => {
@@ -823,7 +852,9 @@ describe('ContentExtractionService', () => {
 
       expect(result.extractionStatus).toBe(ExtractionStatus.FAILED);
       expect(result.extractedText).toBe('');
-      expect(result.errorMessage).toBe('Legacy Office extractor is unavailable');
+      expect(result.errorMessage).toBe(
+        'Legacy Office extractor is unavailable',
+      );
     },
   );
 

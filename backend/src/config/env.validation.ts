@@ -22,6 +22,8 @@ export interface Environment {
   GEMINI_FALLBACK_MODELS: string;
   GEMINI_TIMEOUT_MS: number;
   EXTRACTION_TIMEOUT_MS: number;
+  EXTRACTION_QUEUE_CONCURRENCY: number;
+  EXTRACTION_LEASE_TIMEOUT_MS: number;
   SEPAY_ENABLED: boolean;
   SEPAY_ENV: 'sandbox' | 'production';
   SEPAY_MERCHANT_ID: string;
@@ -109,6 +111,15 @@ const environmentSchema = Joi.object<Environment>({
   // LlamaParse can poll for up to three minutes, so the enclosing extraction
   // timeout must leave enough room for upload, download, and persistence.
   EXTRACTION_TIMEOUT_MS: Joi.number().integer().positive().default(240000),
+  EXTRACTION_QUEUE_CONCURRENCY: Joi.number()
+    .integer()
+    .min(1)
+    .max(10)
+    .default(2),
+  EXTRACTION_LEASE_TIMEOUT_MS: Joi.number()
+    .integer()
+    .min(300000)
+    .default(600000),
   SEPAY_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
   SEPAY_ENV: Joi.string().valid('sandbox', 'production').default('sandbox'),
   SEPAY_MERCHANT_ID: Joi.string().when('SEPAY_ENABLED', {
