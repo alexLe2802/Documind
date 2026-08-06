@@ -31,7 +31,11 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "documents:reindex": "ts-node scripts/reindex-documents.ts"
+    "documents:reindex": "ts-node scripts/reindex-documents.ts",
+    "db:backup": "node scripts/database-maintenance.mjs backup",
+    "db:restore": "node scripts/database-maintenance.mjs restore",
+    "test:db-tools": "node --test scripts/database-maintenance.test.mjs",
+    "test:e2e:srs": "jest --config ./test/jest-e2e.json --runInBand core-demo-flow.e2e-spec.ts"
   },
   "jest": {
     "moduleFileExtensions": [

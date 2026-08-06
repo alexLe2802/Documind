@@ -1579,6 +1579,30 @@
   gap: 12px;
 }
 
+.document-actions > .publish-document-action {
+  display: inline-flex;
+  width: auto;
+  padding: 0 9px;
+  gap: 6px;
+  color: #166534;
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  font-size: 0.8rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.document-actions > .publish-document-action:hover {
+  color: #14532d;
+  border-color: #86efac;
+  background: #dcfce7;
+}
+
+.document-actions > .publish-document-action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .library-document-card {
   display: grid;
   min-width: 0;

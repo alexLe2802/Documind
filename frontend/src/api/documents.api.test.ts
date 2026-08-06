@@ -6,6 +6,7 @@ import {
   getMissingUploadFields,
   mapApiDocument,
   retryExtraction,
+  updateDocumentVisibility,
   validateDocumentFile,
 } from './documents.api'
 import { apiRequest } from '../lib/http'
@@ -24,9 +25,7 @@ describe('documents API helpers', () => {
     expect(validateDocumentFile(new File(['content'], 'slides.pptx'))).toBeNull()
     expect(validateDocumentFile(new File(['content'], 'notes.exe'))).toContain('PDF')
     expect(
-      validateDocumentFile(
-        new File([new Uint8Array(MAX_FILE_SIZE + 1)], 'large.pdf'),
-      ),
+      validateDocumentFile(new File([new Uint8Array(MAX_FILE_SIZE + 1)], 'large.pdf')),
     ).toContain('80 MB')
   })
 
@@ -114,5 +113,34 @@ describe('documents API helpers', () => {
       method: 'POST',
     })
     expect(apiRequest).toHaveBeenNthCalledWith(2, '/documents/doc-id/extraction-status')
+  })
+
+  it('publishes an owned private document through the visibility endpoint', async () => {
+    vi.mocked(apiRequest).mockResolvedValue({
+      id: 'doc-id',
+      title: 'Private notes',
+      description: null,
+      fileName: 'notes.pdf',
+      fileType: 'application/pdf',
+      fileSize: '1024',
+      subject: { id: 'subject-id', name: 'Algorithms' },
+      category: { id: 'category-id', name: 'Notes' },
+      tags: [],
+      aiStatus: 'COMPLETED',
+      visibility: 'PUBLIC',
+      moderationStatus: 'APPROVED',
+      status: 'ACTIVE',
+      createdAt: '2026-08-06T00:00:00.000Z',
+      updatedAt: '2026-08-06T00:01:00.000Z',
+    })
+
+    const document = await updateDocumentVisibility('doc-id', 'PUBLIC')
+
+    expect(apiRequest).toHaveBeenCalledWith('/documents/doc-id/visibility', {
+      method: 'PUT',
+      body: { visibility: 'PUBLIC' },
+    })
+    expect(document.visibility).toBe('PUBLIC')
+    expect(document.moderationStatus).toBe('APPROVED')
   })
 })

@@ -54,6 +54,12 @@ jobs:
       - name: Unit tests
         run: npm test -- --runInBand
 
+      - name: Database maintenance tests
+        run: npm run test:db-tools
+
+      - name: SRS five main flows E2E
+        run: npm run test:e2e:srs
+
       - name: Production build
         run: npm run build
 

@@ -27,6 +27,6 @@ import { ModerationScannerService } from './moderation-scanner.service';
     XlsxExtractorService,
     ModerationScannerService,
   ],
-  exports: [ContentExtractionService],
+  exports: [ContentExtractionService, ModerationScannerService],
 })
 export class ContentExtractionModule {}

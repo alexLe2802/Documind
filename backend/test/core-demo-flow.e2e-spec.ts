@@ -16,6 +16,8 @@ jest.mock('firebase-admin/storage', () => ({
 }));
 
 process.env.DATABASE_URL = 'postgresql://localhost:5432/mock';
+process.env.NODE_ENV = 'test';
+process.env.MOCK_AUTH = 'false';
 process.env.FIREBASE_PROJECT_ID = 'mock-project-id';
 process.env.FIREBASE_CLIENT_EMAIL = 'mock-client-email@mock.com';
 process.env.FIREBASE_PRIVATE_KEY =
@@ -49,8 +51,9 @@ import { StorageService } from '../src/storage/storage.service';
 import { GeminiService } from '../src/ai-chatbot/services/gemini.service';
 import { configureApiContract } from '../src/common/api-contract/configure-api-contract';
 import { FIREBASE_AUTH } from '../src/firebase/firebase.constants';
+import { PdfExtractorService } from '../src/content-extraction/services/pdf-extractor.service';
 
-describe('Core Demo Flow (e2e)', () => {
+describe('SRS five business main flows (e2e)', () => {
   let app: INestApplication;
 
   const mockUserId = '11111111-1111-4111-8111-111111111111';
@@ -68,6 +71,7 @@ describe('Core Demo Flow (e2e)', () => {
 
   const mockPrismaService: any = {
     $queryRaw: jest.fn(),
+    $executeRaw: jest.fn().mockResolvedValue(1),
     $transaction: jest.fn((cb) => cb(mockPrismaService)),
     user: {
       findUnique: jest.fn(),
@@ -147,7 +151,13 @@ describe('Core Demo Flow (e2e)', () => {
 
   const mockFirebaseAuth = {
     verifyIdToken: jest.fn(),
+    createSessionCookie: jest.fn(),
     updateUser: jest.fn(),
+  };
+
+  const mockPdfExtractor = {
+    validateOcrPageLimit: jest.fn(),
+    extract: jest.fn(),
   };
 
   const mockFirebaseAuthGuard = {
@@ -170,6 +180,8 @@ describe('Core Demo Flow (e2e)', () => {
       .useValue(mockGeminiService)
       .overrideProvider(FIREBASE_AUTH)
       .useValue(mockFirebaseAuth)
+      .overrideProvider(PdfExtractorService)
+      .useValue(mockPdfExtractor)
       .overrideGuard(FirebaseAuthGuard)
       .useValue(mockFirebaseAuthGuard)
       .compile();
@@ -205,7 +217,7 @@ describe('Core Demo Flow (e2e)', () => {
     jest.clearAllMocks();
   });
 
-  describe('1. Firebase Login & Profile Sync', () => {
+  describe('Main-flow 01: User Authentication and Profile Synchronization', () => {
     it('POST /api/auth/firebase-login', async () => {
       const mockDbUser = {
         id: mockUserId,
@@ -228,6 +240,9 @@ describe('Core Demo Flow (e2e)', () => {
         email: 'user@example.com',
         email_verified: true,
       });
+      mockFirebaseAuth.createSessionCookie.mockResolvedValue(
+        'mock-session-cookie',
+      );
 
       await request(app.getHttpServer())
         .post('/api/auth/firebase-login')
@@ -268,7 +283,7 @@ describe('Core Demo Flow (e2e)', () => {
     });
   });
 
-  describe('2. Document Management & Presigned URLs', () => {
+  describe('Main-flow 02: Upload Document and Background AI Processing', () => {
     it('POST /api/documents (multipart upload)', async () => {
       mockPrismaService.subject.findFirst.mockResolvedValue({
         id: mockSubjectId,
@@ -495,7 +510,7 @@ describe('Core Demo Flow (e2e)', () => {
     });
   });
 
-  describe('3. AI Chatbot Services', () => {
+  describe('Main-flow 03: Ask AI with RAG Chatbot', () => {
     it('POST /api/chat/ask-document', async () => {
       const mockDoc = {
         id: mockDocumentId,
@@ -671,8 +686,7 @@ describe('Core Demo Flow (e2e)', () => {
     });
 
     it('POST /api/chat/ask-library ignores selected documents outside the user corpus', async () => {
-      const privateOtherUserDocumentId =
-        '77777777-7777-4777-8777-777777777777';
+      const privateOtherUserDocumentId = '77777777-7777-4777-8777-777777777777';
       mockPrismaService.document.findMany.mockResolvedValue([]);
       mockPrismaService.chatSession.create.mockResolvedValue({
         id: mockSessionId,
@@ -856,7 +870,7 @@ describe('Core Demo Flow (e2e)', () => {
     });
   });
 
-  describe('4. Community Features (List, Save, Unsave)', () => {
+  describe('Main-flow 04: Community Sharing and Save to My Library', () => {
     it('GET /api/community/documents', async () => {
       const mockCommunityDoc = {
         id: mockDocumentId,
@@ -953,7 +967,7 @@ describe('Core Demo Flow (e2e)', () => {
     });
   });
 
-  describe('5. Admin Moderation', () => {
+  describe('Main-flow 05: Admin Management and Moderation', () => {
     beforeEach(() => {
       // Set roles guard and decorator to represent ADMIN role
       currentRequestUser = {

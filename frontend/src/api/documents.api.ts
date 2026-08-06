@@ -24,12 +24,7 @@ export type CategoryItem = {
   description?: string
 }
 
-export type ApiExtractionStatus =
-  | 'PENDING'
-  | 'PROCESSING'
-  | 'COMPLETED'
-  | 'MOCKED'
-  | 'FAILED'
+export type ApiExtractionStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'MOCKED' | 'FAILED'
 
 export type ApiDocument = {
   id: string
@@ -79,7 +74,12 @@ export type DocumentListQuery = {
 
 export type DocumentListResult = {
   items: LibraryDocument[]
-  pagination: { page: number; limit: number; total: number; totalPages: number }
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
 }
 
 type DocumentListApiResponse = {
@@ -216,7 +216,20 @@ export function deleteDocument(id: string) {
   })
 }
 
-export async function fetchLibraryDocuments(query: DocumentListQuery = {}): Promise<DocumentListResult> {
+export async function updateDocumentVisibility(
+  id: string,
+  visibility: DocumentVisibility,
+): Promise<LibraryDocument> {
+  const document = await apiRequest<ApiDocument>(`/documents/${id}/visibility`, {
+    method: 'PUT',
+    body: { visibility },
+  })
+  return mapApiDocument(document)
+}
+
+export async function fetchLibraryDocuments(
+  query: DocumentListQuery = {},
+): Promise<DocumentListResult> {
   const { ownerOnly, ...rest } = query
   const params = new URLSearchParams()
   const shouldLimitToOwner = ownerOnly ?? !query.savedOnly
@@ -225,7 +238,10 @@ export async function fetchLibraryDocuments(query: DocumentListQuery = {}): Prom
     if (value !== undefined && value !== '') params.set(key, String(value))
   })
   const result = await apiRequest<DocumentListApiResponse>(`/documents?${params}`)
-  return { items: result.data.map(mapApiDocument), pagination: result.pagination }
+  return {
+    items: result.data.map(mapApiDocument),
+    pagination: result.pagination,
+  }
 }
 
 export async function fetchDocument(id: string) {
@@ -237,14 +253,20 @@ export function fetchExtractionStatus(id: string) {
 }
 
 export function retryExtraction(id: string) {
-  return apiRequest<{ documentId: string; jobId: string; extractionStatus: ApiExtractionStatus }>(
-    `/documents/${id}/extract`,
-    { method: 'POST' },
-  )
+  return apiRequest<{
+    documentId: string
+    jobId: string
+    extractionStatus: ApiExtractionStatus
+  }>(`/documents/${id}/extract`, { method: 'POST' })
 }
 
 export function createPreviewUrl(id: string) {
-  return apiRequest<{ url: string; expiresAt?: string; contentType?: string; fallbackToOfficeViewer?: boolean }>(`/documents/${id}/preview`)
+  return apiRequest<{
+    url: string
+    expiresAt?: string
+    contentType?: string
+    fallbackToOfficeViewer?: boolean
+  }>(`/documents/${id}/preview`)
 }
 
 export function createDownloadUrl(id: string) {
@@ -281,8 +303,13 @@ export async function uploadDocument(
         return
       }
       if (xhr.status < 200 || xhr.status >= 300) {
-        const envelope = payload as { error?: { message?: string }; message?: string }
-        reject(new ApiError(envelope.error?.message ?? envelope.message ?? 'Upload failed', xhr.status))
+        const envelope = payload as {
+          error?: { message?: string }
+          message?: string
+        }
+        reject(
+          new ApiError(envelope.error?.message ?? envelope.message ?? 'Upload failed', xhr.status),
+        )
         return
       }
       const envelope = payload as { success?: boolean; data?: ApiDocument }

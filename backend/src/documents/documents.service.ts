@@ -29,6 +29,7 @@ import { DocumentListQueryDto } from './dto/document-list-query.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { OfficePreviewService } from './office-preview.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ModerationScannerService } from '../content-extraction/moderation-scanner.service';
 
 const documentInclude = {
   owner: {
@@ -80,6 +81,7 @@ export class DocumentsService {
     private readonly auditLogService: AuditLogService,
     private readonly officePreview: OfficePreviewService,
     private readonly notifications: NotificationsService,
+    private readonly moderationScanner: ModerationScannerService,
   ) {}
 
   async upload(
@@ -347,10 +349,27 @@ export class DocumentsService {
     const becomesPublicFromPrivate =
       targetVisibility === DocumentVisibility.PUBLIC &&
       existingDocument.visibility === DocumentVisibility.PRIVATE;
-    const requiresPublicReview =
+    const shouldModeratePublicDocument =
       targetVisibility === DocumentVisibility.PUBLIC &&
       (becomesPublicFromPrivate ||
-        existingDocument.moderationStatus !== ModerationStatus.PENDING);
+        existingDocument.moderationStatus !== ModerationStatus.APPROVED ||
+        dto.title !== undefined ||
+        dto.description !== undefined);
+    const moderationResult = shouldModeratePublicDocument
+      ? this.moderationScanner.scan(
+          [
+            dto.title ?? existingDocument.title,
+            existingDocument.fileName,
+            dto.description ?? existingDocument.description,
+            existingDocument.content?.extractedText,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        )
+      : undefined;
+    const canAutoApprove =
+      existingDocument.extractionStatus === ExtractionStatus.COMPLETED &&
+      moderationResult?.flag === 'NORMAL';
     const document = await this.prisma.document.update({
       where: { id },
       data: {
@@ -363,13 +382,19 @@ export class DocumentsService {
               reviewedAt: null,
               reviewedBy: null,
             }
-          : requiresPublicReview
+          : moderationResult
             ? {
-                moderationStatus: ModerationStatus.PENDING,
+                moderationStatus: canAutoApprove
+                  ? ModerationStatus.APPROVED
+                  : ModerationStatus.PENDING,
+                moderationFlag: moderationResult.flag,
+                moderationPriority: moderationResult.priority,
+                matchedKeywords: moderationResult.matchedKeywords,
+                matchedContexts: moderationResult.matchedContexts,
                 rejectionReason: null,
                 reviewedAt: null,
                 reviewedBy: null,
-                submittedAt: new Date(),
+                ...(canAutoApprove ? {} : { submittedAt: new Date() }),
                 version: { increment: 1 },
               }
             : {}),

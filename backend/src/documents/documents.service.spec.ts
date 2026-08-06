@@ -43,6 +43,14 @@ describe('DocumentsService', () => {
     convertToPdf: jest.fn(),
   };
   const notifications = { create: jest.fn() };
+  const moderationScanner = {
+    scan: jest.fn().mockReturnValue({
+      flag: 'NORMAL',
+      priority: 2,
+      matchedKeywords: [],
+      matchedContexts: [],
+    }),
+  };
   const service = new DocumentsService(
     prisma as never,
     storage as never,
@@ -50,6 +58,7 @@ describe('DocumentsService', () => {
     auditLogService as never,
     officePreviewService as never,
     notifications as never,
+    moderationScanner as never,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -625,11 +634,16 @@ describe('DocumentsService', () => {
     );
   });
 
-  it('updates document visibility for the owner', async () => {
+  it('automatically approves a clean completed private document when published', async () => {
     prisma.document.findFirst.mockResolvedValue({
       id: 'doc-id',
       fileSize: BigInt(42),
       visibility: DocumentVisibility.PRIVATE,
+      extractionStatus: ExtractionStatus.COMPLETED,
+      title: 'Clean notes',
+      fileName: 'notes.pdf',
+      description: null,
+      content: { extractedText: 'Ordinary academic content' },
     });
     prisma.document.update.mockResolvedValue({
       id: 'doc-id',
@@ -654,6 +668,57 @@ describe('DocumentsService', () => {
     expect(updateArgs).toBeDefined();
     expect(updateArgs[0].where).toEqual({ id: 'doc-id' });
     expect(updateArgs[0].data.visibility).toBe(DocumentVisibility.PUBLIC);
+    expect(updateArgs[0].data).toMatchObject({
+      moderationStatus: ModerationStatus.APPROVED,
+      moderationFlag: 'NORMAL',
+      moderationPriority: 2,
+      matchedKeywords: [],
+      matchedContexts: [],
+    });
+  });
+
+  it('sends a flagged completed private document to admin review when published', async () => {
+    moderationScanner.scan.mockReturnValueOnce({
+      flag: 'FLAGGED',
+      priority: 0,
+      matchedKeywords: ['malware'],
+      matchedContexts: [{ keyword: 'malware', excerpt: 'malware example' }],
+    });
+    prisma.document.findFirst.mockResolvedValue({
+      id: 'doc-id',
+      fileSize: BigInt(42),
+      visibility: DocumentVisibility.PRIVATE,
+      extractionStatus: ExtractionStatus.COMPLETED,
+      title: 'Security notes',
+      fileName: 'security.pdf',
+      description: null,
+      content: { extractedText: 'Academic malware example' },
+    });
+    prisma.document.update.mockResolvedValue({
+      id: 'doc-id',
+      fileSize: BigInt(42),
+      visibility: DocumentVisibility.PUBLIC,
+    });
+
+    await service.updateVisibility(
+      'doc-id',
+      'owner-id',
+      DocumentVisibility.PUBLIC,
+    );
+
+    const updateCalls = prisma.document.update.mock.calls as Array<
+      [{ data: Record<string, unknown> }]
+    >;
+    const updateArgs = updateCalls.at(-1)?.[0];
+    expect(updateArgs).toBeDefined();
+    if (!updateArgs) throw new Error('Expected a document update');
+    expect(updateArgs.data).toMatchObject({
+      visibility: DocumentVisibility.PUBLIC,
+      moderationStatus: ModerationStatus.PENDING,
+      moderationFlag: 'FLAGGED',
+      moderationPriority: 0,
+      matchedKeywords: ['malware'],
+    });
   });
 
   it('creates a download URL using the original file name', async () => {
