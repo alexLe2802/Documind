@@ -13,9 +13,9 @@ store, never in Git.
 
 ## Toolchain and automation
 
-Both applications use Node.js 24 LTS starting at `24.18.0` and npm `10.9.x`. Run
+Both applications use Node.js 24 LTS starting at `24.18.0` and npm `11.16.x`. Run
 `nvm use` from the repository root before installing dependencies. CI rejects
-versions outside Node 24/npm 10.x and pins `24.18.0` for reproducibility.
+versions outside Node 24/npm 11.16.x and pins `24.18.0` for reproducibility.
 
 `.github/workflows/ci.yml` runs the backend and frontend quality gates for pull
 requests and pushes to `main` or `dev`. It also verifies that the backend
