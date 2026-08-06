@@ -27,18 +27,23 @@ After CI succeeds on `main`, `.github/workflows/cd.yml`:
    `ghcr.io/<repository-owner>/documind-backend` with `latest` and commit-SHA
    tags. Connect the selected backend host to this image once that host has
    been chosen.
-2. Deploys the frontend to Cloudflare through Wrangler.
+2. Calls a Cloudflare Workers Builds Deploy Hook. Cloudflare checks out `main`,
+   builds OpenNext with the environment already stored on Cloudflare, and
+   deploys the resulting Worker.
 
-Create a protected GitHub environment named `production`. Configure these
-environment secrets:
+Create a protected GitHub environment named `production`. Configure this
+environment secret:
 
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_DEPLOY_HOOK_URL`
 
-Configure the public frontend values from `frontend/.env.example` as GitHub
-environment variables, including `NEXT_PUBLIC_API_BASE_URL` and all
-`NEXT_PUBLIC_FIREBASE_*` values. Do not store server-side credentials in GitHub
-variables exposed to the frontend build.
+Create the hook in Cloudflare under **Workers & Pages > DocuMind > Settings >
+Builds > Deploy Hooks**. Name it `github-ci-main` and bind it to `main`. The hook
+URL is a credential: store it only as the GitHub secret above.
+
+Keep `NEXT_PUBLIC_API_BASE_URL`, all `NEXT_PUBLIC_FIREBASE_*` values, and
+`NEXT_PUBLIC_USE_MOCK_API=false` in the Cloudflare production build
+environment. GitHub no longer builds the production frontend and therefore
+does not need copies of those values.
 
 Require the `Backend quality gate`, `Frontend quality gate`, and
 `Verify backend container` checks in the `main` branch protection rule. Use the
