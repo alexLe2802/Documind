@@ -18,6 +18,7 @@
     "prestart:dev": "node scripts/check-node-version.cjs && node -e \"require('fs').rmSync('tsconfig.build.tsbuildinfo',{force:true})\"",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
+    "prelint": "node scripts/check-node-version.cjs && prisma generate",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "pretest": "node scripts/check-node-version.cjs && prisma generate",
     "test": "jest",
