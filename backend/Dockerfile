@@ -1,4 +1,4 @@
-FROM node:22.12.0-alpine AS build
+FROM node:24.18.0-alpine AS build
 WORKDIR /app
 COPY package*.json prisma.config.ts ./
 COPY prisma ./prisma
@@ -13,7 +13,7 @@ COPY src ./src
 RUN npm run build
 RUN npm prune --omit=dev --no-audit --no-fund
 
-FROM node:22.12.0-alpine AS production
+FROM node:24.18.0-alpine AS production
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache \

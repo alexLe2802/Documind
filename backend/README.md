@@ -13,7 +13,7 @@ NestJS foundation for the AI Study Hub REST API.
 
 ## Requirements
 
-- Node.js 22, version 22.12.0 or newer (the repository pins `22.12.0`)
+- Node.js 24 LTS, version 24.18.0 (the repository pins `24.18.0`)
 - npm 10.9.x
 - A PostgreSQL database
 - A Firebase project
