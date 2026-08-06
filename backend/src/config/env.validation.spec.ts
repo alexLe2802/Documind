@@ -68,6 +68,19 @@ describe('validateEnvironment', () => {
     );
   });
 
+  it('treats blank optional SePay prices as unset and applies defaults', () => {
+    expect(
+      validateEnvironment({
+        ...validEnvironment,
+        SEPAY_STUDENT_PRICE_VND: '',
+        SEPAY_PRO_PRICE_VND: '',
+      }),
+    ).toMatchObject({
+      SEPAY_STUDENT_PRICE_VND: 149000,
+      SEPAY_PRO_PRICE_VND: 349000,
+    });
+  });
+
   it('disables mock modes by default in production', () => {
     const result = validateEnvironment({
       ...validProductionEnvironment,

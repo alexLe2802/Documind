@@ -138,8 +138,16 @@ const environmentSchema = Joi.object<Environment>({
     otherwise: Joi.allow('').default(''),
   }),
   SEPAY_FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
-  SEPAY_STUDENT_PRICE_VND: Joi.number().integer().positive().default(149000),
-  SEPAY_PRO_PRICE_VND: Joi.number().integer().positive().default(349000),
+  SEPAY_STUDENT_PRICE_VND: Joi.number()
+    .empty('')
+    .integer()
+    .positive()
+    .default(149000),
+  SEPAY_PRO_PRICE_VND: Joi.number()
+    .empty('')
+    .integer()
+    .positive()
+    .default(349000),
   CORS_ORIGIN: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.required(),
