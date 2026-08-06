@@ -17,6 +17,7 @@ export interface Environment {
   GEMINI_API_KEY: string;
   GEMINI_API_KEYS: string;
   GEMINI_MOCK: boolean;
+  MOCK_AUTH: boolean;
   GEMINI_MODEL: string;
   GEMINI_FALLBACK_MODELS: string;
   GEMINI_TIMEOUT_MS: number;
@@ -84,9 +85,24 @@ const environmentSchema = Joi.object<Environment>({
     .max(604800)
     .default(300),
   R2_PUBLIC_URL: Joi.string().uri().allow('').optional(),
-  GEMINI_API_KEY: Joi.string().allow('').default(''),
-  GEMINI_API_KEYS: Joi.string().allow('').default(''),
-  GEMINI_MOCK: Joi.boolean().truthy('true').falsy('false').default(true),
+  GEMINI_API_KEY: Joi.string().trim().allow('').default(''),
+  GEMINI_API_KEYS: Joi.string().trim().allow('').default(''),
+  GEMINI_MOCK: Joi.boolean()
+    .truthy('true')
+    .falsy('false')
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.valid(false).default(false),
+      otherwise: Joi.boolean().default(true),
+    }),
+  MOCK_AUTH: Joi.boolean()
+    .truthy('true')
+    .falsy('false')
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.valid(false).default(false),
+      otherwise: Joi.boolean().default(false),
+    }),
   GEMINI_MODEL: Joi.string().trim().default('gemini-2.5-flash'),
   GEMINI_FALLBACK_MODELS: Joi.string().allow('').default(''),
   GEMINI_TIMEOUT_MS: Joi.number().integer().positive().default(15000),
@@ -113,9 +129,23 @@ const environmentSchema = Joi.object<Environment>({
   SEPAY_FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
   SEPAY_STUDENT_PRICE_VND: Joi.number().integer().positive().default(149000),
   SEPAY_PRO_PRICE_VND: Joi.number().integer().positive().default(349000),
-  CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
-  RESEND_API_KEY: Joi.string().allow('').default(''),
-  AUTH_EMAIL_FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
+  CORS_ORIGIN: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.string().default('http://localhost:3000'),
+  }),
+  RESEND_API_KEY: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.allow('').default(''),
+  }),
+  AUTH_EMAIL_FRONTEND_URL: Joi.string()
+    .uri()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.required(),
+      otherwise: Joi.string().uri().default('http://localhost:3000'),
+    }),
   REGISTRATION_EMAIL_FROM: Joi.string()
     .email()
     .default('registration@documind.icu'),
@@ -147,5 +177,16 @@ export function validateEnvironment(
     );
   }
 
-  return validationResult.value;
+  const environment = validationResult.value;
+  if (
+    !environment.GEMINI_MOCK &&
+    !environment.GEMINI_API_KEY.trim() &&
+    !environment.GEMINI_API_KEYS.trim()
+  ) {
+    throw new Error(
+      'Environment validation failed: at least one of GEMINI_API_KEY or GEMINI_API_KEYS is required when GEMINI_MOCK=false',
+    );
+  }
+
+  return environment;
 }

@@ -64,7 +64,9 @@ type ApiAdminDocumentListResponse =
       meta: DocumentListResponse['meta']
     }
 
-const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCK_API === 'true'
+const USE_MOCKS =
+  process.env.NODE_ENV !== 'production' &&
+  process.env.NEXT_PUBLIC_USE_MOCK_API === 'true'
 
 function toQueryString(query: Record<string, unknown>) {
   const params = new URLSearchParams()

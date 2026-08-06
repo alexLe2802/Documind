@@ -293,7 +293,7 @@ export class GeminiService {
   }
 
   private isMockMode(): boolean {
-    return this.configService.get<boolean>('GEMINI_MOCK') ?? true;
+    return this.configService.get<boolean>('GEMINI_MOCK') ?? false;
   }
 
   private getModel(): string {

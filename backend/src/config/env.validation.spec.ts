@@ -9,6 +9,21 @@ describe('validateEnvironment', () => {
     GEMINI_API_KEY: 'gemini-key',
   };
 
+  const validProductionEnvironment = {
+    ...validEnvironment,
+    NODE_ENV: 'production',
+    GEMINI_MOCK: false,
+    MOCK_AUTH: false,
+    R2_ACCOUNT_ID: 'account-id',
+    R2_ACCESS_KEY_ID: 'access-key',
+    R2_SECRET_ACCESS_KEY: 'secret-key',
+    R2_BUCKET_NAME: 'bucket',
+    R2_ENDPOINT: 'https://account-id.r2.cloudflarestorage.com',
+    CORS_ORIGIN: 'https://documind.icu',
+    RESEND_API_KEY: 'resend-key',
+    AUTH_EMAIL_FRONTEND_URL: 'https://documind.icu',
+  };
+
   it('applies development defaults', () => {
     expect(validateEnvironment(validEnvironment)).toMatchObject({
       NODE_ENV: 'development',
@@ -50,6 +65,49 @@ describe('validateEnvironment', () => {
       }),
     ).toThrow(
       '"R2_ACCOUNT_ID" is required. "R2_ACCESS_KEY_ID" is required. "R2_SECRET_ACCESS_KEY" is required. "R2_BUCKET_NAME" is required. "R2_ENDPOINT" is required',
+    );
+  });
+
+  it('disables mock modes by default in production', () => {
+    const result = validateEnvironment({
+      ...validProductionEnvironment,
+      GEMINI_MOCK: undefined,
+      MOCK_AUTH: undefined,
+    });
+
+    expect(result).toMatchObject({
+      GEMINI_MOCK: false,
+      MOCK_AUTH: false,
+    });
+  });
+
+  it('rejects Gemini mock mode in production', () => {
+    expect(() =>
+      validateEnvironment({
+        ...validProductionEnvironment,
+        GEMINI_MOCK: true,
+      }),
+    ).toThrow('"GEMINI_MOCK" must be [false]');
+  });
+
+  it('rejects mock authentication in production', () => {
+    expect(() =>
+      validateEnvironment({
+        ...validProductionEnvironment,
+        MOCK_AUTH: true,
+      }),
+    ).toThrow('"MOCK_AUTH" must be [false]');
+  });
+
+  it('requires a Gemini API key when mock mode is disabled', () => {
+    expect(() =>
+      validateEnvironment({
+        ...validProductionEnvironment,
+        GEMINI_API_KEY: '',
+        GEMINI_API_KEYS: '',
+      }),
+    ).toThrow(
+      'at least one of GEMINI_API_KEY or GEMINI_API_KEYS is required when GEMINI_MOCK=false',
     );
   });
 

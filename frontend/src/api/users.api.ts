@@ -3,7 +3,9 @@ import type { AdminMutableUserStatus, CurrentUser, UserListResponse, UserRole, U
 import { mockGetUsers, mockUpdateUserStatus } from './admin.mock'
 
 const ADMIN_USERS_PATH = '/admin/users'
-const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCK_API === 'true'
+const USE_MOCKS =
+  process.env.NODE_ENV !== 'production' &&
+  process.env.NEXT_PUBLIC_USE_MOCK_API === 'true'
 
 export type UserQuery = {
   page?: number

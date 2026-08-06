@@ -66,11 +66,16 @@ keys stored in an environment variable may use escaped newlines (`\n`).
 | `GEMINI_API_KEY`               | Server-side Gemini key                                                                   |
 | `GEMINI_API_KEYS`              | Optional comma-separated backup keys; use keys from independently quota-managed projects |
 | `GEMINI_MOCK`                  | Use mock AI responses when `true`                                                        |
+| `MOCK_AUTH`                    | Local-only authentication bypass; production rejects `true`                             |
 | `LLAMA_CLOUD_API_KEY`          | Optional OCR fallback; local PDF extraction runs first                                   |
 | `LLAMA_PARSE_PREMIUM_MODE`     | Opt in to higher-credit premium OCR; defaults to `false`                                 |
 | `OCR_MAX_PAGES`                | Maximum unreadable pages allowed before cloud OCR; defaults to `20`                      |
 | `EXTRACTION_TIMEOUT_MS`        | Extraction timeout; defaults to `240000` so cloud OCR can finish                         |
 | `CORS_ORIGIN`                  | Comma-separated allowed frontend origins                                                 |
+
+Production startup validates configuration before NestJS accepts traffic. It rejects
+AI/auth mock modes, missing R2 credentials, missing Resend configuration, missing
+frontend/CORS URLs, and a disabled Gemini mock without at least one API key.
 
 ## Cloudflare R2 Storage
 

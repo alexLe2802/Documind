@@ -68,7 +68,12 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
+NEXT_PUBLIC_USE_MOCK_API=false
 ```
+
+Production builds fail immediately when a required public Firebase/API setting is
+missing or `NEXT_PUBLIC_USE_MOCK_API=true`. Keep mock APIs disabled in the
+Cloudflare production environment.
 
 Only browser-safe Firebase configuration belongs in `NEXT_PUBLIC_*` variables.
 Never expose `DATABASE_URL`, Firebase Admin credentials, storage secrets, or AI
@@ -89,6 +94,11 @@ Health check: /api/health
 Set `CORS_ORIGIN=https://documind.icu` and configure the remaining variables
 from `backend/.env.example` in the host's secret store. Point
 `DATABASE_URL` only at the new Supabase project.
+
+Render production must set `GEMINI_MOCK=false` and `MOCK_AUTH=false`. At least
+one of `GEMINI_API_KEY` or `GEMINI_API_KEYS` must be present. Startup now fails
+before opening the HTTP port if these rules or another required production
+integration setting are invalid.
 
 For a persistent IPv6-capable server, Supabase's direct connection is suitable.
 For an IPv4-only persistent server, use the Supavisor session pooler. For

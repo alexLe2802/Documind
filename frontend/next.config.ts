@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import { validateProductionEnvironment } from "./src/config/production-env";
+
+validateProductionEnvironment(process.env);
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
