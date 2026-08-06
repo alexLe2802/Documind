@@ -5,8 +5,10 @@
   "description": "AI Study Hub NestJS backend",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.12.0 <23",
+    "npm": ">=10.9.0 <11"
   },
+  "packageManager": "npm@10.9.0",
   "scripts": {
     "prebuild": "node scripts/check-node-version.cjs && prisma generate",
     "build": "nest build",

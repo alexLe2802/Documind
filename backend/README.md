@@ -13,8 +13,8 @@ NestJS foundation for the AI Study Hub REST API.
 
 ## Requirements
 
-- Node.js 22 LTS or newer
-- npm
+- Node.js 22, version 22.12.0 or newer (the repository pins `22.12.0`)
+- npm 10.9.x
 - A PostgreSQL database
 - A Firebase project
 - A Gemini API key
@@ -22,12 +22,17 @@ NestJS foundation for the AI Study Hub REST API.
 ## Setup
 
 ```bash
+nvm use
 npm install
 copy .env.example .env
 npm run prisma:generate
 npm run prisma:migrate:dev -- --name init
 npm run start:dev
 ```
+
+The root `.nvmrc` and `.node-version` files are the source of truth for local
+development and CI. Application manifests document the supported range, while
+the backend startup/build guard and GitHub Actions enforce the pinned version.
 
 The API runs at `http://localhost:3001/api`. Swagger is available at
 `http://localhost:3001/api/docs`. The public health endpoint is

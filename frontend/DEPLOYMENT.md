@@ -11,6 +11,39 @@ The hosting provider has not been selected yet. Configure the provider to build
 each directory independently and keep all secrets in its environment-variable
 store, never in Git.
 
+## Toolchain and automation
+
+Both applications use Node.js 22 starting at `22.12.0` and npm `10.9.x`. Run
+`nvm use` from the repository root before installing dependencies. CI rejects
+versions outside Node 22/npm 10.x and pins `22.12.0` for reproducibility.
+
+`.github/workflows/ci.yml` runs the backend and frontend quality gates for pull
+requests and pushes to `main` or `dev`. It also verifies that the backend
+container builds successfully.
+
+After CI succeeds on `main`, `.github/workflows/cd.yml`:
+
+1. Publishes the backend image to
+   `ghcr.io/<repository-owner>/documind-backend` with `latest` and commit-SHA
+   tags. Connect the selected backend host to this image once that host has
+   been chosen.
+2. Deploys the frontend to Cloudflare through Wrangler.
+
+Create a protected GitHub environment named `production`. Configure these
+environment secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+Configure the public frontend values from `frontend/.env.example` as GitHub
+environment variables, including `NEXT_PUBLIC_API_BASE_URL` and all
+`NEXT_PUBLIC_FIREBASE_*` values. Do not store server-side credentials in GitHub
+variables exposed to the frontend build.
+
+Require the `Backend quality gate`, `Frontend quality gate`, and
+`Verify backend container` checks in the `main` branch protection rule. Use the
+`production` environment approval rule if deployments require manual approval.
+
 ## Frontend
 
 Build from `frontend/`:
