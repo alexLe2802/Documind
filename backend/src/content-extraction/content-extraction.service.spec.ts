@@ -102,6 +102,7 @@ describe('ContentExtractionService', () => {
           : undefined,
     ),
   };
+  const notifications = { create: jest.fn() };
   const user = {
     id: '11111111-1111-4111-8111-111111111111',
     role: { name: RoleName.USER },
@@ -126,6 +127,7 @@ describe('ContentExtractionService', () => {
       geminiService as never,
       moderationScanner as never,
       configService as never,
+      notifications as never,
     );
   });
 
@@ -510,6 +512,7 @@ describe('ContentExtractionService', () => {
     prisma.document.update.mockResolvedValue({});
     prisma.document.findUnique.mockResolvedValue({
       id: documentId,
+      ownerId: user.id,
       title: 'Security Notes',
       fileName: 'security.pdf',
       fileType: 'pdf',
@@ -547,6 +550,14 @@ describe('ContentExtractionService', () => {
           },
         ],
       },
+    });
+    expect(notifications.create).toHaveBeenCalledWith({
+      userId: user.id,
+      type: 'DOCUMENT_PENDING_REVIEW',
+      title: 'Chờ câu trả lời của admin',
+      message:
+        'Tài liệu “Security Notes” đã bị cắm cờ và được gửi cho admin kiểm duyệt. Vui lòng chờ câu trả lời của admin.',
+      documentId,
     });
   });
 

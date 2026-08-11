@@ -24,6 +24,7 @@ import { LegacyOfficeExtractorService } from './services/legacy-office-extractor
 import { PptxExtractorService } from './services/pptx-extractor.service';
 import { XlsxExtractorService } from './services/xlsx-extractor.service';
 import { ModerationScannerService } from './moderation-scanner.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type DetectedFileType =
   | 'pdf'
@@ -59,6 +60,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     private readonly geminiService: GeminiService,
     private readonly moderationScanner: ModerationScannerService,
     private readonly configService: ConfigService,
+    private readonly notifications: NotificationsService,
     private readonly legacyOfficeExtractor?: LegacyOfficeExtractorService,
   ) {
     this.extractionQueue.registerProcessor((item) =>
@@ -232,6 +234,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
       const document = await this.prisma.document.findUnique({
         where: { id: documentId },
         select: {
+          ownerId: true,
           title: true,
           fileName: true,
           fileType: true,
@@ -322,6 +325,18 @@ export class ContentExtractionService implements OnApplicationBootstrap {
           ...this.toModerationData(moderationResult),
         },
       });
+      if (
+        document.visibility === DocumentVisibility.PUBLIC &&
+        moderationResult.flag === 'FLAGGED'
+      ) {
+        await this.notifications.create({
+          userId: document.ownerId,
+          type: 'DOCUMENT_PENDING_REVIEW',
+          title: 'Chờ câu trả lời của admin',
+          message: `Tài liệu “${document.title}” đã bị cắm cờ và được gửi cho admin kiểm duyệt. Vui lòng chờ câu trả lời của admin.`,
+          documentId,
+        });
+      }
     } catch (error) {
       await this.persistFailure(
         documentId,

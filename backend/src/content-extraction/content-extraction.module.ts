@@ -13,9 +13,16 @@ import { LegacyOfficeExtractorService } from './services/legacy-office-extractor
 import { PptxExtractorService } from './services/pptx-extractor.service';
 import { XlsxExtractorService } from './services/xlsx-extractor.service';
 import { ModerationScannerService } from './moderation-scanner.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [AuthModule, DocumentContentModule, StorageModule, AiChatbotModule],
+  imports: [
+    AuthModule,
+    DocumentContentModule,
+    StorageModule,
+    AiChatbotModule,
+    NotificationsModule,
+  ],
   controllers: [ContentExtractionController, DocumentContentController],
   providers: [
     ContentExtractionService,
