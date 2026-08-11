@@ -503,7 +503,7 @@ export function LibraryView() {
     if (document.visibility !== "PRIVATE" || publishingDocumentIds.has(document.id)) {
       return;
     }
-    if (!window.confirm(text("Công khai tài liệu này? Hệ thống sẽ tự kiểm tra nội dung; chỉ tài liệu cần chú ý mới được gửi cho quản trị viên duyệt.", "Make this document public? The system will scan its content; only flagged documents require admin review."))) {
+    if (!window.confirm(text("Bạn có muốn công khai tài liệu này?", "Do you want to make this document public?"))) {
       return;
     }
 

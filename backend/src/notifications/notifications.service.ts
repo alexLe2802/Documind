@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type NotificationType =
   | 'DOCUMENT_UPLOADED'
+  | 'DOCUMENT_PENDING_REVIEW'
+  | 'DOCUMENT_PUBLISHED'
   | 'DOCUMENT_APPROVED'
   | 'DOCUMENT_REJECTED';
 

@@ -411,6 +411,25 @@ export class DocumentsService {
     if (status === DocumentStatus.HIDDEN) {
       await this.auditLogService.logDocumentHide(ownerId, id, { status });
     }
+    if (becomesPublicFromPrivate) {
+      if (document.moderationStatus === ModerationStatus.APPROVED) {
+        await this.notifications.create({
+          userId: ownerId,
+          type: 'DOCUMENT_PUBLISHED',
+          title: 'Công khai tài liệu thành công',
+          message: `Tài liệu “${existingDocument.title}” đã được công khai thành công trên cộng đồng.`,
+          documentId: id,
+        });
+      } else {
+        await this.notifications.create({
+          userId: ownerId,
+          type: 'DOCUMENT_PENDING_REVIEW',
+          title: 'Tài liệu đang chờ kiểm duyệt',
+          message: `Tài liệu “${existingDocument.title}” có từ khóa cần kiểm duyệt và đã được gửi đến quản trị viên.`,
+          documentId: id,
+        });
+      }
+    }
     return this.serialize(document, ownerId);
   }
 

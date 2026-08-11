@@ -325,7 +325,7 @@ export class AdminDocumentsController {
       userId: existing.ownerId,
       type: 'DOCUMENT_APPROVED',
       title: 'Tài liệu đã được duyệt',
-      message: `Tài liệu “${existing.title}” đã được admin duyệt và đăng lên cộng đồng.`,
+      message: `Tài liệu tên “${existing.title}” đã được duyệt lên cộng đồng.`,
       documentId: id,
     });
     return updated;
@@ -349,6 +349,7 @@ export class AdminDocumentsController {
       where: { id },
       data: {
         moderationStatus: ModerationStatus.REJECTED,
+        status: DocumentStatus.HIDDEN,
         rejectionReason: reason,
         reviewedAt: new Date(),
         reviewedBy: admin.id,
@@ -371,7 +372,7 @@ export class AdminDocumentsController {
       userId: existing.ownerId,
       type: 'DOCUMENT_REJECTED',
       title: 'Tài liệu đã bị từ chối',
-      message: `Tài liệu “${existing.title}” đã bị từ chối. Lý do: ${reason}`,
+      message: `Tài liệu của bạn “${existing.title}” đã bị từ chối và ẩn khỏi cộng đồng. Lý do: ${reason}`,
       documentId: id,
     });
     return updated;

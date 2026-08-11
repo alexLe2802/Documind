@@ -2,7 +2,7 @@ import { apiRequest } from '../lib/http'
 
 export type UserNotification = {
   id: string
-  type: 'DOCUMENT_UPLOADED' | 'DOCUMENT_APPROVED' | 'DOCUMENT_REJECTED'
+  type: 'DOCUMENT_UPLOADED' | 'DOCUMENT_PENDING_REVIEW' | 'DOCUMENT_PUBLISHED' | 'DOCUMENT_APPROVED' | 'DOCUMENT_REJECTED'
   title: string
   message: string
   documentId: string | null

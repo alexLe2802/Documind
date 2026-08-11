@@ -409,8 +409,8 @@ export function AdminDocumentsView() {
             <div className="admin-modal-body">
               <p>
                 {text(
-                  `Tài liệu "${selectedDoc.title}" sẽ bị từ chối và người tải lên sẽ thấy lý do bên dưới.`,
-                  `"${selectedDoc.title}" will be rejected and the uploader will see the reason below.`
+                  `Tài liệu "${selectedDoc.title}" sẽ bị từ chối, ẩn khỏi cộng đồng và người tải lên sẽ thấy lý do bên dưới.`,
+                  `"${selectedDoc.title}" will be rejected, hidden from the community, and the uploader will see the reason below.`
                 )}
               </p>
 

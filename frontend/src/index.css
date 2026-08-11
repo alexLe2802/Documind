@@ -1804,6 +1804,8 @@ select:focus {
 .notification-dot--document_approved { background: #16a34a; }
 .notification-dot--document_rejected { background: #dc2626; }
 .notification-dot--document_uploaded { background: #d97706; }
+.notification-dot--document_pending_review { background: #d97706; }
+.notification-dot--document_published { background: #16a34a; }
 .notification-empty { margin: 0; padding: 28px 16px; color: var(--subtle); text-align: center; font-size: 0.82rem; }
 
 .mini-avatar,
