@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, ClipboardCheck, FileWarning, Search, ShieldCheck, UserCheck, UsersRound, UserX } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, ShieldCheck, UserCheck, UsersRound, UserX } from 'lucide-react'
 import { getUsers, updateUserStatus, type UserQuery } from '../api/users.api'
 import type { AdminMutableUserStatus, CurrentUser, UserListResponse, UserRole, UserStatus } from '../types/auth'
 import { useAuth } from '../features/auth/useAuth'
@@ -123,24 +123,6 @@ export function AdminUsersView() {
           <UserX size={20} />
           <span>{t('admin.blocked')}</span>
           <strong>{blockedUsers}</strong>
-        </article>
-      </section>
-
-      <section className="admin-workflow">
-        <article>
-          <ShieldCheck size={18} />
-          <strong>{t('admin.accessTitle')}</strong>
-          <span>{t('admin.accessBody')}</span>
-        </article>
-        <article>
-          <FileWarning size={18} />
-          <strong>{t('admin.moderationTitle')}</strong>
-          <span>{t('admin.moderationBody')}</span>
-        </article>
-        <article>
-          <ClipboardCheck size={18} />
-          <strong>{t('admin.auditTitle')}</strong>
-          <span>{t('admin.auditBody')}</span>
         </article>
       </section>
 
