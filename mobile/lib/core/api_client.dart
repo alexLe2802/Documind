@@ -49,8 +49,19 @@ class ApiClient {
         .toList();
   }
 
-  Future<dynamic> get(String path, {Map<String, dynamic>? query}) async =>
-      unwrap((await dio.get<dynamic>(path, queryParameters: query)).data);
+  Future<dynamic> get(
+    String path, {
+    Map<String, dynamic>? query,
+    Duration? receiveTimeout,
+  }) async => unwrap(
+    (await dio.get<dynamic>(
+      path,
+      queryParameters: query,
+      options: receiveTimeout == null
+          ? null
+          : Options(receiveTimeout: receiveTimeout),
+    )).data,
+  );
 
   Future<dynamic> post(String path, {Object? data}) async =>
       unwrap((await dio.post<dynamic>(path, data: data)).data);

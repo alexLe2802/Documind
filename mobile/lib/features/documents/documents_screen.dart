@@ -228,15 +228,24 @@ class _DocumentTile extends ConsumerWidget {
           child: FutureBuilder<dynamic>(
             future: ref
                 .read(apiClientProvider)
-                .get('/documents/${document['id']}/preview'),
+                .get(
+                  '/documents/${document['id']}/preview',
+                  receiveTimeout: const Duration(seconds: 15),
+                ),
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
-                return const Column(
+                return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Đang chuẩn bị bản xem trước...'),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    const Text('Đang chuyển tài liệu sang PDF...'),
+                    const SizedBox(height: 14),
+                    OutlinedButton.icon(
+                      onPressed: () => _openOriginal(dialogContext, ref),
+                      icon: const Icon(Icons.file_open_outlined),
+                      label: const Text('Mở bản gốc ngay'),
+                    ),
                   ],
                 );
               }
@@ -251,7 +260,7 @@ class _DocumentTile extends ConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Máy chủ chưa tạo được đường dẫn xem trước. Hãy đóng và thử lại sau.',
+                      'Không thể tạo PDF trong thời gian cho phép. Bạn vẫn có thể mở file gốc.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 18),
