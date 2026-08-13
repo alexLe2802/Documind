@@ -502,7 +502,6 @@ class DocumentPreviewPage extends ConsumerStatefulWidget {
 
 class _DocumentPreviewPageState extends ConsumerState<DocumentPreviewPage> {
   WebViewController? controller;
-  String? originalUrl;
   String? error;
   int progress = 0;
 
@@ -556,7 +555,6 @@ class _DocumentPreviewPageState extends ConsumerState<DocumentPreviewPage> {
         ..loadRequest(Uri.parse(previewUrl));
       if (!mounted) return;
       setState(() {
-        originalUrl = rawUrl;
         controller = webController;
       });
     } catch (_) {
@@ -676,25 +674,14 @@ class _DocumentPreviewPageState extends ConsumerState<DocumentPreviewPage> {
                 const SizedBox(height: 9),
               ],
               if (!widget.restrictCommunityActions)
-                Row(children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: originalUrl == null
-                          ? null
-                          : () => controller?.loadRequest(Uri.parse(originalUrl!)),
-                      icon: const Icon(Icons.visibility_outlined),
-                      label: const Text('Mở bản gốc'),
-                    ),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _download,
+                    icon: const Icon(Icons.download_outlined),
+                    label: const Text('Tải xuống'),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _download,
-                      icon: const Icon(Icons.download_outlined),
-                      label: const Text('Tải xuống'),
-                    ),
-                  ),
-                ]),
+                ),
               if (!widget.restrictCommunityActions &&
                   widget.onAskAi != null) ...[
                 const SizedBox(height: 9),
