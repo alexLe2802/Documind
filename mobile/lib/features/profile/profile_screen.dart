@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../auth/auth_controller.dart';
 import '../home/home_shell.dart';
+import '../subscription/subscription_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -72,6 +73,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(currentProfileProvider);
+    final subscription = ref.watch(subscriptionProvider);
     return profile.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Không thể tải hồ sơ: $e')),
@@ -169,6 +171,71 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 22),
+            const Text(
+              'GÓI DỊCH VỤ',
+              style: TextStyle(
+                color: Color(0xffd97706),
+                letterSpacing: 1.1,
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SubscriptionScreen(),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        backgroundColor: Color(0xfffff7ed),
+                        foregroundColor: Color(0xffd97706),
+                        child: Icon(Icons.workspace_premium_outlined),
+                      ),
+                      const SizedBox(width: 13),
+                      Expanded(
+                        child: subscription.when(
+                          loading: () => const Text('Đang tải gói hiện tại...'),
+                          error: (_, _) => const Text('Quản lý gói dịch vụ'),
+                          data: (value) {
+                            final current = Map<String, dynamic>.from(
+                              value['current'] as Map,
+                            );
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Gói ${current['plan'] ?? 'FREE'}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                Text(
+                                  'Còn ${current['uploadsRemaining'] ?? 0} tài liệu · ${current['aiChatsRemaining'] ?? '∞'} lượt AI',
+                                  style: const TextStyle(
+                                    color: Color(0xff64748b),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded),
+                    ],
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
