@@ -87,7 +87,6 @@ export async function login(payload: LoginPayload) {
     const idToken = await refreshedUser.getIdToken(true);
 
     const currentUser = await loginWithFirebaseToken({ idToken });
-    await signOut(firebaseAuth);
     return currentUser;
   } catch (error) {
     throw normalizeAuthError(error);

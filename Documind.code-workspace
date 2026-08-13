@@ -6,6 +6,7 @@
     }
   ],
   "settings": {
+    "dart.flutterSdkPath": ".tools/flutter-sdk/flutter",
     "typescript.tsdk": "frontend/node_modules/typescript/lib",
     "typescript.enablePromptUseWorkspaceTsdk": true,
     "typescript.preferences.importModuleSpecifier": "relative",
@@ -30,7 +31,9 @@
     "recommendations": [
       "dbaeumer.vscode-eslint",
       "prisma.prisma",
-      "ms-vscode.vscode-typescript-next"
+      "ms-vscode.vscode-typescript-next",
+      "dart-code.dart-code",
+      "dart-code.flutter"
     ]
   }
 }

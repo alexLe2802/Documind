@@ -1,0 +1,218 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../auth/auth_controller.dart';
+import '../home/home_shell.dart';
+
+class ProfileScreen extends ConsumerStatefulWidget {
+  const ProfileScreen({super.key});
+  @override
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final name = TextEditingController();
+  bool initialized = false;
+  bool saving = false;
+
+  Future<void> pickAvatar() async {
+    final image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1200,
+    );
+    if (image == null) return;
+    setState(() => saving = true);
+    try {
+      final userId = FirebaseAuth.instance.currentUser!.uid;
+      final refStorage = FirebaseStorage.instance.ref(
+        'avatars/$userId/${DateTime.now().millisecondsSinceEpoch}-avatar.jpg',
+      );
+      await refStorage.putData(
+        await image.readAsBytes(),
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final url = await refStorage.getDownloadURL();
+      await ref
+          .read(apiClientProvider)
+          .patch('/users/profile', data: {'avatarUrl': url});
+      ref.invalidate(currentProfileProvider);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Không thể đổi ảnh: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Future<void> save() async {
+    if (name.text.trim().isEmpty) return;
+    setState(() => saving = true);
+    try {
+      await ref
+          .read(apiClientProvider)
+          .patch('/users/profile', data: {'fullName': name.text.trim()});
+      ref.invalidate(currentProfileProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã lưu hồ sơ')));
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = ref.watch(currentProfileProvider);
+    return profile.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Không thể tải hồ sơ: $e')),
+      data: (data) {
+        if (!initialized) {
+          name.text = data['fullName']?.toString() ?? '';
+          initialized = true;
+        }
+        final avatar = data['avatarUrl']?.toString();
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const Text(
+              'HỒ SƠ CÁ NHÂN',
+              style: TextStyle(
+                color: Color(0xffd97706),
+                letterSpacing: 1.1,
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Thông tin của bạn',
+              style: TextStyle(
+                fontFamily: 'Georgia',
+                fontSize: 30,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Center(
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 54,
+                    backgroundImage: avatar != null && avatar.isNotEmpty
+                        ? NetworkImage(avatar)
+                        : null,
+                    child: avatar == null || avatar.isEmpty
+                        ? Text(
+                            name.text.isEmpty
+                                ? 'D'
+                                : name.text[0].toUpperCase(),
+                            style: const TextStyle(fontSize: 34),
+                          )
+                        : null,
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: IconButton.filled(
+                      onPressed: saving ? null : pickAvatar,
+                      icon: const Icon(Icons.photo_camera_outlined),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(
+                labelText: 'Họ và tên',
+                prefixIcon: Icon(Icons.person_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: TextEditingController(
+                text: data['email']?.toString() ?? '',
+              ),
+              readOnly: true,
+              enableInteractiveSelection: false,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                prefixIcon: Icon(Icons.mail_outline_rounded),
+                suffixIcon: Icon(Icons.lock_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _Info(
+                    label: 'Vai trò',
+                    value: data['role']?.toString() ?? 'USER',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _Info(
+                    label: 'Trạng thái',
+                    value: data['status']?.toString() ?? 'ACTIVE',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: saving ? null : save,
+              icon: const Icon(Icons.save_outlined),
+              label: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Text(saving ? 'Đang lưu...' : 'Lưu thay đổi'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => ref.read(authControllerProvider).signOut(),
+              icon: const Icon(Icons.logout_rounded),
+              label: const Padding(
+                padding: EdgeInsets.all(14),
+                child: Text('Đăng xuất'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Info extends StatelessWidget {
+  const _Info({required this.label, required this.value});
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xff64748b), fontSize: 12),
+          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    ),
+  );
+}

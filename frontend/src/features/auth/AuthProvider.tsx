@@ -95,7 +95,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const idToken = await credential.user.getIdToken();
       try {
         const currentUser = await authApi.loginWithFirebaseToken({ idToken });
-        await signOut(firebaseAuth);
         clearPendingGoogleRegistration();
         setPendingGoogleRegistration(null);
         setUser(currentUser);
