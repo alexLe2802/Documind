@@ -106,6 +106,53 @@ class _UsersState extends ConsumerState<_Users> {
     );
   }
 
+  Future<void> showUserActions(Map<String, dynamic> user) async {
+    if (user['role'] == 'ADMIN') return;
+    final current = user['status']?.toString();
+    final next = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: Text(
+              user['fullName']?.toString() ?? user['email'].toString(),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text(user['email']?.toString() ?? ''),
+          ),
+          if (current != 'ACTIVE')
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline),
+              title: const Text('ACTIVE'),
+              onTap: () => Navigator.pop(sheetContext, 'ACTIVE'),
+            ),
+          if (current != 'BLOCKED')
+            ListTile(
+              leading: const Icon(Icons.block_rounded, color: Colors.red),
+              title: const Text('BLOCKED'),
+              onTap: () => Navigator.pop(sheetContext, 'BLOCKED'),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+    if (next == null || !mounted) return;
+    try {
+      await ref
+          .read(apiClientProvider)
+          .patch('/admin/users/${user['id']}/status', data: {'status': next});
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể cập nhật tài khoản.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Column(
     children: [
@@ -147,41 +194,16 @@ class _UsersState extends ConsumerState<_Users> {
                 itemBuilder: (_, i) {
                   final u = items[i];
                   return Card(
-                    child: ListTile(
-                      title: Text(
-                        u['fullName']?.toString() ?? u['email'].toString(),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => showUserActions(u),
+                      child: ListTile(
+                        title: Text(
+                          u['fullName']?.toString() ?? u['email'].toString(),
+                        ),
+                        subtitle: Text('${u['email']} · ${u['role']}'),
+                        trailing: _StatusChip(status: u['status'].toString()),
                       ),
-                      subtitle: Text('${u['email']} · ${u['role']}'),
-                      trailing: u['role'] == 'ADMIN'
-                          ? _StatusChip(status: u['status'].toString())
-                          : PopupMenuButton<String>(
-                              onSelected: (status) async {
-                                await ref
-                                    .read(apiClientProvider)
-                                    .patch(
-                                      '/admin/users/${u['id']}/status',
-                                      data: {'status': status},
-                                    );
-                                setState(() {});
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                  value: 'ACTIVE',
-                                  child: Text('ACTIVE'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'BLOCKED',
-                                  child: Text('BLOCKED'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'INACTIVE',
-                                  child: Text('INACTIVE'),
-                                ),
-                              ],
-                              child: _StatusChip(
-                                status: u['status'].toString(),
-                              ),
-                            ),
                     ),
                   );
                 },
@@ -250,38 +272,48 @@ class _DocumentsState extends ConsumerState<_Documents> {
     }
   }
 
-  Future<String?> _askRejectionReason() async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
+  Future<void> showDocumentActions(Map<String, dynamic> document) async {
+    final moderation = document['moderationStatus']?.toString();
+    final action = await showModalBottomSheet<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Reject document'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Rejection reason',
-            hintText: 'Enter a reason for the document owner',
+      useSafeArea: true,
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: Text(
+              document['title']?.toString() ?? 'Document',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text('${document['owner']?['email'] ?? ''}'),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('CANCEL'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final reason = controller.text.trim();
-              if (reason.isNotEmpty) Navigator.pop(dialogContext, reason);
-            },
-            child: const Text('REJECT'),
-          ),
+          if (moderation != 'APPROVED')
+            ListTile(
+              leading: const Icon(
+                Icons.check_circle_outline,
+                color: Color(0xff15803d),
+              ),
+              title: const Text('APPROVE'),
+              onTap: () => Navigator.pop(sheetContext, 'APPROVE'),
+            ),
+          if (moderation != 'REJECTED')
+            ListTile(
+              leading: const Icon(Icons.cancel_outlined, color: Colors.red),
+              title: const Text('REJECT'),
+              onTap: () => Navigator.pop(sheetContext, 'REJECT'),
+            ),
+          const SizedBox(height: 8),
         ],
       ),
     );
-    controller.dispose();
-    return result;
+    if (action != null && mounted) await moderate(document, action);
+  }
+
+  Future<String?> _askRejectionReason() async {
+    return showDialog<String>(
+      context: context,
+      builder: (_) => const _RejectDocumentDialog(),
+    );
   }
 
   @override
@@ -339,35 +371,52 @@ class _DocumentsState extends ConsumerState<_Documents> {
                 itemBuilder: (_, i) {
                   final d = items[i];
                   return Card(
-                    child: ListTile(
-                      title: Text(d['title']?.toString() ?? ''),
-                      subtitle: Row(
-                        children: [
-                          Expanded(
-                            child: Text('${d['owner']?['email'] ?? ''}'),
-                          ),
-                          _StatusChip(
-                            status: d['moderationStatus']?.toString() ?? '',
-                          ),
-                        ],
-                      ),
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (action) => moderate(d, action),
-                        itemBuilder: (_) {
-                          final moderation = d['moderationStatus']?.toString();
-                          return [
-                            if (moderation != 'APPROVED')
-                              const PopupMenuItem(
-                                value: 'APPROVE',
-                                child: Text('APPROVE'),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => showDocumentActions(d),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    d['title']?.toString() ?? '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    '${d['owner']?['email'] ?? ''}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xff64748b),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            if (moderation != 'REJECTED')
-                              const PopupMenuItem(
-                                value: 'REJECT',
-                                child: Text('REJECT'),
+                            ),
+                            const SizedBox(width: 6),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: _StatusChip(
+                                status: d['moderationStatus']?.toString() ?? '',
                               ),
-                          ];
-                        },
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              size: 20,
+                              color: Color(0xff94a3b8),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -377,6 +426,56 @@ class _DocumentsState extends ConsumerState<_Documents> {
           },
         ),
       ),
+    ],
+  );
+}
+
+class _RejectDocumentDialog extends StatefulWidget {
+  const _RejectDocumentDialog();
+
+  @override
+  State<_RejectDocumentDialog> createState() => _RejectDocumentDialogState();
+}
+
+class _RejectDocumentDialogState extends State<_RejectDocumentDialog> {
+  final controller = TextEditingController();
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  void submit() {
+    final reason = controller.text.trim();
+    if (reason.isEmpty) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.of(context).pop(reason);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Reject document'),
+    content: TextField(
+      controller: controller,
+      autofocus: true,
+      maxLines: 3,
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => submit(),
+      decoration: const InputDecoration(
+        labelText: 'Rejection reason',
+        hintText: 'Enter a reason for the document owner',
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () {
+          FocusManager.instance.primaryFocus?.unfocus();
+          Navigator.of(context).pop();
+        },
+        child: const Text('CANCEL'),
+      ),
+      FilledButton(onPressed: submit, child: const Text('REJECT')),
     ],
   );
 }
