@@ -17,8 +17,48 @@ final documentsProvider =
       return api.listFrom(result);
     });
 
-class DocumentsScreen extends ConsumerWidget {
+typedef DocumentFilters = ({
+  String search,
+  String subjectId,
+  String categoryId,
+  String fileType,
+});
+
+final filteredDocumentsProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, DocumentFilters>((ref, filters) async {
+      final api = ref.watch(apiClientProvider);
+      final result = await api.get(
+        '/documents',
+        query: {
+          'ownerOnly': true,
+          'page': 1,
+          'limit': 100,
+          if (filters.search.isNotEmpty) 'search': filters.search,
+          if (filters.subjectId.isNotEmpty) 'subjectId': filters.subjectId,
+          if (filters.categoryId.isNotEmpty) 'categoryId': filters.categoryId,
+          if (filters.fileType.isNotEmpty) 'fileType': filters.fileType,
+        },
+      );
+      return api.listFrom(result);
+    });
+
+final libraryMetadataProvider = FutureProvider.autoDispose((ref) async {
+  final api = ref.watch(apiClientProvider);
+  final result = await Future.wait([
+    api.get('/subjects'),
+    api.get('/categories'),
+  ]);
+  return (
+    subjects: api.listFrom(result[0]),
+    categories: api.listFrom(result[1]),
+  );
+});
+
+class DocumentsScreen extends ConsumerStatefulWidget {
   const DocumentsScreen({super.key});
+
+  @override
+  ConsumerState<DocumentsScreen> createState() => _DocumentsScreenState();
 
   static Future<void> openUpload(BuildContext context, WidgetRef ref) async {
     final api = ref.read(apiClientProvider);
@@ -40,7 +80,10 @@ class DocumentsScreen extends ConsumerWidget {
         builder: (_) => _UploadSheet(
           subjects: subjects,
           categories: categories,
-          onUploaded: () => ref.invalidate(documentsProvider),
+          onUploaded: () {
+            ref.invalidate(documentsProvider);
+            ref.invalidate(filteredDocumentsProvider);
+          },
         ),
       );
     } catch (error) {
@@ -51,45 +94,230 @@ class DocumentsScreen extends ConsumerWidget {
       }
     }
   }
+}
+
+class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
+  final search = TextEditingController();
+  String subjectId = '', categoryId = '', fileType = '';
+
+  DocumentFilters get filters => (
+    search: search.text.trim(),
+    subjectId: subjectId,
+    categoryId: categoryId,
+    fileType: fileType,
+  );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final documents = ref.watch(documentsProvider);
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentFilters = filters;
+    final documents = ref.watch(filteredDocumentsProvider(currentFilters));
+    final metadata = ref.watch(libraryMetadataProvider).value;
+    final subjects = metadata?.subjects ?? const <Map<String, dynamic>>[];
+    final categories = (metadata?.categories ?? const <Map<String, dynamic>>[])
+        .where((item) {
+          final linked = item['subjectId']?.toString();
+          return subjectId.isEmpty || linked == null || linked == subjectId;
+        })
+        .toList();
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => openUpload(context, ref),
+        onPressed: () => DocumentsScreen.openUpload(context, ref),
         icon: const Icon(Icons.upload_file_rounded),
         label: const Text('Tải lên'),
       ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.refresh(documentsProvider.future),
-        child: documents.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => _EmptyState(
-            icon: Icons.cloud_off_rounded,
-            title: 'Không thể tải thư viện',
-            detail: error.toString(),
-            action: () => ref.invalidate(documentsProvider),
+      body: Column(
+        children: [
+          _LibraryFilters(
+            search: search,
+            subjects: subjects,
+            categories: categories,
+            subjectId: subjectId,
+            categoryId: categoryId,
+            fileType: fileType,
+            onSearch: () => setState(() {}),
+            onSubject: (value) => setState(() {
+              subjectId = value;
+              categoryId = '';
+            }),
+            onCategory: (value) => setState(() => categoryId = value),
+            onFileType: (value) => setState(() => fileType = value),
           ),
-          data: (items) => items.isEmpty
-              ? _EmptyState(
-                  icon: Icons.folder_open_rounded,
-                  title: 'Thư viện đang trống',
-                  detail: 'Tải tài liệu đầu tiên để bắt đầu hỏi đáp cùng AI.',
-                  action: () => openUpload(context, ref),
-                  actionLabel: 'Tải tài liệu',
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (_, index) => _DocumentTile(items[index]),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () =>
+                  ref.refresh(filteredDocumentsProvider(currentFilters).future),
+              child: documents.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => _EmptyState(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Không thể tải thư viện',
+                  detail: error.toString(),
+                  action: () =>
+                      ref.invalidate(filteredDocumentsProvider(currentFilters)),
                 ),
-        ),
+                data: (items) => items.isEmpty
+                    ? _EmptyState(
+                        icon: Icons.folder_open_rounded,
+                        title: 'Thư viện đang trống',
+                        detail:
+                            'Tải tài liệu đầu tiên để bắt đầu hỏi đáp cùng AI.',
+                        action: () => DocumentsScreen.openUpload(context, ref),
+                        actionLabel: 'Tải tài liệu',
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
+                        itemCount: items.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (_, index) => _DocumentTile(items[index]),
+                      ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _LibraryFilters extends StatelessWidget {
+  const _LibraryFilters({
+    required this.search,
+    required this.subjects,
+    required this.categories,
+    required this.subjectId,
+    required this.categoryId,
+    required this.fileType,
+    required this.onSearch,
+    required this.onSubject,
+    required this.onCategory,
+    required this.onFileType,
+  });
+
+  final TextEditingController search;
+  final List<Map<String, dynamic>> subjects;
+  final List<Map<String, dynamic>> categories;
+  final String subjectId, categoryId, fileType;
+  final VoidCallback onSearch;
+  final ValueChanged<String> onSubject, onCategory, onFileType;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+    child: Column(
+      children: [
+        TextField(
+          controller: search,
+          onChanged: (_) => onSearch(),
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+          decoration: InputDecoration(
+            hintText: 'Tìm theo tên hoặc mô tả tài liệu',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: search.text.isEmpty
+                ? null
+                : IconButton(
+                    onPressed: () {
+                      search.clear();
+                      onSearch();
+                    },
+                    icon: const Icon(Icons.clear_rounded),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _FilterMenu(
+                label: 'Môn học',
+                value: subjectId,
+                items: subjects
+                    .map(
+                      (item) => (
+                        value: item['id'].toString(),
+                        label: item['name']?.toString() ?? 'Môn học',
+                      ),
+                    )
+                    .toList(),
+                onChanged: onSubject,
+              ),
+              const SizedBox(width: 8),
+              _FilterMenu(
+                label: 'Danh mục',
+                value: categoryId,
+                items: categories
+                    .map(
+                      (item) => (
+                        value: item['id'].toString(),
+                        label: item['name']?.toString() ?? 'Danh mục',
+                      ),
+                    )
+                    .toList(),
+                onChanged: onCategory,
+              ),
+              const SizedBox(width: 8),
+              _FilterMenu(
+                label: 'Loại file',
+                value: fileType,
+                items: const [
+                  (value: 'PDF', label: 'PDF'),
+                  (value: 'DOCX', label: 'DOCX'),
+                  (value: 'PPTX', label: 'PPTX'),
+                  (value: 'XLSX', label: 'XLSX'),
+                ],
+                onChanged: onFileType,
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _FilterMenu extends StatelessWidget {
+  const _FilterMenu({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+  final String label, value;
+  final List<({String value, String label})> items;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<String>(
+    onSelected: onChanged,
+    itemBuilder: (_) => [
+      PopupMenuItem(value: '', child: Text('Tất cả $label')),
+      for (final item in items)
+        PopupMenuItem(value: item.value, child: Text(item.label)),
+    ],
+    child: Chip(
+      avatar: Icon(
+        value.isEmpty ? Icons.filter_list_rounded : Icons.check_rounded,
+        size: 17,
+      ),
+      label: Text(
+        value.isEmpty
+            ? label
+            : items
+                      .where((item) => item.value == value)
+                      .map((item) => item.label)
+                      .firstOrNull ??
+                  label,
+      ),
+    ),
+  );
 }
 
 class _DocumentTile extends ConsumerWidget {
