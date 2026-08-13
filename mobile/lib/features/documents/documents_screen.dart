@@ -6,16 +6,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../auth/auth_controller.dart';
 
-final documentsProvider = FutureProvider<List<Map<String, dynamic>>>((
-  ref,
-) async {
-  final api = ref.watch(apiClientProvider);
-  final result = await api.get(
-    '/documents',
-    query: {'ownerOnly': true, 'page': 1, 'limit': 100},
-  );
-  return api.listFrom(result);
-});
+final documentsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+      final api = ref.watch(apiClientProvider);
+      final result = await api.get(
+        '/documents',
+        query: {'ownerOnly': true, 'page': 1, 'limit': 100},
+      );
+      return api.listFrom(result);
+    });
 
 class DocumentsScreen extends ConsumerWidget {
   const DocumentsScreen({super.key});
@@ -101,63 +100,67 @@ class _DocumentTile extends ConsumerWidget {
     final type = fileName.split('.').lastOrNull?.toUpperCase() ?? 'FILE';
     final status = document['aiStatus']?.toString() ?? 'PENDING';
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 54,
-              decoration: BoxDecoration(
-                color: const Color(0xfffff7ed),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                type,
-                style: const TextStyle(
-                  color: Color(0xffb45309),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _showActions(context, ref),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: const Color(0xfffff7ed),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  type,
+                  style: const TextStyle(
+                    color: Color(0xffb45309),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    document['title']?.toString() ?? 'Tài liệu',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    '${document['subject']?['name'] ?? 'Chưa phân môn'} · ${document['category']?['name'] ?? ''}',
-                    style: const TextStyle(color: Color(0xff64748b)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    status == 'COMPLETED' || status == 'MOCKED'
-                        ? 'AI sẵn sàng'
-                        : 'AI: $status',
-                    style: const TextStyle(
-                      color: Color(0xff166534),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      document['title']?.toString() ?? 'Tài liệu',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 5),
+                    Text(
+                      '${document['subject']?['name'] ?? 'Chưa phân môn'} · ${document['category']?['name'] ?? ''}',
+                      style: const TextStyle(color: Color(0xff64748b)),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      status == 'COMPLETED' || status == 'MOCKED'
+                          ? 'AI sẵn sàng'
+                          : 'AI: $status',
+                      style: const TextStyle(
+                        color: Color(0xff166534),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            IconButton(
-              tooltip: 'Document actions',
-              onPressed: () => _showActions(context, ref),
-              icon: const Icon(Icons.chevron_right_rounded),
-            ),
-          ],
+              IconButton(
+                tooltip: 'Tùy chọn tài liệu',
+                onPressed: () => _showActions(context, ref),
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -180,16 +183,15 @@ class _DocumentTile extends ConsumerWidget {
             const SizedBox(height: 12),
             ListTile(
               leading: const Icon(Icons.visibility_outlined),
-              title: const Text('Preview'),
-              onTap: () => _openUrl(
-                sheetContext,
-                ref,
-                '/documents/${document['id']}/preview',
-              ),
+              title: const Text('Xem trước'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showPreview(context, ref);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.download_outlined),
-              title: const Text('Download'),
+              title: const Text('Tải xuống'),
               onTap: () => _openUrl(
                 sheetContext,
                 ref,
@@ -198,13 +200,13 @@ class _DocumentTile extends ConsumerWidget {
             ),
             ListTile(
               leading: const Icon(Icons.auto_awesome_rounded),
-              title: const Text('Ask AI'),
-              subtitle: const Text('Select this document in Ask AI'),
+              title: const Text('Hỏi AI'),
+              subtitle: const Text('Dùng tài liệu này làm nguồn trả lời'),
               onTap: () {
                 Navigator.pop(sheetContext);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Open Ask AI and select this document.'),
+                    content: Text('Mở Hỏi AI và chọn tài liệu này.'),
                   ),
                 );
               },
@@ -213,6 +215,139 @@ class _DocumentTile extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _showPreview(BuildContext context, WidgetRef ref) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(document['title']?.toString() ?? 'Xem trước tài liệu'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: MediaQuery.sizeOf(dialogContext).height * .42,
+          child: FutureBuilder<dynamic>(
+            future: ref
+                .read(apiClientProvider)
+                .get('/documents/${document['id']}/preview'),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Đang chuẩn bị bản xem trước...'),
+                  ],
+                );
+              }
+              if (snapshot.hasError) {
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_rounded,
+                      size: 48,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Máy chủ chưa tạo được đường dẫn xem trước. Hãy đóng và thử lại sau.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 18),
+                    OutlinedButton.icon(
+                      onPressed: () => _openOriginal(dialogContext, ref),
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      label: const Text('Mở bản gốc'),
+                    ),
+                  ],
+                );
+              }
+              final data = snapshot.data as Map<String, dynamic>;
+              final originalUrl = data['url'] ?? data['downloadUrl'];
+              final previewUrl = originalUrl == null
+                  ? null
+                  : _webPreviewUrl(data, originalUrl.toString());
+              final usesOfficeViewer = previewUrl != originalUrl;
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.description_outlined,
+                    size: 56,
+                    color: Color(0xffd97706),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    usesOfficeViewer
+                        ? 'Tài liệu sẽ được mở bằng Microsoft Office Viewer.'
+                        : 'Bản PDF xem trước đã sẵn sàng.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: previewUrl == null
+                        ? null
+                        : () => launchUrl(
+                            Uri.parse(previewUrl),
+                            mode: LaunchMode.inAppBrowserView,
+                          ),
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('Xem ngay'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () => _openOriginal(dialogContext, ref),
+                    icon: const Icon(Icons.file_open_outlined),
+                    label: const Text('Mở bản gốc'),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _webPreviewUrl(Map<String, dynamic> result, String originalUrl) {
+    final contentType = result['contentType']?.toString().toLowerCase() ?? '';
+    final useOfficeViewer =
+        result['fallbackToOfficeViewer'] == true ||
+        contentType.contains('officedocument');
+    if (!useOfficeViewer) return originalUrl;
+    return 'https://view.officeapps.live.com/op/view.aspx?src='
+        '${Uri.encodeComponent(originalUrl)}';
+  }
+
+  Future<void> _openOriginal(BuildContext context, WidgetRef ref) async {
+    try {
+      final result = await ref
+          .read(apiClientProvider)
+          .get('/documents/${document['id']}/download');
+      final url = result['url'] ?? result['downloadUrl'];
+      if (url == null ||
+          !await launchUrl(
+            Uri.parse(url.toString()),
+            mode: LaunchMode.inAppBrowserView,
+          )) {
+        throw StateError('URL unavailable');
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể mở file gốc. Vui lòng thử lại sau.'),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _openUrl(
@@ -233,9 +368,11 @@ class _DocumentTile extends ConsumerWidget {
       if (context.mounted) Navigator.pop(context);
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Action failed: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể tạo đường dẫn. Vui lòng thử lại sau.'),
+          ),
+        );
       }
     }
   }

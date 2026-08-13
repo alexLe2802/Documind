@@ -7,12 +7,12 @@ import '../chat/chat_screen.dart';
 import '../documents/documents_screen.dart';
 import '../profile/profile_screen.dart';
 
-final currentProfileProvider = FutureProvider<Map<String, dynamic>>((
-  ref,
-) async {
-  final result = await ref.watch(apiClientProvider).get('/auth/me');
-  return Map<String, dynamic>.from(result['user'] ?? result);
-});
+final currentProfileProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
+  (ref) async {
+    final result = await ref.watch(apiClientProvider).get('/auth/me');
+    return Map<String, dynamic>.from(result['user'] ?? result);
+  },
+);
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -46,17 +46,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         appBar: AppBar(
           title: Row(
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: const Color(0xff0f172a),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.auto_stories_rounded,
-                  color: Color(0xfff59e0b),
-                  size: 20,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  'https://documind.icu/Logo.png',
+                  width: 34,
+                  height: 34,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const Icon(
+                    Icons.auto_stories_rounded,
+                    color: Color(0xffd97706),
+                    size: 30,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),

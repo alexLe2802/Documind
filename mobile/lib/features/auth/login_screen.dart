@@ -18,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? error;
 
   Future<void> submit() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       loading = true;
       error = null;
@@ -35,6 +36,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> googleSignIn() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       loading = true;
       error = null;

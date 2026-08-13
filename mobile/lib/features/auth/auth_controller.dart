@@ -19,16 +19,21 @@ class AuthController {
   final ApiClient _api;
 
   Future<void> signIn(String email, String password) async {
-    final credential = await _auth.signInWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
-    );
-    await credential.user?.reload();
-    if (_auth.currentUser?.emailVerified != true) {
+    await _clearSession();
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      await credential.user?.reload();
+      if (_auth.currentUser?.emailVerified != true) {
+        throw StateError('Verify your email before signing in.');
+      }
+      await _api.post('/auth/firebase-login');
+    } catch (_) {
       await _auth.signOut();
-      throw StateError('Verify your email before signing in.');
+      rethrow;
     }
-    await _api.post('/auth/firebase-login');
   }
 
   Future<void> register(String fullName, String email, String password) async {
@@ -58,6 +63,7 @@ class AuthController {
       _api.post('/auth/forgot-password', data: {'email': email.trim()});
 
   Future<GoogleRegistrationData?> signInWithGoogle() async {
+    await _auth.signOut();
     final google = GoogleSignIn.instance;
     await google.initialize();
     try {
@@ -91,6 +97,10 @@ class AuthController {
   }
 
   Future<void> signOut() async {
+    await _clearSession();
+  }
+
+  Future<void> _clearSession() async {
     await _auth.signOut();
     try {
       await GoogleSignIn.instance.disconnect();

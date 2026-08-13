@@ -85,6 +85,13 @@ class _Users extends ConsumerStatefulWidget {
 class _UsersState extends ConsumerState<_Users> {
   final search = TextEditingController();
   String keyword = '';
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
   Future<List<Map<String, dynamic>>> load() async {
     final api = ref.read(apiClientProvider);
     return api.listFrom(
@@ -106,7 +113,9 @@ class _UsersState extends ConsumerState<_Users> {
         padding: const EdgeInsets.all(16),
         child: TextField(
           controller: search,
-          onSubmitted: (v) => setState(() => keyword = v.trim()),
+          textInputAction: TextInputAction.done,
+          onChanged: (v) => setState(() => keyword = v.trim()),
+          onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           decoration: InputDecoration(
             hintText: 'Search by name or email',
             prefixIcon: const Icon(Icons.search),
@@ -143,29 +152,36 @@ class _UsersState extends ConsumerState<_Users> {
                         u['fullName']?.toString() ?? u['email'].toString(),
                       ),
                       subtitle: Text('${u['email']} · ${u['role']}'),
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (status) async {
-                          await ref
-                              .read(apiClientProvider)
-                              .patch(
-                                '/admin/users/${u['id']}/status',
-                                data: {'status': status},
-                              );
-                          setState(() {});
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'ACTIVE', child: Text('ACTIVE')),
-                          PopupMenuItem(
-                            value: 'BLOCKED',
-                            child: Text('BLOCKED'),
-                          ),
-                          PopupMenuItem(
-                            value: 'INACTIVE',
-                            child: Text('INACTIVE'),
-                          ),
-                        ],
-                        child: Chip(label: Text(u['status'].toString())),
-                      ),
+                      trailing: u['role'] == 'ADMIN'
+                          ? _StatusChip(status: u['status'].toString())
+                          : PopupMenuButton<String>(
+                              onSelected: (status) async {
+                                await ref
+                                    .read(apiClientProvider)
+                                    .patch(
+                                      '/admin/users/${u['id']}/status',
+                                      data: {'status': status},
+                                    );
+                                setState(() {});
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'ACTIVE',
+                                  child: Text('ACTIVE'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'BLOCKED',
+                                  child: Text('BLOCKED'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'INACTIVE',
+                                  child: Text('INACTIVE'),
+                                ),
+                              ],
+                              child: _StatusChip(
+                                status: u['status'].toString(),
+                              ),
+                            ),
                     ),
                   );
                 },
@@ -187,6 +203,13 @@ class _Documents extends ConsumerStatefulWidget {
 class _DocumentsState extends ConsumerState<_Documents> {
   final search = TextEditingController();
   String keyword = '', status = '';
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
   Future<List<Map<String, dynamic>>> load() async {
     final api = ref.read(apiClientProvider);
     return api.listFrom(
@@ -209,10 +232,19 @@ class _DocumentsState extends ConsumerState<_Documents> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         child: TextField(
           controller: search,
-          onSubmitted: (v) => setState(() => keyword = v.trim()),
-          decoration: const InputDecoration(
+          textInputAction: TextInputAction.done,
+          onChanged: (v) => setState(() => keyword = v.trim()),
+          onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+          decoration: InputDecoration(
             hintText: 'Search documents',
-            prefixIcon: Icon(Icons.search),
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: IconButton(
+              onPressed: () {
+                search.clear();
+                setState(() => keyword = '');
+              },
+              icon: const Icon(Icons.clear),
+            ),
           ),
         ),
       ),
@@ -250,8 +282,15 @@ class _DocumentsState extends ConsumerState<_Documents> {
                   return Card(
                     child: ListTile(
                       title: Text(d['title']?.toString() ?? ''),
-                      subtitle: Text(
-                        '${d['owner']?['email'] ?? ''} · ${d['moderationStatus'] ?? ''}',
+                      subtitle: Row(
+                        children: [
+                          Expanded(
+                            child: Text('${d['owner']?['email'] ?? ''}'),
+                          ),
+                          _StatusChip(
+                            status: d['moderationStatus']?.toString() ?? '',
+                          ),
+                        ],
                       ),
                       trailing: PopupMenuButton<String>(
                         onSelected: (a) async {
@@ -293,4 +332,30 @@ class _DocumentsState extends ConsumerState<_Documents> {
       ),
     ],
   );
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = status.toUpperCase();
+    final isGreen = normalized == 'ACTIVE' || normalized == 'APPROVED';
+    final isRed = normalized == 'BLOCKED' || normalized == 'REJECTED';
+    final color = isGreen
+        ? const Color(0xff15803d)
+        : isRed
+        ? const Color(0xffdc2626)
+        : const Color(0xff64748b);
+    return Chip(
+      visualDensity: VisualDensity.compact,
+      side: BorderSide(color: color.withValues(alpha: .35)),
+      backgroundColor: color.withValues(alpha: .1),
+      label: Text(
+        normalized,
+        style: TextStyle(color: color, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
 }

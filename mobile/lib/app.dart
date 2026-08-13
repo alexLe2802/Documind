@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'features/auth/auth_controller.dart';
 import 'features/auth/login_screen.dart';
@@ -57,9 +58,15 @@ class DocuMindApp extends ConsumerWidget {
           fillColor: Colors.white,
         ),
       ),
+      builder: (context, child) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: auth.when(
-        data: (user) =>
-            user == null ? const LoginScreen() : const _BackendSessionGate(),
+        data: (user) => user == null
+            ? const LoginScreen()
+            : _BackendSessionGate(key: ValueKey(user.uid), firebaseUser: user),
         loading: () =>
             const Scaffold(body: Center(child: CircularProgressIndicator())),
         error: (error, _) =>
@@ -70,17 +77,30 @@ class DocuMindApp extends ConsumerWidget {
 }
 
 class _BackendSessionGate extends ConsumerStatefulWidget {
-  const _BackendSessionGate();
+  const _BackendSessionGate({required this.firebaseUser, super.key});
+  final User firebaseUser;
   @override
   ConsumerState<_BackendSessionGate> createState() =>
       _BackendSessionGateState();
 }
 
 class _BackendSessionGateState extends ConsumerState<_BackendSessionGate> {
-  late final Future<void> check = ref
-      .read(apiClientProvider)
-      .get('/auth/me')
-      .then((_) {});
+  late final Future<void> check = _validateSession();
+
+  Future<void> _validateSession() async {
+    final result = await ref.read(apiClientProvider).get('/auth/me');
+    final profile = Map<String, dynamic>.from(result['user'] ?? result);
+    final backendUid = profile['firebaseUid']?.toString();
+    final backendEmail = profile['email']?.toString().toLowerCase();
+    final firebaseEmail = widget.firebaseUser.email?.toLowerCase();
+    if ((backendUid != null && backendUid != widget.firebaseUser.uid) ||
+        (backendEmail != null &&
+            firebaseEmail != null &&
+            backendEmail != firebaseEmail)) {
+      throw StateError('Phiên đăng nhập không khớp với tài khoản đã chọn.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder(
     future: check,
