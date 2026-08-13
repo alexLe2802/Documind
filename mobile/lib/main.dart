@@ -145,7 +145,7 @@ class FirebaseSetupRequiredApp extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Bản build này chưa đọc được cấu hình Firebase iOS. Hãy build lại với file config.json.',
+                    'Bản build này chưa đọc được cấu hình Firebase cho thiết bị hiện tại. Hãy build lại với file config.json.',
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 18),

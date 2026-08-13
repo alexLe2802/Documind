@@ -460,7 +460,7 @@ num _checkoutAmount(Map<String, dynamic> selected, List<Map<String, dynamic>> pl
 }
 String _price(dynamic amount, String currency) {
   final digits = _num(amount).round().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-  return currency == 'VND' ? '${digits}đ' : '$digits $currency';
+  return currency == 'VND' ? '$digitsđ' : '$digits $currency';
 }
 String _storage(dynamic value) { final mb = _num(value); return mb >= 1024 ? '${(mb / 1024).toStringAsFixed(2)} GB' : '${mb.toStringAsFixed(mb % 1 == 0 ? 0 : 2)} MB'; }
 String _date(DateTime value) => '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';

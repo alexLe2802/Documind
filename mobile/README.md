@@ -1,6 +1,6 @@
 # DocuMind Mobile (Flutter)
 
-Ứng dụng Flutter iOS dùng chung backend NestJS và Firebase Authentication với
+Ứng dụng Flutter iOS/Android dùng chung backend NestJS và Firebase Authentication với
 phiên bản web. Đây là ứng dụng Flutter native, không phải WebView.
 
 ## Kiến trúc
@@ -34,6 +34,13 @@ Trong Firebase Console: Project settings → Your apps → Add app → iOS → n
 với `frontend/fe.env`. Không dùng `NEXT_PUBLIC_FIREBASE_APP_ID` của web cho
 `FIREBASE_IOS_APP_ID`.
 
+Với Android, thêm app có package `icu.documind.mobile` trong cùng Firebase
+project, rồi điền `mobilesdk_app_id` vào `FIREBASE_ANDROID_APP_ID`. Đăng ký SHA-1
+và SHA-256 của khóa ký nếu dùng Google Sign-In.
+Trong thời gian chưa đăng ký, app có thể khởi động bằng cấu hình project hiện
+có, nhưng Google Sign-In trên Android chỉ được bảo đảm sau khi có Android App ID
+và SHA fingerprints chính thức.
+
 ## Chạy trên iPhone
 
 Flutter SDK cục bộ nằm trong `.tools/` và không được commit:
@@ -64,6 +71,18 @@ open ios/Runner.xcworkspace
 Trong Xcode chọn target Runner → Signing & Capabilities → Team, sau đó Product
 → Archive → Distribute App. Với tài khoản Apple miễn phí, nên cài lại ngay trước
 buổi bảo vệ vì provisioning cá nhân hết hạn sau 7 ngày.
+
+## Build Android APK
+
+```bash
+../.tools/flutter-sdk/flutter/bin/flutter build apk \
+  --release \
+  --dart-define-from-file=config.json
+```
+
+APK được tạo tại `build/app/outputs/flutter-apk/app-release.apk`. Bản mẫu đang
+dùng debug signing để có thể cài trực tiếp; hãy cấu hình release keystore riêng
+nếu phát hành qua Google Play.
 
 ## Kiểm tra chất lượng
 
