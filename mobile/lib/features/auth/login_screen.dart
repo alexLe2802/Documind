@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'auth_controller.dart';
+import 'forgot_password_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -38,7 +40,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       error = null;
     });
     try {
-      await ref.read(authControllerProvider).signInWithGoogle();
+      final pending = await ref.read(authControllerProvider).signInWithGoogle();
+      if (pending != null && mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => RegisterScreen(googleData: pending),
+          ),
+        );
+      }
     } catch (_) {
       setState(
         () => error =
@@ -47,96 +56,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
-  }
-
-  Future<void> showRegister() async {
-    final fullName = TextEditingController(),
-        mail = TextEditingController(),
-        pass = TextEditingController();
-    await showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Create account'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: fullName,
-                decoration: const InputDecoration(labelText: 'Full name'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: mail,
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: pass,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text('CANCEL'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await ref
-                  .read(authControllerProvider)
-                  .register(fullName.text, mail.text, pass.text);
-              if (c.mounted) Navigator.pop(c);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Registration complete. Check your verification email.',
-                    ),
-                  ),
-                );
-              }
-            },
-            child: const Text('REGISTER'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> showForgot() async {
-    final mail = TextEditingController(text: email.text);
-    await showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Forgot password'),
-        content: TextField(
-          controller: mail,
-          decoration: const InputDecoration(labelText: 'Email'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text('CANCEL'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await ref.read(authControllerProvider).forgotPassword(mail.text);
-              if (c.mounted) Navigator.pop(c);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password reset email sent.')),
-                );
-              }
-            },
-            child: const Text('SEND'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -183,13 +102,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
                 ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: showForgot,
-                    child: const Text('Forgot password?'),
-                  ),
-                ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: password,
@@ -197,6 +109,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Mật khẩu',
                     prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ForgotPasswordScreen(initialEmail: email.text),
+                      ),
+                    ),
+                    child: const Text('Quên mật khẩu?'),
                   ),
                 ),
                 if (error != null)
@@ -243,8 +167,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 10),
                 TextButton(
-                  onPressed: showRegister,
-                  child: const Text('New to DocuMind? Create account'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                  ),
+                  child: const Text('Chưa có tài khoản? Đăng ký'),
                 ),
               ],
             ),

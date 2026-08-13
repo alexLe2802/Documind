@@ -1,0 +1,136 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'auth_controller.dart';
+
+class RegisterScreen extends ConsumerStatefulWidget {
+  const RegisterScreen({this.googleData, super.key});
+  final GoogleRegistrationData? googleData;
+  @override
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+  late final name = TextEditingController(
+        text: widget.googleData?.fullName ?? '',
+      ),
+      email = TextEditingController(text: widget.googleData?.email ?? ''),
+      password = TextEditingController(),
+      confirm = TextEditingController();
+  bool accepted = false, loading = false;
+  String? error;
+  Future<void> submit() async {
+    if (!accepted) {
+      setState(
+        () => error =
+            'Bạn cần đồng ý với Điều khoản dịch vụ và Chính sách bảo mật.',
+      );
+      return;
+    }
+    if (widget.googleData == null && password.text != confirm.text) {
+      setState(() => error = 'Mật khẩu xác nhận không khớp.');
+      return;
+    }
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      if (widget.googleData != null) {
+        await ref.read(authControllerProvider).registerGoogle(name.text);
+      } else {
+        await ref
+            .read(authControllerProvider)
+            .register(name.text, email.text, password.text);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đăng ký thành công. Hãy kiểm tra email xác thực.'),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      setState(() => error = e.toString());
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Đăng ký')),
+    body: SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'TẠO TÀI KHOẢN',
+              style: TextStyle(
+                color: Color(0xffd97706),
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Bắt đầu cùng DocuMind',
+              style: TextStyle(
+                fontFamily: 'Georgia',
+                fontSize: 30,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(labelText: 'Họ và tên'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: email,
+              readOnly: widget.googleData != null,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            if (widget.googleData == null) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Mật khẩu'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirm,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Xác nhận mật khẩu',
+                ),
+              ),
+            ],
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: accepted,
+              onChanged: (v) => setState(() => accepted = v ?? false),
+              title: const Text(
+                'Tôi đồng ý với Điều khoản dịch vụ và Chính sách bảo mật.',
+              ),
+            ),
+            if (error != null)
+              Text(error!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: loading ? null : submit,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Text(loading ? 'Đang đăng ký...' : 'Đăng ký'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}

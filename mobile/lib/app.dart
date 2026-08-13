@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/auth/auth_controller.dart';
 import 'features/auth/login_screen.dart';
+import 'features/auth/register_screen.dart';
 import 'features/home/home_shell.dart';
 
 class DocuMindApp extends ConsumerWidget {
@@ -88,6 +89,15 @@ class _BackendSessionGateState extends ConsumerState<_BackendSessionGate> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
       if (s.hasError) {
+        final user = ref.read(firebaseAuthProvider).currentUser;
+        if (user != null && s.error.toString().contains('403')) {
+          return RegisterScreen(
+            googleData: GoogleRegistrationData(
+              fullName: user.displayName ?? '',
+              email: user.email ?? '',
+            ),
+          );
+        }
         Future.microtask(() => ref.read(authControllerProvider).signOut());
         return const LoginScreen();
       }

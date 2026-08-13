@@ -31,7 +31,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   children: [
                     const Expanded(
                       child: Text(
-                        'Choose sources',
+                        'Chọn nguồn tài liệu',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
@@ -40,7 +40,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ),
                     TextButton(
                       onPressed: () => setSheet(draft.clear),
-                      child: const Text('ALL LIBRARY'),
+                      child: const Text('TOÀN BỘ THƯ VIỆN'),
                     ),
                   ],
                 ),
@@ -48,7 +48,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  'Select one or multiple AI-ready documents. No selection searches the entire library.',
+                  'Chọn một hoặc nhiều tài liệu đã sẵn sàng cho AI. Không chọn nghĩa là hỏi toàn bộ thư viện.',
                   style: TextStyle(color: Color(0xff64748b)),
                 ),
               ),
@@ -82,8 +82,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         padding: const EdgeInsets.all(14),
                         child: Text(
                           draft.isEmpty
-                              ? 'USE ALL LIBRARY'
-                              : 'USE ${draft.length} DOCUMENTS',
+                              ? 'DÙNG TOÀN BỘ THƯ VIỆN'
+                              : 'DÙNG ${draft.length} TÀI LIỆU',
                         ),
                       ),
                     ),
@@ -127,11 +127,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       setState(
         () => messages.add((
           user: false,
-          text: data['answer']?.toString() ?? 'No answer.',
+          text: data['answer']?.toString() ?? 'Không có câu trả lời.',
         )),
       );
     } catch (e) {
-      setState(() => messages.add((user: false, text: 'Unable to answer: $e')));
+      setState(
+        () => messages.add((user: false, text: 'Không thể trả lời: $e')),
+      );
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -162,14 +164,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     onTap: () => choose(docs),
                     child: InputDecorator(
                       decoration: const InputDecoration(
-                        labelText: 'Sources',
+                        labelText: 'Nguồn trả lời',
                         prefixIcon: Icon(Icons.library_books_outlined),
                         suffixIcon: Icon(Icons.tune),
                       ),
                       child: Text(
                         selected.isEmpty
-                            ? 'All library'
-                            : '${selected.length} documents selected',
+                            ? 'Toàn bộ thư viện'
+                            : 'Đã chọn ${selected.length} tài liệu',
                       ),
                     ),
                   ),
@@ -187,7 +189,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               ),
                               SizedBox(height: 12),
                               Text(
-                                'Ask your sources',
+                                'Hỏi đáp từ tài liệu',
                                 style: TextStyle(
                                   fontFamily: 'Georgia',
                                   fontSize: 25,
@@ -195,7 +197,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 ),
                               ),
                               Text(
-                                'Choose several documents or search your whole library.',
+                                'Chọn nhiều tài liệu hoặc hỏi trên toàn bộ thư viện.',
                               ),
                             ],
                           ),
@@ -251,7 +253,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             minLines: 1,
                             maxLines: 3,
                             decoration: InputDecoration(
-                              hintText: 'Ask a question...',
+                              hintText: 'Nhập câu hỏi...',
                               suffixIcon: IconButton(
                                 onPressed: focus.unfocus,
                                 icon: const Icon(Icons.keyboard_hide),

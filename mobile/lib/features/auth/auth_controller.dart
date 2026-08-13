@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -44,19 +45,49 @@ class AuthController {
     await _auth.signOut();
   }
 
+  Future<void> registerGoogle(String fullName) async {
+    if (_auth.currentUser == null) throw StateError('Google session expired');
+    await _api.post(
+      '/auth/register',
+      data: {'fullName': fullName.trim(), 'acceptedTerms': true},
+    );
+    await _auth.signOut();
+  }
+
   Future<void> forgotPassword(String email) =>
       _api.post('/auth/forgot-password', data: {'email': email.trim()});
 
-  Future<void> signInWithGoogle() async {
+  Future<GoogleRegistrationData?> signInWithGoogle() async {
     final google = GoogleSignIn.instance;
     await google.initialize();
+    try {
+      await google.disconnect();
+    } catch (_) {}
     final account = await google.authenticate();
     final idToken = account.authentication.idToken;
     if (idToken == null) throw StateError('Google did not return an ID token');
     await _auth.signInWithCredential(
       GoogleAuthProvider.credential(idToken: idToken),
     );
-    await _api.post('/auth/firebase-login');
+    try {
+      await _api.post('/auth/firebase-login');
+      return null;
+    } on DioException catch (error) {
+      final body = error.response?.data;
+      final message = body is Map
+          ? ((body['error'] is Map ? body['error']['message'] : body['message'])
+                    ?.toString() ??
+                '')
+          : '';
+      if (message.contains('Account registration is required')) {
+        return GoogleRegistrationData(
+          fullName: account.displayName ?? '',
+          email: account.email,
+        );
+      }
+      await _auth.signOut();
+      rethrow;
+    }
   }
 
   Future<void> signOut() async {
@@ -65,6 +96,12 @@ class AuthController {
       await GoogleSignIn.instance.disconnect();
     } catch (_) {}
   }
+}
+
+class GoogleRegistrationData {
+  const GoogleRegistrationData({required this.fullName, required this.email});
+  final String fullName;
+  final String email;
 }
 
 final authControllerProvider = Provider(
