@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import '../auth/auth_controller.dart';
 
@@ -218,145 +219,12 @@ class _DocumentTile extends ConsumerWidget {
   }
 
   Future<void> _showPreview(BuildContext context, WidgetRef ref) async {
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(document['title']?.toString() ?? 'Xem trước tài liệu'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: MediaQuery.sizeOf(dialogContext).height * .42,
-          child: FutureBuilder<dynamic>(
-            future: ref
-                .read(apiClientProvider)
-                .get(
-                  '/documents/${document['id']}/preview',
-                  receiveTimeout: const Duration(seconds: 35),
-                ),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
-                    const Text('Đang chuyển tài liệu sang PDF...'),
-                    const SizedBox(height: 14),
-                    OutlinedButton.icon(
-                      onPressed: () => _openOriginal(dialogContext, ref),
-                      icon: const Icon(Icons.file_open_outlined),
-                      label: const Text('Mở bản gốc ngay'),
-                    ),
-                  ],
-                );
-              }
-              if (snapshot.hasError) {
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.cloud_off_rounded,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Không thể tạo PDF trong thời gian cho phép. Bạn vẫn có thể mở file gốc.',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 18),
-                    OutlinedButton.icon(
-                      onPressed: () => _openOriginal(dialogContext, ref),
-                      icon: const Icon(Icons.open_in_new_rounded),
-                      label: const Text('Mở bản gốc'),
-                    ),
-                  ],
-                );
-              }
-              final data = snapshot.data as Map<String, dynamic>;
-              final originalUrl = data['url'] ?? data['downloadUrl'];
-              final previewUrl = originalUrl == null
-                  ? null
-                  : _webPreviewUrl(data, originalUrl.toString());
-              final usesOfficeViewer = previewUrl != originalUrl;
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.description_outlined,
-                    size: 56,
-                    color: Color(0xffd97706),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    usesOfficeViewer
-                        ? 'Tài liệu sẽ được mở bằng Microsoft Office Viewer.'
-                        : 'Bản PDF xem trước đã sẵn sàng.',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
-                    onPressed: previewUrl == null
-                        ? null
-                        : () => launchUrl(
-                            Uri.parse(previewUrl),
-                            mode: LaunchMode.inAppBrowserView,
-                          ),
-                    icon: const Icon(Icons.open_in_new_rounded),
-                    label: const Text('Xem ngay'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: () => _openOriginal(dialogContext, ref),
-                    icon: const Icon(Icons.file_open_outlined),
-                    label: const Text('Mở bản gốc'),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Đóng'),
-          ),
-        ],
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _DocumentPreviewPage(document: document),
       ),
     );
-  }
-
-  String _webPreviewUrl(Map<String, dynamic> result, String originalUrl) {
-    final contentType = result['contentType']?.toString().toLowerCase() ?? '';
-    final useOfficeViewer =
-        result['fallbackToOfficeViewer'] == true ||
-        contentType.contains('officedocument');
-    if (!useOfficeViewer) return originalUrl;
-    return 'https://view.officeapps.live.com/op/view.aspx?src='
-        '${Uri.encodeComponent(originalUrl)}';
-  }
-
-  Future<void> _openOriginal(BuildContext context, WidgetRef ref) async {
-    try {
-      final result = await ref
-          .read(apiClientProvider)
-          .get('/documents/${document['id']}/download');
-      final url = result['url'] ?? result['downloadUrl'];
-      if (url == null ||
-          !await launchUrl(
-            Uri.parse(url.toString()),
-            mode: LaunchMode.inAppBrowserView,
-          )) {
-        throw StateError('URL unavailable');
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể mở file gốc. Vui lòng thử lại sau.'),
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _openUrl(
@@ -385,6 +253,228 @@ class _DocumentTile extends ConsumerWidget {
       }
     }
   }
+}
+
+class _DocumentPreviewPage extends ConsumerStatefulWidget {
+  const _DocumentPreviewPage({required this.document});
+  final Map<String, dynamic> document;
+
+  @override
+  ConsumerState<_DocumentPreviewPage> createState() =>
+      _DocumentPreviewPageState();
+}
+
+class _DocumentPreviewPageState extends ConsumerState<_DocumentPreviewPage> {
+  WebViewController? controller;
+  String? originalUrl;
+  String? error;
+  int progress = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreview();
+  }
+
+  Future<void> _loadPreview() async {
+    if (mounted) {
+      setState(() {
+        controller = null;
+        error = null;
+        progress = 0;
+      });
+    }
+    try {
+      final result = Map<String, dynamic>.from(
+        await ref
+            .read(apiClientProvider)
+            .get(
+              '/documents/${widget.document['id']}/preview',
+              receiveTimeout: const Duration(seconds: 15),
+            ),
+      );
+      final rawUrl = (result['url'] ?? result['downloadUrl'])?.toString();
+      if (rawUrl == null) throw StateError('Preview URL unavailable');
+      final previewUrl = _previewUrl(result, rawUrl);
+      final webController = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(const Color(0xfff8fafc))
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onProgress: (value) {
+              if (mounted) setState(() => progress = value);
+            },
+            onPageFinished: (_) {
+              if (mounted) setState(() => progress = 100);
+            },
+            onWebResourceError: (webError) {
+              if (webError.isForMainFrame == true && mounted) {
+                setState(
+                  () => error = 'Không thể hiển thị tài liệu trong app.',
+                );
+              }
+            },
+          ),
+        )
+        ..loadRequest(Uri.parse(previewUrl));
+      if (!mounted) return;
+      setState(() {
+        originalUrl = rawUrl;
+        controller = webController;
+      });
+    } catch (_) {
+      if (mounted) setState(() => error = 'Không thể tải bản xem trước.');
+    }
+  }
+
+  String _previewUrl(Map<String, dynamic> result, String rawUrl) {
+    final contentType = result['contentType']?.toString().toLowerCase() ?? '';
+    final useOfficeViewer =
+        result['fallbackToOfficeViewer'] == true ||
+        contentType.contains('officedocument');
+    if (!useOfficeViewer) return rawUrl;
+    return 'https://view.officeapps.live.com/op/embed.aspx?src='
+        '${Uri.encodeComponent(rawUrl)}';
+  }
+
+  Future<void> _download() async {
+    try {
+      final result = await ref
+          .read(apiClientProvider)
+          .get('/documents/${widget.document['id']}/download');
+      final url = (result['url'] ?? result['downloadUrl'])?.toString();
+      if (url == null ||
+          !await launchUrl(
+            Uri.parse(url),
+            mode: LaunchMode.externalApplication,
+          )) {
+        throw StateError('Download URL unavailable');
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể tải xuống tài liệu.')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.document['title']?.toString() ?? 'Tài liệu';
+    final fileName = widget.document['fileName']?.toString() ?? '';
+    return Scaffold(
+      backgroundColor: const Color(0xfff1f5f9),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            const Icon(Icons.description_outlined, color: Color(0xffd97706)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xff64748b),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Đóng',
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close_rounded),
+          ),
+        ],
+        bottom: progress > 0 && progress < 100
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(3),
+                child: LinearProgressIndicator(value: progress / 100),
+              )
+            : null,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: ColoredBox(
+            color: Colors.white,
+            child: error != null
+                ? _PreviewError(message: error!, retry: _loadPreview)
+                : controller == null
+                ? const Center(child: CircularProgressIndicator())
+                : WebViewWidget(controller: controller!),
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: originalUrl == null
+                      ? null
+                      : () => controller?.loadRequest(Uri.parse(originalUrl!)),
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('Mở bản gốc'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _download,
+                  icon: const Icon(Icons.download_outlined),
+                  label: const Text('Tải xuống'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewError extends StatelessWidget {
+  const _PreviewError({required this.message, required this.retry});
+  final String message;
+  final VoidCallback retry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 52, color: Colors.red),
+          const SizedBox(height: 12),
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: retry,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Thử lại'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _UploadSheet extends ConsumerStatefulWidget {
