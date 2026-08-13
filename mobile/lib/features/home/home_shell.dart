@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../admin/admin_screen.dart';
 import '../auth/auth_controller.dart';
 import '../chat/chat_screen.dart';
+import '../community/community_hub_screen.dart';
 import '../documents/documents_screen.dart';
 import '../profile/profile_screen.dart';
 
@@ -27,14 +28,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final isAdmin = ref.watch(currentProfileProvider).value?['role'] == 'ADMIN';
     final pages = <Widget>[
       DashboardScreen(onOpen: (value) => setState(() => index = value)),
-      const DocumentsScreen(),
+      const CommunityHubScreen(),
       const ChatScreen(),
       const ProfileScreen(),
       if (isAdmin) const AdminScreen(),
     ];
     final titles = [
       'Tổng quan',
-      'Thư viện',
+      'Tài liệu',
       'Hỏi AI',
       'Hồ sơ',
       if (isAdmin) 'Quản trị',
@@ -84,7 +85,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             const NavigationDestination(
               icon: Icon(Icons.library_books_outlined),
               selectedIcon: Icon(Icons.library_books_rounded),
-              label: 'Thư viện',
+              label: 'Tài liệu',
             ),
             const NavigationDestination(
               icon: Icon(Icons.auto_awesome_outlined),

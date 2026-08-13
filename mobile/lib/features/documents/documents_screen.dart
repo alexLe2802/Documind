@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -70,9 +72,6 @@ class DocumentsScreen extends ConsumerStatefulWidget {
       final subjects = api.listFrom(metadata[0]);
       final categories = api.listFrom(metadata[1]);
       if (!context.mounted) return;
-      if (subjects.isEmpty || categories.isEmpty) {
-        throw StateError('Hệ thống chưa có môn học hoặc danh mục.');
-      }
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
@@ -450,7 +449,7 @@ class _DocumentTile extends ConsumerWidget {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => _DocumentPreviewPage(document: document),
+        builder: (_) => DocumentPreviewPage(document: document),
       ),
     );
   }
@@ -483,16 +482,17 @@ class _DocumentTile extends ConsumerWidget {
   }
 }
 
-class _DocumentPreviewPage extends ConsumerStatefulWidget {
-  const _DocumentPreviewPage({required this.document});
+class DocumentPreviewPage extends ConsumerStatefulWidget {
+  const DocumentPreviewPage({required this.document, this.previewPath, super.key});
   final Map<String, dynamic> document;
+  final String? previewPath;
 
   @override
-  ConsumerState<_DocumentPreviewPage> createState() =>
+  ConsumerState<DocumentPreviewPage> createState() =>
       _DocumentPreviewPageState();
 }
 
-class _DocumentPreviewPageState extends ConsumerState<_DocumentPreviewPage> {
+class _DocumentPreviewPageState extends ConsumerState<DocumentPreviewPage> {
   WebViewController? controller;
   String? originalUrl;
   String? error;
@@ -517,7 +517,8 @@ class _DocumentPreviewPageState extends ConsumerState<_DocumentPreviewPage> {
         await ref
             .read(apiClientProvider)
             .get(
-              '/documents/${widget.document['id']}/preview',
+              widget.previewPath ??
+                  '/documents/${widget.document['id']}/preview',
               receiveTimeout: const Duration(seconds: 15),
             ),
       );
@@ -721,13 +722,25 @@ class _UploadSheet extends ConsumerStatefulWidget {
 class _UploadSheetState extends ConsumerState<_UploadSheet> {
   final title = TextEditingController();
   final description = TextEditingController();
+  final tagInput = TextEditingController();
   PlatformFile? file;
-  late String subjectId = widget.subjects.first['id'].toString();
-  late String categoryId = widget.categories.first['id'].toString();
+  late final List<Map<String, dynamic>> subjects = [...widget.subjects];
+  late final List<Map<String, dynamic>> allCategories = [...widget.categories];
+  late String subjectId = subjects.firstOrNull?['id']?.toString() ?? '';
+  late String categoryId = categories.firstOrNull?['id']?.toString() ?? '';
+  final List<String> tags = [];
   bool isPublic = false;
   bool loading = false;
 
-  List<Map<String, dynamic>> get categories => widget.categories.where((item) {
+  @override
+  void dispose() {
+    title.dispose();
+    description.dispose();
+    tagInput.dispose();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> get categories => allCategories.where((item) {
     final linked = item['subjectId']?.toString();
     return linked == null || linked.isEmpty || linked == subjectId;
   }).toList();
@@ -741,14 +754,94 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
     if (result == null) return;
     setState(() {
       file = result.files.single;
-      if (title.text.trim().isEmpty) {
-        title.text = file!.name.replaceFirst(RegExp(r'\.[^.]+$'), '');
-      }
+      title.text = file!.name.replaceFirst(RegExp(r'\.[^.]+$'), '');
     });
   }
 
+  void addTag() {
+    final value = tagInput.text.trim().toLowerCase();
+    if (value.isEmpty || tags.contains(value) || tags.length >= 10) return;
+    setState(() {
+      tags.add(value);
+      tagInput.clear();
+    });
+  }
+
+  Future<void> createSubject() async {
+    final nameController = TextEditingController();
+    final codeController = TextEditingController();
+    final values = await showDialog<List<String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Thêm môn học'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: nameController, autofocus: true, decoration: const InputDecoration(labelText: 'Tên môn học *')),
+          const SizedBox(height: 10),
+          TextField(controller: codeController, textCapitalization: TextCapitalization.characters, decoration: const InputDecoration(labelText: 'Mã môn học', hintText: 'VD: PRM')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Hủy')),
+          FilledButton(onPressed: () {
+            final name = nameController.text.trim();
+            if (name.length < 2) return;
+            final code = (codeController.text.trim().isEmpty ? name.substring(0, name.length.clamp(0, 3).toInt()) : codeController.text.trim()).toUpperCase();
+            Navigator.pop(dialogContext, [name, code]);
+          }, child: const Text('Tạo')),
+        ],
+      ),
+    );
+    nameController.dispose();
+    codeController.dispose();
+    if (values == null) return;
+    try {
+      final raw = await ref.read(apiClientProvider).post('/subjects', data: {'name': values[0], 'code': values[1], 'description': ''});
+      final item = Map<String, dynamic>.from(raw as Map);
+      setState(() {
+        subjects.add(item);
+        subjectId = item['id'].toString();
+        categoryId = '';
+      });
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Không thể tạo môn học: $error')));
+    }
+  }
+
+  Future<void> createCategory() async {
+    if (subjectId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hãy chọn hoặc tạo môn học trước.')));
+      return;
+    }
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Thêm danh mục'),
+        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Tên danh mục *')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Hủy')),
+          FilledButton(onPressed: () { if (controller.text.trim().length >= 2) Navigator.pop(dialogContext, controller.text.trim()); }, child: const Text('Tạo')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null) return;
+    try {
+      final raw = await ref.read(apiClientProvider).post('/categories', data: {'name': name, 'subjectId': subjectId, 'description': ''});
+      final item = Map<String, dynamic>.from(raw as Map);
+      setState(() {
+        allCategories.add(item);
+        categoryId = item['id'].toString();
+      });
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Không thể tạo danh mục: $error')));
+    }
+  }
+
   Future<void> submit() async {
-    if (file == null || title.text.trim().isEmpty) return;
+    if (file == null || title.text.trim().isEmpty || subjectId.isEmpty || categoryId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng chọn tệp, môn học và danh mục.')));
+      return;
+    }
     setState(() => loading = true);
     try {
       final part = file!.path != null
@@ -766,6 +859,7 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
               'subjectId': subjectId,
               'categoryId': categoryId,
               'visibility': isPublic ? 'PUBLIC' : 'PRIVATE',
+              if (tags.isNotEmpty) 'tags': jsonEncode(tags),
             }),
           );
       widget.onUploaded();
@@ -820,10 +914,11 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
             decoration: const InputDecoration(labelText: 'Mô tả'),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: subjectId,
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(child: DropdownButtonFormField<String>(
+            initialValue: subjectId.isEmpty ? null : subjectId,
             decoration: const InputDecoration(labelText: 'Môn học *'),
-            items: widget.subjects
+            items: subjects
                 .map(
                   (e) => DropdownMenuItem(
                     value: e['id'].toString(),
@@ -838,9 +933,13 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
                 categoryId = filtered.first['id'].toString();
               }
             }),
-          ),
+          )),
+          const SizedBox(width: 8),
+          IconButton.filledTonal(tooltip: 'Thêm môn học', onPressed: loading ? null : createSubject, icon: const Icon(Icons.add_rounded)),
+          ]),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(child: DropdownButtonFormField<String>(
             key: ValueKey('$subjectId-$categoryId'),
             initialValue:
                 categories.any((e) => e['id'].toString() == categoryId)
@@ -855,7 +954,25 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
                   ),
                 )
                 .toList(),
-            onChanged: (value) => categoryId = value!,
+            onChanged: (value) => categoryId = value ?? '',
+          )),
+          const SizedBox(width: 8),
+          IconButton.filledTonal(tooltip: 'Thêm danh mục', onPressed: loading ? null : createCategory, icon: const Icon(Icons.add_rounded)),
+          ]),
+          const SizedBox(height: 12),
+          TextField(
+            controller: tagInput,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => addTag(),
+            decoration: InputDecoration(
+              labelText: 'Thẻ (không bắt buộc)',
+              hintText: 'Nhập thẻ rồi nhấn Thêm',
+              suffixIcon: IconButton(onPressed: addTag, icon: const Icon(Icons.add_rounded)),
+            ),
+          ),
+          if (tags.isNotEmpty) Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Wrap(spacing: 7, runSpacing: 7, children: tags.map((tag) => InputChip(label: Text(tag), onDeleted: () => setState(() => tags.remove(tag)))).toList()),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,

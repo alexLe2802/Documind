@@ -4,7 +4,8 @@ import '../auth/auth_controller.dart';
 import '../documents/documents_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
-  const ChatScreen({super.key});
+  const ChatScreen({this.initialDocumentId, super.key});
+  final String? initialDocumentId;
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
@@ -14,6 +15,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final messages = <({bool user, String text})>[];
   final selected = <String>{};
   bool loading = false;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialDocumentId != null) selected.add(widget.initialDocumentId!);
+  }
   Future<void> choose(List<Map<String, dynamic>> docs) async {
     final draft = {...selected};
     final result = await showModalBottomSheet<Set<String>>(
