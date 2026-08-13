@@ -4,7 +4,6 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { extname } from 'node:path';
 import {
   DocumentStatus,
@@ -28,7 +27,6 @@ import {
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentListQueryDto } from './dto/document-list-query.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
-import { OfficePreviewService } from './office-preview.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ModerationScannerService } from '../content-extraction/moderation-scanner.service';
 
@@ -80,10 +78,8 @@ export class DocumentsService {
     private readonly storage: StorageService,
     private readonly downloadLogService: DownloadLogService,
     private readonly auditLogService: AuditLogService,
-    private readonly officePreview: OfficePreviewService,
     private readonly notifications: NotificationsService,
     private readonly moderationScanner: ModerationScannerService,
-    private readonly configService: ConfigService,
   ) {}
 
   async upload(
@@ -233,7 +229,7 @@ export class DocumentsService {
     ownerId: string,
   ): Promise<ObjectUrlResponse> {
     const document = await this.findOne(id, ownerId);
-    const previewObject = await this.getPreviewObject(document);
+    const previewObject = this.getPreviewObject(document);
     const previewUrl = await this.storage.createObjectPreviewUrl(
       previewObject.storagePath,
       previewObject.fileType,
@@ -251,11 +247,11 @@ export class DocumentsService {
     };
   }
 
-  private async getPreviewObject(document: UiReadyDocument): Promise<{
+  private getPreviewObject(document: UiReadyDocument): {
     storagePath: string;
     fileType: string;
     fallbackToOfficeViewer?: boolean;
-  }> {
+  } {
     if (this.isPdf(document.fileType, document.fileName)) {
       return {
         storagePath: document.storagePath,
@@ -270,74 +266,12 @@ export class DocumentsService {
       };
     }
 
-    const previewStoragePath = this.buildPreviewStoragePath(document);
-    try {
-      if (await this.storage.objectExists(previewStoragePath)) {
-        return {
-          storagePath: previewStoragePath,
-          fileType: 'application/pdf',
-        };
-      }
-
-      if (
-        !this.configService.get<boolean>(
-          'OFFICE_PREVIEW_CONVERSION_ENABLED',
-          false,
-        )
-      ) {
-        this.logger.log(
-          `Using Office viewer for ${document.id}; server-side conversion is disabled`,
-        );
-        return {
-          storagePath: document.storagePath,
-          fileType: document.fileType,
-          fallbackToOfficeViewer: true,
-        };
-      }
-
-      const startedAt = Date.now();
-      const sourceBuffer = await this.storage.getObjectBuffer(
-        document.storagePath,
-      );
-      const previewBuffer = await this.officePreview.convertToPdf({
-        buffer: sourceBuffer,
-        fileName: document.fileName,
-      });
-      await this.storage.uploadObject({
-        objectKey: previewStoragePath,
-        body: previewBuffer,
-        contentType: 'application/pdf',
-        contentLength: previewBuffer.length,
-        metadata: {
-          sourceDocumentId: document.id,
-          sourceStoragePath: document.storagePath,
-        },
-      });
-      this.logger.log(
-        `Generated Office preview PDF for ${document.id} in ${Date.now() - startedAt}ms`,
-      );
-
-      return {
-        storagePath: previewStoragePath,
-        fileType: 'application/pdf',
-      };
-    } catch (error) {
-      this.logger.warn(
-        `Falling back to Office viewer for ${document.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-
-      return {
-        storagePath: document.storagePath,
-        fileType: document.fileType,
-        fallbackToOfficeViewer: true,
-      };
-    }
-  }
-
-  private buildPreviewStoragePath(document: UiReadyDocument): string {
-    return `users/${document.ownerId}/documents/${document.id}/preview.pdf`;
+    this.logger.log(`Using Microsoft Office viewer for ${document.id}`);
+    return {
+      storagePath: document.storagePath,
+      fileType: document.fileType,
+      fallbackToOfficeViewer: true,
+    };
   }
 
   private isPdf(mimeType: string, fileName: string): boolean {

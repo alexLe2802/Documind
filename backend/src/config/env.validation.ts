@@ -14,7 +14,6 @@ export interface Environment {
   R2_ENDPOINT: string;
   R2_PRESIGNED_URL_TTL_SECONDS: number;
   R2_PUBLIC_URL?: string;
-  OFFICE_PREVIEW_CONVERSION_ENABLED: boolean;
   GEMINI_API_KEY: string;
   GEMINI_API_KEYS: string;
   GEMINI_MOCK: boolean;
@@ -88,14 +87,6 @@ const environmentSchema = Joi.object<Environment>({
     .max(604800)
     .default(300),
   R2_PUBLIC_URL: Joi.string().uri().allow('').optional(),
-  OFFICE_PREVIEW_CONVERSION_ENABLED: Joi.boolean()
-    .truthy('true')
-    .falsy('false')
-    .when('NODE_ENV', {
-      is: 'production',
-      then: Joi.boolean().default(false),
-      otherwise: Joi.boolean().default(true),
-    }),
   GEMINI_API_KEY: Joi.string().trim().allow('').default(''),
   GEMINI_API_KEYS: Joi.string().trim().allow('').default(''),
   GEMINI_MOCK: Joi.boolean()

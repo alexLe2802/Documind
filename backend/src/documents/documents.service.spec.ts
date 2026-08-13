@@ -40,9 +40,6 @@ describe('DocumentsService', () => {
     logDocumentDelete: jest.fn(),
     logDocumentHide: jest.fn(),
   };
-  const officePreviewService = {
-    convertToPdf: jest.fn(),
-  };
   const notifications = { create: jest.fn() };
   const moderationScanner = {
     scan: jest.fn().mockReturnValue({
@@ -52,24 +49,17 @@ describe('DocumentsService', () => {
       matchedContexts: [],
     }),
   };
-  const configService = {
-    get: jest.fn().mockReturnValue(true),
-  };
   const service = new DocumentsService(
     prisma as never,
     storage as never,
     downloadLogService as never,
     auditLogService as never,
-    officePreviewService as never,
     notifications as never,
     moderationScanner as never,
-    configService as never,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
-    storage.objectExists.mockResolvedValue(false);
-    configService.get.mockReturnValue(true);
   });
 
   it.each([
@@ -819,91 +809,7 @@ describe('DocumentsService', () => {
     });
   });
 
-  it('converts Office documents to PDF before creating a preview URL', async () => {
-    prisma.document.findFirst.mockResolvedValue({
-      id: 'doc-id',
-      ownerId: 'owner-id',
-      fileName: 'Lecture Notes.docx',
-      fileType:
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      storagePath: 'users/owner-id/random-lecture-notes.docx',
-      fileSize: BigInt(42),
-    });
-    prisma.document.update.mockResolvedValue({
-      id: 'doc-id',
-      fileSize: BigInt(42),
-    });
-    storage.getObjectBuffer.mockResolvedValue(Buffer.from('docx'));
-    officePreviewService.convertToPdf.mockResolvedValue(Buffer.from('pdf'));
-    storage.uploadObject.mockResolvedValue({
-      objectKey: 'users/owner-id/documents/doc-id/preview.pdf',
-    });
-    storage.createObjectPreviewUrl.mockResolvedValue({
-      url: 'https://cdn.example/users/owner-id/documents/doc-id/preview.pdf',
-      strategy: 'public',
-    });
-
-    await expect(
-      service.createPreviewUrl('doc-id', 'owner-id'),
-    ).resolves.toEqual({
-      url: 'https://cdn.example/users/owner-id/documents/doc-id/preview.pdf',
-      strategy: 'public',
-      contentType: 'application/pdf',
-      fallbackToOfficeViewer: undefined,
-    });
-    expect(storage.getObjectBuffer).toHaveBeenCalledWith(
-      'users/owner-id/random-lecture-notes.docx',
-    );
-    expect(officePreviewService.convertToPdf).toHaveBeenCalledWith({
-      buffer: Buffer.from('docx'),
-      fileName: 'Lecture Notes.docx',
-    });
-    expect(storage.uploadObject).toHaveBeenCalledWith({
-      objectKey: 'users/owner-id/documents/doc-id/preview.pdf',
-      body: Buffer.from('pdf'),
-      contentType: 'application/pdf',
-      contentLength: 3,
-      metadata: {
-        sourceDocumentId: 'doc-id',
-        sourceStoragePath: 'users/owner-id/random-lecture-notes.docx',
-      },
-    });
-    expect(storage.createObjectPreviewUrl).toHaveBeenCalledWith(
-      'users/owner-id/documents/doc-id/preview.pdf',
-      'application/pdf',
-    );
-  });
-
-  it('reuses a previously converted Office preview without running LibreOffice again', async () => {
-    prisma.document.findFirst.mockResolvedValue({
-      id: 'doc-id',
-      ownerId: 'owner-id',
-      fileName: 'Slides.pptx',
-      fileType:
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      storagePath: 'users/owner-id/random-slides.pptx',
-      fileSize: BigInt(42),
-    });
-    prisma.document.update.mockResolvedValue({ id: 'doc-id' });
-    storage.objectExists.mockResolvedValue(true);
-    storage.createObjectPreviewUrl.mockResolvedValue({
-      url: 'https://cdn.example/preview.pdf',
-      strategy: 'public',
-    });
-
-    await expect(
-      service.createPreviewUrl('doc-id', 'owner-id'),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        url: 'https://cdn.example/preview.pdf',
-        contentType: 'application/pdf',
-      }),
-    );
-    expect(officePreviewService.convertToPdf).not.toHaveBeenCalled();
-    expect(storage.getObjectBuffer).not.toHaveBeenCalled();
-  });
-
-  it('falls back to the original Office file preview when PDF conversion fails', async () => {
+  it('always sends modern Office documents directly to Microsoft Viewer', async () => {
     prisma.document.findFirst.mockResolvedValue({
       id: 'doc-id',
       ownerId: 'owner-id',
@@ -917,10 +823,6 @@ describe('DocumentsService', () => {
       id: 'doc-id',
       fileSize: BigInt(42),
     });
-    storage.getObjectBuffer.mockResolvedValue(Buffer.from('pptx'));
-    officePreviewService.convertToPdf.mockRejectedValue(
-      new Error('LibreOffice is missing'),
-    );
     storage.createObjectPreviewUrl.mockResolvedValue({
       url: 'https://signed.example/random-slides.pptx',
       strategy: 'presigned',
@@ -935,39 +837,12 @@ describe('DocumentsService', () => {
         'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       fallbackToOfficeViewer: true,
     });
+    expect(storage.getObjectBuffer).not.toHaveBeenCalled();
     expect(storage.uploadObject).not.toHaveBeenCalled();
     expect(storage.createObjectPreviewUrl).toHaveBeenCalledWith(
       'users/owner-id/random-slides.pptx',
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     );
-  });
-
-  it('uses Office Viewer immediately when conversion is disabled in production', async () => {
-    prisma.document.findFirst.mockResolvedValue({
-      id: 'doc-id',
-      ownerId: 'owner-id',
-      fileName: 'Slides.pptx',
-      fileType:
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      storagePath: 'users/owner-id/random-slides.pptx',
-      fileSize: BigInt(42),
-    });
-    prisma.document.update.mockResolvedValue({ id: 'doc-id' });
-    configService.get.mockReturnValue(false);
-    storage.createObjectPreviewUrl.mockResolvedValue({
-      url: 'https://signed.example/random-slides.pptx',
-      strategy: 'presigned',
-    });
-
-    await expect(
-      service.createPreviewUrl('doc-id', 'owner-id'),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        fallbackToOfficeViewer: true,
-      }),
-    );
-    expect(officePreviewService.convertToPdf).not.toHaveBeenCalled();
-    expect(storage.getObjectBuffer).not.toHaveBeenCalled();
   });
 
   it('permanently deletes owned documents from the database and storage', async () => {

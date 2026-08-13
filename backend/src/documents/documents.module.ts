@@ -8,7 +8,6 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { StorageModule } from '../storage/storage.module';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
-import { OfficePreviewService } from './office-preview.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
@@ -23,7 +22,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     NotificationsModule,
   ],
   controllers: [DocumentsController],
-  providers: [DocumentsService, OfficePreviewService],
+  providers: [DocumentsService],
   exports: [DocumentsService],
 })
 export class DocumentsModule {}
