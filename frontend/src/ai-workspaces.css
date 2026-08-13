@@ -952,6 +952,26 @@
   background: var(--amber-soft);
 }
 
+.community-preview-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  color: var(--ink);
+  background: var(--surface);
+  font-weight: 750;
+}
+
+.community-preview-hint {
+  margin: 12px 24px 0;
+  color: var(--amber-dark);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
 .community-empty {
   display: grid;
   justify-items: center;
@@ -6399,4 +6419,3 @@
   color: var(--error);
   background: var(--error-container);
 }
-

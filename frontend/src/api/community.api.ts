@@ -114,3 +114,11 @@ export function saveCommunityDocument(id: string) {
 export function unsaveCommunityDocument(id: string) {
   return apiRequest<void>(`/community/documents/${id}/save`, { method: 'DELETE' })
 }
+
+export function createCommunityPreviewUrl(id: string) {
+  return apiRequest<{
+    url: string
+    contentType?: string
+    fallbackToOfficeViewer?: boolean
+  }>(`/community/documents/${id}/preview`)
+}

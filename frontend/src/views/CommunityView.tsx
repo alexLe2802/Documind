@@ -4,20 +4,28 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Bookmark,
   BookmarkCheck,
+  Bot,
+  Download,
+  Eye,
   Search,
   Sparkles,
   UserRound,
+  X,
 } from 'lucide-react'
 import {
+  createCommunityPreviewUrl,
   fetchCommunityDocuments,
   saveCommunityDocument,
   unsaveCommunityDocument,
 } from '../api/community.api'
+import { createDownloadUrl } from '../api/documents.api'
 import { useLanguage } from '../i18n/LanguageProvider'
 import { localizeCommunityDocument } from '../i18n/document-display'
 import { localize } from '../i18n/localize'
 import { ApiError } from '../lib/http'
+import { ROUTES } from '../lib/routes'
 import type { CommunityDocument } from '../types/community'
+import Link from 'next/link'
 
 export function CommunityView() {
   const { locale } = useLanguage()
@@ -28,6 +36,11 @@ export function CommunityView() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [savingIds, setSavingIds] = useState<string[]>([])
+  const [previewDocument, setPreviewDocument] = useState<CommunityDocument>()
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [originalUrl, setOriginalUrl] = useState('')
+  const [previewError, setPreviewError] = useState('')
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
   const displayedDocuments = useMemo(
     () => documents.map((item) => localizeCommunityDocument(item, locale)),
     [documents, locale],
@@ -37,6 +50,31 @@ export function CommunityView() {
     [displayedDocuments],
   )
   const savingIdSet = useMemo(() => new Set(savingIds), [savingIds])
+
+  useEffect(() => {
+    if (!previewDocument) return
+    let active = true
+    setPreviewUrl('')
+    setOriginalUrl('')
+    setPreviewError('')
+    setIsPreviewLoading(true)
+    createCommunityPreviewUrl(previewDocument.id)
+      .then((result) => {
+        if (!active) return
+        setOriginalUrl(result.url)
+        const office = result.fallbackToOfficeViewer || result.contentType?.includes('officedocument')
+        setPreviewUrl(office
+          ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(result.url)}`
+          : result.url)
+      })
+      .catch((error: unknown) => {
+        if (active) setPreviewError(error instanceof Error ? error.message : text('Không thể tải bản xem trước.', 'Could not load preview.'))
+      })
+      .finally(() => {
+        if (active) setIsPreviewLoading(false)
+      })
+    return () => { active = false }
+  }, [previewDocument, text])
 
   useEffect(() => {
     setCategory('All')
@@ -104,6 +142,11 @@ export function CommunityView() {
           : item,
       ),
     )
+    setPreviewDocument((current) =>
+      current?.id === document.id
+        ? { ...current, saved: !current.saved, savedCount: Math.max(0, current.savedCount + (current.saved ? -1 : 1)) }
+        : current,
+    )
 
     try {
       if (document.saved) {
@@ -123,6 +166,7 @@ export function CommunityView() {
             : item,
         ),
       )
+      setPreviewDocument((current) => current?.id === document.id ? document : current)
       const message =
         error instanceof ApiError
           ? error.message
@@ -130,6 +174,15 @@ export function CommunityView() {
       setErrorMessage(message)
     } finally {
       setSavingIds((current) => current.filter((id) => id !== document.id))
+    }
+  }
+
+  async function downloadDocument(document: CommunityDocument) {
+    try {
+      const result = await createDownloadUrl(document.id)
+      window.open(result.url, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : text('Không thể tải tài liệu.', 'Could not download document.'))
     }
   }
 
@@ -225,6 +278,14 @@ export function CommunityView() {
                       <small>{document.savedCount} {text('lượt lưu', 'saves')}</small>
                     </span>
                   </div>
+                  <button
+                    type="button"
+                    className="community-preview-button"
+                    onClick={() => setPreviewDocument(document)}
+                  >
+                    <Eye size={17} />
+                    {text('Xem', 'View')}
+                  </button>
                   {!isOwned ? (
                   <button
                     type="button"
@@ -250,6 +311,47 @@ export function CommunityView() {
           <p>{text('Thử chủ đề rộng hơn hoặc chuyển sang danh mục khác.', 'Try a broader topic or switch to another category.')}</p>
         </div>
       )}
+
+      {previewDocument ? (
+        <div className="preview-overlay" role="presentation" onMouseDown={() => setPreviewDocument(undefined)}>
+          <article className="preview-dialog community-preview-dialog" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <span className="document-type-icon"><Eye size={20} /></span>
+                <span><strong>{previewDocument.title}</strong><small>{previewDocument.fileType}</small></span>
+              </div>
+              <button type="button" className="icon-button" onClick={() => setPreviewDocument(undefined)} aria-label={text('Đóng', 'Close')}><X size={18} /></button>
+            </header>
+            <div className="preview-document-sheet">
+              {isPreviewLoading ? (
+                <div className="preview-frame-state"><span className="spinner" />{text('Đang tải bản xem trước...', 'Loading preview...')}</div>
+              ) : previewError ? (
+                <div className="preview-frame-state preview-frame-state--error"><strong>{text('Không thể hiển thị bản xem trước', 'Preview unavailable')}</strong><p>{previewError}</p></div>
+              ) : previewUrl ? (
+                <iframe className="preview-frame" src={previewUrl} title={previewDocument.title} />
+              ) : null}
+            </div>
+            {!previewDocument.saved && !previewDocument.owned ? (
+              <p className="community-preview-hint">{text('Hãy lưu tài liệu này để có thể tải xuống/hỏi AI', 'Save this document to download it or ask AI')}</p>
+            ) : null}
+            <footer>
+              {previewDocument.saved || previewDocument.owned ? (
+                <>
+                  <button type="button" className="secondary-button" disabled={!originalUrl} onClick={() => originalUrl && window.open(originalUrl, '_blank', 'noopener,noreferrer')}><Eye size={16} />{text('Xem bản gốc', 'View original')}</button>
+                  <button type="button" className="secondary-button" onClick={() => void downloadDocument(previewDocument)}><Download size={16} />{text('Tải xuống', 'Download')}</button>
+                  <Link className="primary-button" href={`${ROUTES.aiChat}?scope=document&document=${previewDocument.id}`}><Bot size={16} />{text('Hỏi AI', 'Ask AI')}</Link>
+                </>
+              ) : null}
+              {!previewDocument.owned ? (
+                <button type="button" className={previewDocument.saved ? 'secondary-button' : 'primary-button'} disabled={savingIdSet.has(previewDocument.id)} onClick={() => void toggleSaved(previewDocument)}>
+                  {previewDocument.saved ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+                  {previewDocument.saved ? text('Đã lưu', 'Saved') : text('Lưu tài liệu', 'Save document')}
+                </button>
+              ) : null}
+            </footer>
+          </article>
+        </div>
+      ) : null}
     </main>
   )
 }

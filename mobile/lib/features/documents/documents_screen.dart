@@ -483,9 +483,17 @@ class _DocumentTile extends ConsumerWidget {
 }
 
 class DocumentPreviewPage extends ConsumerStatefulWidget {
-  const DocumentPreviewPage({required this.document, this.previewPath, super.key});
+  const DocumentPreviewPage({
+    required this.document,
+    this.previewPath,
+    this.restrictCommunityActions = false,
+    this.onAskAi,
+    super.key,
+  });
   final Map<String, dynamic> document;
   final String? previewPath;
+  final bool restrictCommunityActions;
+  final VoidCallback? onAskAi;
 
   @override
   ConsumerState<DocumentPreviewPage> createState() =>
@@ -652,25 +660,53 @@ class _DocumentPreviewPageState extends ConsumerState<DocumentPreviewPage> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: originalUrl == null
-                      ? null
-                      : () => controller?.loadRequest(Uri.parse(originalUrl!)),
-                  icon: const Icon(Icons.visibility_outlined),
-                  label: const Text('Mở bản gốc'),
+              if (widget.restrictCommunityActions) ...[
+                const Text(
+                  'Hãy lưu tài liệu này để có thể tải xuống/hỏi AI',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xffb45309),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _download,
-                  icon: const Icon(Icons.download_outlined),
-                  label: const Text('Tải xuống'),
+                const SizedBox(height: 9),
+              ],
+              if (!widget.restrictCommunityActions)
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: originalUrl == null
+                          ? null
+                          : () => controller?.loadRequest(Uri.parse(originalUrl!)),
+                      icon: const Icon(Icons.visibility_outlined),
+                      label: const Text('Mở bản gốc'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _download,
+                      icon: const Icon(Icons.download_outlined),
+                      label: const Text('Tải xuống'),
+                    ),
+                  ),
+                ]),
+              if (!widget.restrictCommunityActions &&
+                  widget.onAskAi != null) ...[
+                const SizedBox(height: 9),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: widget.onAskAi,
+                    icon: const Icon(Icons.auto_awesome_rounded),
+                    label: const Text('Hỏi AI với tài liệu này'),
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

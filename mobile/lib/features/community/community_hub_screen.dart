@@ -132,7 +132,7 @@ class _CommunityCardState extends ConsumerState<_CommunityCard> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentPreviewPage(document: item, previewPath: '/community/documents/${item['id']}/preview'))),
+        onTap: () => _openPreview(),
         child: Padding(
           padding: const EdgeInsets.all(15),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -160,6 +160,15 @@ class _CommunityCardState extends ConsumerState<_CommunityCard> {
               Expanded(child: Text(_ownerName(item), overflow: TextOverflow.ellipsis, style: _muted)),
               Text('${item['saveCount'] ?? 0} lượt lưu', style: _muted),
             ]),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _openPreview,
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('Xem'),
+              ),
+            ),
             if (!owned) ...[
               const SizedBox(height: 10),
               SizedBox(width: double.infinity, child: saved
@@ -167,6 +176,31 @@ class _CommunityCardState extends ConsumerState<_CommunityCard> {
                 : FilledButton.tonalIcon(onPressed: busy ? null : () => _toggle(true), icon: const Icon(Icons.bookmark_add_outlined), label: const Text('Lưu vào thư viện'))),
             ],
           ]),
+        ),
+      ),
+    );
+  }
+
+  void _openPreview() {
+    final item = widget.item;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DocumentPreviewPage(
+          document: item,
+          previewPath: '/community/documents/${item['id']}/preview',
+          restrictCommunityActions: item['saved'] != true && item['owned'] != true,
+          onAskAi: item['saved'] == true || item['owned'] == true
+              ? () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(title: const Text('Hỏi AI')),
+                      body: ChatScreen(initialDocumentId: item['id'].toString()),
+                    ),
+                  ),
+                )
+              : null,
         ),
       ),
     );
