@@ -129,6 +129,26 @@ describe('apiRequest', () => {
     expect(clearStoredAuthToken).not.toHaveBeenCalled()
     expect(notifyUnauthorized).not.toHaveBeenCalled()
   })
+
+  it('can keep the current session when an isolated preview request returns 401', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(
+        {
+          success: false,
+          error: { message: 'Preview request could not be authorized' },
+        },
+        401,
+      ),
+    )
+
+    await expect(
+      apiRequest('/documents/doc-id/preview', {
+        preserveSessionOnUnauthorized: true,
+      }),
+    ).rejects.toEqual(expect.objectContaining({ status: 401 }))
+    expect(clearStoredAuthToken).not.toHaveBeenCalled()
+    expect(notifyUnauthorized).not.toHaveBeenCalled()
+  })
 })
 
 describe('normalizeApiBaseUrl', () => {

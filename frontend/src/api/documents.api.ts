@@ -266,7 +266,7 @@ export function createPreviewUrl(id: string) {
     expiresAt?: string
     contentType?: string
     fallbackToOfficeViewer?: boolean
-  }>(`/documents/${id}/preview`)
+  }>(`/documents/${id}/preview`, { preserveSessionOnUnauthorized: true })
 }
 
 export function createDownloadUrl(id: string) {

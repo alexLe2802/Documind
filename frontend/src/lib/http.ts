@@ -12,6 +12,7 @@ export const API_BASE_URL = '/api'
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: BodyInit | Record<string, unknown> | null
+  preserveSessionOnUnauthorized?: boolean
 }
 
 type ApiEnvelope<T> = {
@@ -46,8 +47,9 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers = new Headers(options.headers)
-  let body = options.body
+  const { preserveSessionOnUnauthorized = false, ...requestOptions } = options
+  const headers = new Headers(requestOptions.headers)
+  let body = requestOptions.body
 
   if (body && !(body instanceof FormData) && typeof body !== 'string') {
     headers.set('Content-Type', 'application/json')
@@ -55,7 +57,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
+    ...requestOptions,
     body,
     headers,
     credentials: 'include',
@@ -74,7 +76,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
         ? data.error?.message ?? 'Request failed'
         : 'Request failed'
 
-    if (response.status === 401) {
+    if (response.status === 401 && !preserveSessionOnUnauthorized) {
       clearStoredAuthToken()
       notifyUnauthorized()
     }

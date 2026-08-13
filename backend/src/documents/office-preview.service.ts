@@ -7,11 +7,13 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, extname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { applyXlsxPrintLayout } from './xlsx-print-layout';
 
 @Injectable()
 export class OfficePreviewService {
   private readonly logger = new Logger(OfficePreviewService.name);
+  private readonly conversionTimeoutMs = 10_000;
 
   async convertToPdf(input: {
     buffer: Buffer;
@@ -53,6 +55,7 @@ export class OfficePreviewService {
   private runLibreOffice(outDir: string, inputPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const child = spawn('soffice', [
+        `-env:UserInstallation=${pathToFileURL(join(outDir, '.libreoffice-profile')).href}`,
         '--headless',
         '--convert-to',
         'pdf',
@@ -62,27 +65,49 @@ export class OfficePreviewService {
       ]);
 
       let stderr = '';
+      let settled = false;
+      const finish = (callback: () => void): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        callback();
+      };
+      const timeout = setTimeout(() => {
+        child.kill('SIGKILL');
+        finish(() =>
+          reject(
+            new ServiceUnavailableException(
+              'Office preview conversion timed out',
+            ),
+          ),
+        );
+      }, this.conversionTimeoutMs);
+
       child.stderr.on('data', (chunk: Buffer) => {
         stderr += chunk.toString();
       });
 
       child.on('error', () => {
-        reject(
-          new ServiceUnavailableException(
-            'LibreOffice is required to generate Office document previews',
+        finish(() =>
+          reject(
+            new ServiceUnavailableException(
+              'LibreOffice is required to generate Office document previews',
+            ),
           ),
         );
       });
 
       child.on('close', (code) => {
         if (code === 0) {
-          resolve();
+          finish(resolve);
           return;
         }
 
-        reject(
-          new ServiceUnavailableException(
-            stderr.trim() || 'Document preview conversion failed',
+        finish(() =>
+          reject(
+            new ServiceUnavailableException(
+              stderr.trim() || 'Document preview conversion failed',
+            ),
           ),
         );
       });
