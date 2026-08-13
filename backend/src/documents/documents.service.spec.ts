@@ -52,6 +52,9 @@ describe('DocumentsService', () => {
       matchedContexts: [],
     }),
   };
+  const configService = {
+    get: jest.fn().mockReturnValue(true),
+  };
   const service = new DocumentsService(
     prisma as never,
     storage as never,
@@ -60,11 +63,13 @@ describe('DocumentsService', () => {
     officePreviewService as never,
     notifications as never,
     moderationScanner as never,
+    configService as never,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
     storage.objectExists.mockResolvedValue(false);
+    configService.get.mockReturnValue(true);
   });
 
   it.each([
@@ -935,6 +940,34 @@ describe('DocumentsService', () => {
       'users/owner-id/random-slides.pptx',
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     );
+  });
+
+  it('uses Office Viewer immediately when conversion is disabled in production', async () => {
+    prisma.document.findFirst.mockResolvedValue({
+      id: 'doc-id',
+      ownerId: 'owner-id',
+      fileName: 'Slides.pptx',
+      fileType:
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      storagePath: 'users/owner-id/random-slides.pptx',
+      fileSize: BigInt(42),
+    });
+    prisma.document.update.mockResolvedValue({ id: 'doc-id' });
+    configService.get.mockReturnValue(false);
+    storage.createObjectPreviewUrl.mockResolvedValue({
+      url: 'https://signed.example/random-slides.pptx',
+      strategy: 'presigned',
+    });
+
+    await expect(
+      service.createPreviewUrl('doc-id', 'owner-id'),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        fallbackToOfficeViewer: true,
+      }),
+    );
+    expect(officePreviewService.convertToPdf).not.toHaveBeenCalled();
+    expect(storage.getObjectBuffer).not.toHaveBeenCalled();
   });
 
   it('permanently deletes owned documents from the database and storage', async () => {

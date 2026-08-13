@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { extname } from 'node:path';
 import {
   DocumentStatus,
@@ -82,6 +83,7 @@ export class DocumentsService {
     private readonly officePreview: OfficePreviewService,
     private readonly notifications: NotificationsService,
     private readonly moderationScanner: ModerationScannerService,
+    private readonly configService: ConfigService,
   ) {}
 
   async upload(
@@ -274,6 +276,22 @@ export class DocumentsService {
         return {
           storagePath: previewStoragePath,
           fileType: 'application/pdf',
+        };
+      }
+
+      if (
+        !this.configService.get<boolean>(
+          'OFFICE_PREVIEW_CONVERSION_ENABLED',
+          false,
+        )
+      ) {
+        this.logger.log(
+          `Using Office viewer for ${document.id}; server-side conversion is disabled`,
+        );
+        return {
+          storagePath: document.storagePath,
+          fileType: document.fileType,
+          fallbackToOfficeViewer: true,
         };
       }
 

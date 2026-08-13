@@ -6,6 +6,7 @@ import { signInWithPopup, signOut } from "firebase/auth";
 import * as authApi from "../../api/auth.api";
 import * as profileApi from "../../api/profile.api";
 import { clearStoredAuthToken } from "../../lib/auth-token";
+import { ApiError } from "../../lib/http";
 import { getFirebaseAuth, getGoogleAuthProvider } from "../../lib/firebase";
 import {
   clearPendingGoogleRegistration,
@@ -34,8 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await authApi.getCurrentUser();
       setUser(currentUser);
       return currentUser;
-    } catch {
-      setUser(null);
+    } catch (error) {
+      // Do not destroy a valid UI session for a backend restart or 5xx.
+      if (error instanceof ApiError && error.status === 401) {
+        setUser(null);
+      }
       return null;
     } finally {
       setIsLoading(false);
