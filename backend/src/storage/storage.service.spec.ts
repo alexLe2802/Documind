@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -72,6 +73,26 @@ describe('StorageService', () => {
       ContentLength: 7,
       Metadata: { documentId: 'd' },
     });
+  });
+
+  it('checks whether a generated preview object exists', async () => {
+    send.mockResolvedValue({});
+
+    await expect(
+      service.objectExists('users/u/documents/d/preview.pdf'),
+    ).resolves.toBe(true);
+    expect(send.mock.calls[0]?.[0]).toBeInstanceOf(HeadObjectCommand);
+  });
+
+  it('returns false when a generated preview object is missing', async () => {
+    send.mockRejectedValue({
+      name: 'NotFound',
+      $metadata: { httpStatusCode: 404 },
+    });
+
+    await expect(
+      service.objectExists('users/u/documents/d/preview.pdf'),
+    ).resolves.toBe(false);
   });
 
   it('uploads file bytes directly to R2 with legacy signature', async () => {

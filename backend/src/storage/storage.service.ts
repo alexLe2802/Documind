@@ -2,6 +2,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   GetObjectCommandOutput,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -258,6 +259,34 @@ export class StorageService {
       return this.toBuffer(result.Body);
     } catch (error) {
       this.logStorageError('download', objectKey, error);
+      throw new ServiceUnavailableException(
+        'Document storage is temporarily unavailable',
+      );
+    }
+  }
+
+  async objectExists(objectKey: string): Promise<boolean> {
+    try {
+      await this.client.send(
+        new HeadObjectCommand({
+          Bucket: this.getBucketName(),
+          Key: objectKey,
+        }),
+      );
+      return true;
+    } catch (error) {
+      const candidate = error as {
+        name?: string;
+        $metadata?: { httpStatusCode?: number };
+      };
+      if (
+        candidate.name === 'NotFound' ||
+        candidate.name === 'NoSuchKey' ||
+        candidate.$metadata?.httpStatusCode === 404
+      ) {
+        return false;
+      }
+      this.logStorageError('head', objectKey, error);
       throw new ServiceUnavailableException(
         'Document storage is temporarily unavailable',
       );

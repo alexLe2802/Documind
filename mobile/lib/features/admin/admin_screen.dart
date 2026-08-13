@@ -225,6 +225,65 @@ class _DocumentsState extends ConsumerState<_Documents> {
     );
   }
 
+  Future<void> moderate(Map<String, dynamic> document, String action) async {
+    try {
+      final api = ref.read(apiClientProvider).dio;
+      if (action == 'APPROVE') {
+        await api.put('/admin/documents/${document['id']}/approve');
+      } else if (action == 'REJECT') {
+        final reason = await _askRejectionReason();
+        if (reason == null) return;
+        await api.put(
+          '/admin/documents/${document['id']}/reject',
+          data: {'reason': reason},
+        );
+      }
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể cập nhật trạng thái tài liệu.'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<String?> _askRejectionReason() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reject document'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Rejection reason',
+            hintText: 'Enter a reason for the document owner',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('CANCEL'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final reason = controller.text.trim();
+              if (reason.isNotEmpty) Navigator.pop(dialogContext, reason);
+            },
+            child: const Text('REJECT'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) => Column(
     children: [
@@ -293,34 +352,22 @@ class _DocumentsState extends ConsumerState<_Documents> {
                         ],
                       ),
                       trailing: PopupMenuButton<String>(
-                        onSelected: (a) async {
-                          if (a == 'APPROVE') {
-                            await ref
-                                .read(apiClientProvider)
-                                .dio
-                                .put('/admin/documents/${d['id']}/approve');
-                          }
-                          if (a == 'HIDE') {
-                            await ref
-                                .read(apiClientProvider)
-                                .dio
-                                .put(
-                                  '/admin/documents/${d['id']}/hide',
-                                  data: {
-                                    'hidden': true,
-                                    'reason': 'Hidden by administrator',
-                                  },
-                                );
-                          }
-                          setState(() {});
+                        onSelected: (action) => moderate(d, action),
+                        itemBuilder: (_) {
+                          final moderation = d['moderationStatus']?.toString();
+                          return [
+                            if (moderation != 'APPROVED')
+                              const PopupMenuItem(
+                                value: 'APPROVE',
+                                child: Text('APPROVE'),
+                              ),
+                            if (moderation != 'REJECTED')
+                              const PopupMenuItem(
+                                value: 'REJECT',
+                                child: Text('REJECT'),
+                              ),
+                          ];
                         },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(
-                            value: 'APPROVE',
-                            child: Text('APPROVE'),
-                          ),
-                          PopupMenuItem(value: 'HIDE', child: Text('HIDE')),
-                        ],
                       ),
                     ),
                   );

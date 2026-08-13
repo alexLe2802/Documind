@@ -268,7 +268,16 @@ export class DocumentsService {
       };
     }
 
+    const previewStoragePath = this.buildPreviewStoragePath(document);
     try {
+      if (await this.storage.objectExists(previewStoragePath)) {
+        return {
+          storagePath: previewStoragePath,
+          fileType: 'application/pdf',
+        };
+      }
+
+      const startedAt = Date.now();
       const sourceBuffer = await this.storage.getObjectBuffer(
         document.storagePath,
       );
@@ -276,8 +285,6 @@ export class DocumentsService {
         buffer: sourceBuffer,
         fileName: document.fileName,
       });
-      const previewStoragePath = this.buildPreviewStoragePath(document);
-
       await this.storage.uploadObject({
         objectKey: previewStoragePath,
         body: previewBuffer,
@@ -288,6 +295,9 @@ export class DocumentsService {
           sourceStoragePath: document.storagePath,
         },
       });
+      this.logger.log(
+        `Generated Office preview PDF for ${document.id} in ${Date.now() - startedAt}ms`,
+      );
 
       return {
         storagePath: previewStoragePath,

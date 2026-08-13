@@ -13,7 +13,10 @@ import { applyXlsxPrintLayout } from './xlsx-print-layout';
 @Injectable()
 export class OfficePreviewService {
   private readonly logger = new Logger(OfficePreviewService.name);
-  private readonly conversionTimeoutMs = 10_000;
+  private readonly officeBinary = '/usr/bin/soffice';
+  // LibreOffice cold starts slowly in small production containers. Keep this
+  // below the client timeout while allowing real PPTX/XLSX files to finish.
+  private readonly conversionTimeoutMs = 25_000;
 
   async convertToPdf(input: {
     buffer: Buffer;
@@ -54,16 +57,28 @@ export class OfficePreviewService {
 
   private runLibreOffice(outDir: string, inputPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const child = spawn('soffice', [
+      const child = spawn(this.officeBinary, [
         `-env:UserInstallation=${pathToFileURL(join(outDir, '.libreoffice-profile')).href}`,
         '--headless',
+        '--nologo',
+        '--nodefault',
+        '--nolockcheck',
+        '--nofirststartwizard',
         '--convert-to',
-        'pdf',
+        this.pdfConversionTarget(inputPath),
         '--outdir',
         outDir,
         inputPath,
-      ]);
+      ], {
+        cwd: outDir,
+        env: {
+          ...process.env,
+          HOME: outDir,
+          TMPDIR: outDir,
+        },
+      });
 
+      let stdout = '';
       let stderr = '';
       let settled = false;
       const finish = (callback: () => void): void => {
@@ -83,6 +98,9 @@ export class OfficePreviewService {
         );
       }, this.conversionTimeoutMs);
 
+      child.stdout.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString();
+      });
       child.stderr.on('data', (chunk: Buffer) => {
         stderr += chunk.toString();
       });
@@ -106,7 +124,9 @@ export class OfficePreviewService {
         finish(() =>
           reject(
             new ServiceUnavailableException(
-              stderr.trim() || 'Document preview conversion failed',
+              stderr.trim() ||
+                stdout.trim() ||
+                `Document preview conversion failed with exit code ${code ?? 'unknown'}`,
             ),
           ),
         );
@@ -121,5 +141,18 @@ export class OfficePreviewService {
       '-',
     );
     return `${stem || 'document'}${extension}`;
+  }
+
+  private pdfConversionTarget(inputPath: string): string {
+    switch (extname(inputPath).toLowerCase()) {
+      case '.pptx':
+        return 'pdf:impress_pdf_Export';
+      case '.xlsx':
+        return 'pdf:calc_pdf_Export';
+      case '.docx':
+        return 'pdf:writer_pdf_Export';
+      default:
+        return 'pdf';
+    }
   }
 }

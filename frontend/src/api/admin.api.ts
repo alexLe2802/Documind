@@ -256,5 +256,11 @@ export function rejectDocument(id: string, reason: string) {
 }
 
 export function createAdminDocumentPreviewUrl(id: string) {
-  return apiRequest<{ url: string }>(`/admin/documents/${id}/preview`)
+  return apiRequest<{
+    url: string
+    contentType?: string
+    fallbackToOfficeViewer?: boolean
+  }>(`/admin/documents/${id}/preview`, {
+    preserveSessionOnUnauthorized: true,
+  })
 }

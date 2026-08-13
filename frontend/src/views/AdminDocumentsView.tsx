@@ -122,7 +122,14 @@ export function AdminDocumentsView() {
   const handlePreviewDocument = async (id: string) => {
     try {
       const result = await createAdminDocumentPreviewUrl(id)
-      window.open(result.url, '_blank', 'noopener,noreferrer')
+      const useOfficeViewer = Boolean(
+        result.fallbackToOfficeViewer ||
+          result.contentType?.includes('officedocument'),
+      )
+      const url = useOfficeViewer
+        ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(result.url)}`
+        : result.url
+      window.open(url, '_blank', 'noopener,noreferrer')
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
     }

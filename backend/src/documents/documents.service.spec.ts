@@ -28,6 +28,7 @@ describe('DocumentsService', () => {
     uploadObject: jest.fn(),
     deleteObject: jest.fn(),
     getObjectBuffer: jest.fn(),
+    objectExists: jest.fn(),
     createObjectPreviewUrl: jest.fn(),
     createObjectDownloadUrl: jest.fn(),
   };
@@ -61,7 +62,10 @@ describe('DocumentsService', () => {
     moderationScanner as never,
   );
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    storage.objectExists.mockResolvedValue(false);
+  });
 
   it.each([
     [DocumentVisibility.PRIVATE, ModerationStatus.APPROVED],
@@ -863,6 +867,35 @@ describe('DocumentsService', () => {
       'users/owner-id/documents/doc-id/preview.pdf',
       'application/pdf',
     );
+  });
+
+  it('reuses a previously converted Office preview without running LibreOffice again', async () => {
+    prisma.document.findFirst.mockResolvedValue({
+      id: 'doc-id',
+      ownerId: 'owner-id',
+      fileName: 'Slides.pptx',
+      fileType:
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      storagePath: 'users/owner-id/random-slides.pptx',
+      fileSize: BigInt(42),
+    });
+    prisma.document.update.mockResolvedValue({ id: 'doc-id' });
+    storage.objectExists.mockResolvedValue(true);
+    storage.createObjectPreviewUrl.mockResolvedValue({
+      url: 'https://cdn.example/preview.pdf',
+      strategy: 'public',
+    });
+
+    await expect(
+      service.createPreviewUrl('doc-id', 'owner-id'),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        url: 'https://cdn.example/preview.pdf',
+        contentType: 'application/pdf',
+      }),
+    );
+    expect(officePreviewService.convertToPdf).not.toHaveBeenCalled();
+    expect(storage.getObjectBuffer).not.toHaveBeenCalled();
   });
 
   it('falls back to the original Office file preview when PDF conversion fails', async () => {

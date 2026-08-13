@@ -25,6 +25,7 @@ RUN apk add --no-cache \
     ttf-dejavu \
     ttf-liberation \
   && fc-cache -f
+RUN /usr/bin/soffice --headless --version
 COPY package*.json prisma.config.ts ./
 COPY prisma ./prisma
 COPY --from=build /app/node_modules ./node_modules

@@ -230,7 +230,7 @@ class _DocumentTile extends ConsumerWidget {
                 .read(apiClientProvider)
                 .get(
                   '/documents/${document['id']}/preview',
-                  receiveTimeout: const Duration(seconds: 15),
+                  receiveTimeout: const Duration(seconds: 35),
                 ),
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {

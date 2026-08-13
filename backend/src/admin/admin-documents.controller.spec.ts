@@ -20,20 +20,35 @@ describe('AdminDocumentsController', () => {
     logDocumentHide: jest.fn(),
     logDocumentDelete: jest.fn(),
   };
-  const storageService = {
-    createObjectPreviewUrl: jest.fn(),
-  };
   const notifications = { create: jest.fn() };
+  const documentsService = { createPreviewUrl: jest.fn() };
 
   const controller = new AdminDocumentsController(
     prisma as never,
     auditLogService as never,
-    storageService as never,
     notifications as never,
+    documentsService as never,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('uses the same PDF conversion pipeline for admin previews', async () => {
+    prisma.document.findUnique.mockResolvedValue({ ownerId: 'owner-1' });
+    documentsService.createPreviewUrl.mockResolvedValue({
+      url: 'https://cdn.example/preview.pdf',
+      contentType: 'application/pdf',
+    });
+
+    await expect(controller.preview('doc-1')).resolves.toEqual({
+      url: 'https://cdn.example/preview.pdf',
+      contentType: 'application/pdf',
+    });
+    expect(documentsService.createPreviewUrl).toHaveBeenCalledWith(
+      'doc-1',
+      'owner-1',
+    );
   });
 
   it('lists documents with a minimal select payload', async () => {

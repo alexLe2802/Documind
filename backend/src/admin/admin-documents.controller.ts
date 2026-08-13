@@ -37,9 +37,9 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { StorageService } from '../storage/storage.service';
 import { ObjectUrlResponse } from '../storage/storage.types';
 import { NotificationsService } from '../notifications/notifications.service';
+import { DocumentsService } from '../documents/documents.service';
 
 type ModerationActionResponse = {
   id: string;
@@ -115,8 +115,8 @@ export class AdminDocumentsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
-    private readonly storageService: StorageService,
     private readonly notifications: NotificationsService,
+    private readonly documentsService: DocumentsService,
   ) {}
 
   @Get()
@@ -279,13 +279,10 @@ export class AdminDocumentsController {
   ): Promise<ObjectUrlResponse> {
     const document = await this.prisma.document.findUnique({
       where: { id, visibility: DocumentVisibility.PUBLIC },
-      select: { storagePath: true, fileType: true },
+      select: { ownerId: true },
     });
     if (!document) throw new NotFoundException('Document not found');
-    return this.storageService.createObjectPreviewUrl(
-      document.storagePath,
-      document.fileType,
-    );
+    return this.documentsService.createPreviewUrl(id, document.ownerId);
   }
 
   @Put(':id/approve')
@@ -303,6 +300,7 @@ export class AdminDocumentsController {
       where: { id },
       data: {
         moderationStatus: ModerationStatus.APPROVED,
+        status: DocumentStatus.ACTIVE,
         rejectionReason: null,
         reviewedAt: new Date(),
         reviewedBy: admin.id,
