@@ -54,6 +54,22 @@ cd /Users/alexxxx/Desktop/Documind/mobile
 
 Kết nối iPhone 15 Pro, bật Developer Mode, rồi chọn thiết bị khi Flutter hỏi.
 
+### Giữ minimum iOS 15 sau `flutter pub get`
+
+Flutter 3.44 có thể tái sinh `FlutterGeneratedPluginSwiftPackage` với iOS 13 dù
+Runner đã đặt iOS 15. Flutter SDK cục bộ của dự án đã được vá cho iOS 15. Nếu
+sau này thay mới hoặc nâng cấp thư mục `.tools/flutter-sdk`, chạy lại:
+
+```bash
+./tool/ensure_flutter_ios_15.sh
+../.tools/flutter-sdk/flutter/bin/flutter pub get
+../.tools/flutter-sdk/flutter/bin/flutter build ios --config-only \
+  --dart-define-from-file=config.json
+```
+
+Không sửa trực tiếp các `Package.swift` trong `ios/Flutter/ephemeral` vì chúng
+được tạo lại tự động.
+
 ## Build và xuất IPA
 
 ```bash
