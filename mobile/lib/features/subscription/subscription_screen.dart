@@ -7,20 +7,21 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../auth/auth_controller.dart';
 
-final subscriptionProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-      final api = ref.watch(apiClientProvider);
-      final results = await Future.wait([
-        api.get('/subscription/plans'),
-        api.get('/subscription/current'),
-        api.get('/payments/history'),
-      ]);
-      return {
-        'plans': api.listFrom(results[0]),
-        'current': Map<String, dynamic>.from(results[1] as Map),
-        'history': api.listFrom(results[2]),
-      };
-    });
+final subscriptionProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
+  ref,
+) async {
+  final api = ref.watch(apiClientProvider);
+  final results = await Future.wait([
+    api.get('/subscription/plans'),
+    api.get('/subscription/current'),
+    api.get('/payments/history'),
+  ]);
+  return {
+    'plans': api.listFrom(results[0]),
+    'current': Map<String, dynamic>.from(results[1] as Map),
+    'history': api.listFrom(results[2]),
+  };
+});
 
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
@@ -92,7 +93,10 @@ class _SubscriptionContent extends ConsumerWidget {
           style: TextStyle(color: Color(0xff64748b), height: 1.45),
         ),
         const SizedBox(height: 20),
-        _CurrentPlanCard(current: current, name: currentPlan?['name']?.toString()),
+        _CurrentPlanCard(
+          current: current,
+          name: currentPlan?['name']?.toString(),
+        ),
         const SizedBox(height: 26),
         const _SectionTitle('CHỌN GÓI PHÙ HỢP'),
         const SizedBox(height: 10),
@@ -102,7 +106,8 @@ class _SubscriptionContent extends ConsumerWidget {
             child: _PlanCard(
               plan: plan,
               currentCode: currentCode,
-              onSelect: () => _showCheckout(context, ref, plan, plans, currentCode),
+              onSelect: () =>
+                  _showCheckout(context, ref, plan, plans, currentCode),
             ),
           ),
         ),
@@ -117,7 +122,8 @@ class _SubscriptionContent extends ConsumerWidget {
                 return _PaymentRow(
                   payment: payment,
                   showDivider: !isLast,
-                  onResume: payment['status'] == 'PENDING' &&
+                  onResume:
+                      payment['status'] == 'PENDING' &&
                           _isNotExpired(payment['expiresAt']) &&
                           payment['plan'] != 'FREE'
                       ? () => _resumePayment(context, ref, payment)
@@ -171,10 +177,12 @@ class _SubscriptionContent extends ConsumerWidget {
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final raw = await ref.read(apiClientProvider).post(
-        '/payments/checkout',
-        data: {'plan': plan, 'paymentMethod': method},
-      );
+      final raw = await ref
+          .read(apiClientProvider)
+          .post(
+            '/payments/checkout',
+            data: {'plan': plan, 'paymentMethod': method},
+          );
       final checkout = Map<String, dynamic>.from(raw as Map);
       if (!context.mounted) return;
       final result = await Navigator.of(context).push<_PaymentResult>(
@@ -182,22 +190,34 @@ class _SubscriptionContent extends ConsumerWidget {
       );
       if (result == null) return;
       if (result.status == 'cancel' || result.status == 'error') {
-        await ref.read(apiClientProvider).post(
-          '/payments/${Uri.encodeComponent(result.invoice)}/status',
-          data: {'status': result.status == 'cancel' ? 'CANCELLED' : 'FAILED'},
-        );
+        await ref
+            .read(apiClientProvider)
+            .post(
+              '/payments/${Uri.encodeComponent(result.invoice)}/status',
+              data: {
+                'status': result.status == 'cancel' ? 'CANCELLED' : 'FAILED',
+              },
+            );
         messenger.showSnackBar(
-          SnackBar(content: Text(result.status == 'cancel'
-              ? 'Bạn đã hủy thanh toán.'
-              : 'Thanh toán không thành công.')),
+          SnackBar(
+            content: Text(
+              result.status == 'cancel'
+                  ? 'Bạn đã hủy thanh toán.'
+                  : 'Thanh toán không thành công.',
+            ),
+          ),
         );
       } else {
         final paid = await _waitForPayment(ref, result.invoice);
-        messenger.showSnackBar(SnackBar(
-          content: Text(paid
-              ? 'Thanh toán thành công. Gói đã được kích hoạt.'
-              : 'SePay đang xác nhận giao dịch. Vui lòng kiểm tra lại sau.'),
-        ));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              paid
+                  ? 'Thanh toán thành công. Gói đã được kích hoạt.'
+                  : 'SePay đang xác nhận giao dịch. Vui lòng kiểm tra lại sau.',
+            ),
+          ),
+        );
       }
       ref.invalidate(subscriptionProvider);
     } catch (error) {
@@ -209,9 +229,9 @@ class _SubscriptionContent extends ConsumerWidget {
 
   Future<bool> _waitForPayment(WidgetRef ref, String invoice) async {
     for (var attempt = 0; attempt < 20; attempt++) {
-      final raw = await ref.read(apiClientProvider).get(
-        '/payments/${Uri.encodeComponent(invoice)}',
-      );
+      final raw = await ref
+          .read(apiClientProvider)
+          .get('/payments/${Uri.encodeComponent(invoice)}');
       final payment = Map<String, dynamic>.from(raw as Map);
       if (payment['status'] == 'PAID' || payment['status'] == 'SUCCESS') {
         return true;
@@ -230,7 +250,9 @@ class _CurrentPlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final used = _num(current['aiChatsUsed']);
-    final limit = current['aiChatLimit'] == null ? 0 : _num(current['aiChatLimit']);
+    final limit = current['aiChatLimit'] == null
+        ? 0
+        : _num(current['aiChatLimit']);
     final progress = limit <= 0 ? 0.0 : (used / limit).clamp(0.0, 1.0);
     final expires = DateTime.tryParse(current['expiresAt']?.toString() ?? '');
     return Container(
@@ -239,47 +261,98 @@ class _CurrentPlanCard extends StatelessWidget {
         color: const Color(0xff0f172a),
         borderRadius: BorderRadius.circular(22),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Row(children: [
-          Icon(Icons.auto_awesome_rounded, color: Color(0xfff59e0b), size: 19),
-          SizedBox(width: 8),
-          Text('Gói hiện tại', style: TextStyle(color: Color(0xffcbd5e1))),
-        ]),
-        const SizedBox(height: 8),
-        Text(name ?? current['plan']?.toString() ?? 'FREE',
-            style: const TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 5),
-        Text(expires == null
-            ? 'Gói miễn phí không có ngày hết hạn.'
-            : 'Có hiệu lực đến ${_date(expires)}',
-          style: const TextStyle(color: Color(0xff94a3b8))),
-        const SizedBox(height: 18),
-        LinearProgressIndicator(value: progress, minHeight: 7,
-          borderRadius: BorderRadius.circular(10),
-          backgroundColor: const Color(0xff334155), color: const Color(0xfff59e0b)),
-        const SizedBox(height: 14),
-        Text('Còn ${current['aiChatsRemaining'] ?? '∞'} lượt chat AI · '
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.auto_awesome_rounded,
+                color: Color(0xfff59e0b),
+                size: 19,
+              ),
+              SizedBox(width: 8),
+              Text('Gói hiện tại', style: TextStyle(color: Color(0xffcbd5e1))),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            name ?? current['plan']?.toString() ?? 'FREE',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 27,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            expires == null
+                ? 'Gói miễn phí không có ngày hết hạn.'
+                : 'Có hiệu lực đến ${_date(expires)}',
+            style: const TextStyle(color: Color(0xff94a3b8)),
+          ),
+          const SizedBox(height: 18),
+          LinearProgressIndicator(
+            value: progress,
+            minHeight: 7,
+            borderRadius: BorderRadius.circular(10),
+            backgroundColor: const Color(0xff334155),
+            color: const Color(0xfff59e0b),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Còn ${current['aiChatsRemaining'] ?? '∞'} lượt chat AI · '
             '${current['uploadsRemaining'] ?? 0} tài liệu · '
             '${_storage(current['storageRemainingMb'])}',
-          style: const TextStyle(color: Colors.white, height: 1.45)),
-        const SizedBox(height: 4),
-        Text('Đã dùng ${current['aiChatsUsed'] ?? 0} lượt chat · '
+            style: const TextStyle(color: Colors.white, height: 1.45),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Đã dùng ${current['aiChatsUsed'] ?? 0} lượt chat · '
             '${current['uploadsUsed'] ?? 0} tài liệu · '
             '${_storage(current['storageUsedMb'])}',
-          style: const TextStyle(color: Color(0xff94a3b8), fontSize: 12, height: 1.4)),
-      ]),
+            style: const TextStyle(
+              color: Color(0xff94a3b8),
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 const _features = <String, Map<String, String>>{
-  'FREE': {'best': 'Dành cho nhu cầu không thường xuyên', 'storage': '100 MB', 'uploads': '10', 'chats': '20', 'offline': 'Không'},
-  'STUDENT': {'best': 'Dành cho học sinh, sinh viên học tập tích cực', 'storage': '1 GB', 'uploads': '100', 'chats': '300', 'offline': 'Giới hạn'},
-  'PRO': {'best': 'Dành cho người dùng chuyên sâu', 'storage': '5 GB, có thể mở rộng', 'uploads': '500', 'chats': 'Không giới hạn', 'offline': 'Có'},
+  'FREE': {
+    'best': 'Dành cho nhu cầu không thường xuyên',
+    'storage': '100 MB',
+    'uploads': '10',
+    'chats': '20',
+    'offline': 'Không',
+  },
+  'STUDENT': {
+    'best': 'Dành cho học sinh, sinh viên học tập tích cực',
+    'storage': '1 GB',
+    'uploads': '100',
+    'chats': '300',
+    'offline': 'Giới hạn',
+  },
+  'PRO': {
+    'best': 'Dành cho người dùng chuyên sâu',
+    'storage': '5 GB, có thể mở rộng',
+    'uploads': '500',
+    'chats': 'Không giới hạn',
+    'offline': 'Có',
+  },
 };
 
 class _PlanCard extends StatelessWidget {
-  const _PlanCard({required this.plan, required this.currentCode, required this.onSelect});
+  const _PlanCard({
+    required this.plan,
+    required this.currentCode,
+    required this.onSelect,
+  });
   final Map<String, dynamic> plan;
   final String currentCode;
   final VoidCallback onSelect;
@@ -289,93 +362,332 @@ class _PlanCard extends StatelessWidget {
     final code = plan['code']?.toString() ?? 'FREE';
     final values = _features[code] ?? _features['FREE']!;
     final current = currentCode == code;
-    final selectable = code != 'FREE' && !current && !(currentCode == 'PRO' && code == 'STUDENT');
+    final selectable =
+        code != 'FREE' &&
+        !current &&
+        !(currentCode == 'PRO' && code == 'STUDENT');
     final featured = code == 'STUDENT';
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: featured ? const Color(0xfff59e0b) : const Color(0xffe2e8f0), width: featured ? 1.5 : 1),
+        border: Border.all(
+          color: featured ? const Color(0xfff59e0b) : const Color(0xffe2e8f0),
+          width: featured ? 1.5 : 1,
+        ),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text(code, style: const TextStyle(color: Color(0xffd97706), letterSpacing: 1.1, fontWeight: FontWeight.w800, fontSize: 12)),
-          const Spacer(),
-          if (featured) const _Badge(text: 'ĐỀ XUẤT', color: Color(0xffd97706)),
-        ]),
-        const SizedBox(height: 8),
-        Text(_price(plan['amount'], plan['currency']?.toString() ?? 'VND'),
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-        if (_num(plan['amount']) > 0) const Text('/ tháng', style: TextStyle(color: Color(0xff64748b))),
-        const SizedBox(height: 7),
-        Text(values['best']!, style: const TextStyle(color: Color(0xff64748b))),
-        const Divider(height: 28),
-        _Feature(icon: Icons.cloud_outlined, label: 'Dung lượng', value: values['storage']!),
-        _Feature(icon: Icons.description_outlined, label: 'Tải lên', value: '${values['uploads']} tài liệu'),
-        _Feature(icon: Icons.auto_awesome_outlined, label: 'AI Chat', value: values['chats']!),
-        _Feature(icon: Icons.download_for_offline_outlined, label: 'Ngoại tuyến', value: values['offline']!),
-        const SizedBox(height: 14),
-        if (!(currentCode == 'PRO' && code == 'STUDENT'))
-          SizedBox(width: double.infinity, child: featured
-            ? FilledButton(onPressed: selectable ? onSelect : null, child: Text(current ? 'Gói hiện tại' : code == 'FREE' ? 'Tự động khi hết hạn' : 'Chọn gói ${plan['name']}'))
-            : OutlinedButton(onPressed: selectable ? onSelect : null, child: Text(current ? 'Gói hiện tại' : code == 'FREE' ? 'Tự động khi hết hạn' : 'Chọn gói ${plan['name']}'))),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                code,
+                style: const TextStyle(
+                  color: Color(0xffd97706),
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+              const Spacer(),
+              if (featured)
+                const _Badge(text: 'ĐỀ XUẤT', color: Color(0xffd97706)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _price(plan['amount'], plan['currency']?.toString() ?? 'VND'),
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+          ),
+          if (_num(plan['amount']) > 0)
+            const Text('/ tháng', style: TextStyle(color: Color(0xff64748b))),
+          const SizedBox(height: 7),
+          Text(
+            values['best']!,
+            style: const TextStyle(color: Color(0xff64748b)),
+          ),
+          const Divider(height: 28),
+          _Feature(
+            icon: Icons.cloud_outlined,
+            label: 'Dung lượng',
+            value: values['storage']!,
+          ),
+          _Feature(
+            icon: Icons.description_outlined,
+            label: 'Tải lên',
+            value: '${values['uploads']} tài liệu',
+          ),
+          _Feature(
+            icon: Icons.auto_awesome_outlined,
+            label: 'AI Chat',
+            value: values['chats']!,
+          ),
+          _Feature(
+            icon: Icons.download_for_offline_outlined,
+            label: 'Ngoại tuyến',
+            value: values['offline']!,
+          ),
+          const SizedBox(height: 14),
+          if (!(currentCode == 'PRO' && code == 'STUDENT'))
+            SizedBox(
+              width: double.infinity,
+              child: featured
+                  ? FilledButton(
+                      onPressed: selectable ? onSelect : null,
+                      child: Text(
+                        current
+                            ? 'Gói hiện tại'
+                            : code == 'FREE'
+                            ? 'Tự động khi hết hạn'
+                            : 'Chọn gói ${plan['name']}',
+                      ),
+                    )
+                  : OutlinedButton(
+                      onPressed: selectable ? onSelect : null,
+                      child: Text(
+                        current
+                            ? 'Gói hiện tại'
+                            : code == 'FREE'
+                            ? 'Tự động khi hết hạn'
+                            : 'Chọn gói ${plan['name']}',
+                      ),
+                    ),
+            ),
+        ],
+      ),
     );
   }
 }
 
 class _Feature extends StatelessWidget {
-  const _Feature({required this.icon, required this.label, required this.value});
-  final IconData icon; final String label; final String value;
+  const _Feature({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(children: [Icon(icon, size: 19, color: const Color(0xff64748b)), const SizedBox(width: 9), Text(label), const Spacer(), Flexible(child: Text(value, textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w700)))]),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 24,
+          child: Icon(icon, size: 19, color: const Color(0xff64748b)),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 82,
+          child: Text(label, style: const TextStyle(color: Color(0xff475569))),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontWeight: FontWeight.w700, height: 1.3),
+          ),
+        ),
+      ],
+    ),
   );
 }
 
 class _CheckoutSheet extends StatefulWidget {
-  const _CheckoutSheet({required this.plan, required this.amount, required this.isUpgrade});
-  final Map<String, dynamic> plan; final num amount; final bool isUpgrade;
-  @override State<_CheckoutSheet> createState() => _CheckoutSheetState();
+  const _CheckoutSheet({
+    required this.plan,
+    required this.amount,
+    required this.isUpgrade,
+  });
+  final Map<String, dynamic> plan;
+  final num amount;
+  final bool isUpgrade;
+  @override
+  State<_CheckoutSheet> createState() => _CheckoutSheetState();
 }
 
 class _CheckoutSheetState extends State<_CheckoutSheet> {
   String method = 'BANK_TRANSFER';
   @override
   Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
-    child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: const Color(0xffcbd5e1), borderRadius: BorderRadius.circular(4)))),
-      const SizedBox(height: 20),
-      const Text('THANH TOÁN QUA SEPAY', style: TextStyle(color: Color(0xffd97706), fontSize: 12, letterSpacing: 1, fontWeight: FontWeight.w800)),
-      const SizedBox(height: 6),
-      Text(widget.plan['name']?.toString() ?? '', style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800)),
-      const SizedBox(height: 14),
-      Row(children: [Expanded(child: Text(widget.isUpgrade ? 'Thanh toán phần chênh lệch' : 'Thanh toán hàng tháng')), Text(_price(widget.amount, widget.plan['currency']?.toString() ?? 'VND'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18))]),
-      const SizedBox(height: 16),
-      _MethodTile(icon: Icons.account_balance_rounded, title: 'QR chuyển khoản', subtitle: 'Quét VietQR bằng ứng dụng ngân hàng', selected: method == 'BANK_TRANSFER', onTap: () => setState(() => method = 'BANK_TRANSFER')),
-      const SizedBox(height: 9),
-      _MethodTile(icon: Icons.credit_card_rounded, title: 'Thẻ quốc tế', subtitle: 'Visa · Mastercard · JCB · 3D Secure', selected: method == 'CARD', onTap: () => setState(() => method = 'CARD')),
-      const SizedBox(height: 14),
-      const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.verified_user_outlined, size: 18, color: Color(0xff16a34a)), SizedBox(width: 8), Expanded(child: Text('Thanh toán trên cổng bảo mật SePay. DocuMind không lưu thông tin thẻ.', style: TextStyle(fontSize: 12, color: Color(0xff64748b))))]),
-      const SizedBox(height: 18),
-      SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: () => Navigator.pop(context, _CheckoutChoice(method)), icon: Icon(method == 'CARD' ? Icons.credit_card : Icons.account_balance), label: const Padding(padding: EdgeInsets.all(13), child: Text('Tiếp tục thanh toán')))),
-    ]),
+    padding: EdgeInsets.fromLTRB(
+      20,
+      12,
+      20,
+      20 + MediaQuery.viewInsetsOf(context).bottom,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
+          child: Container(
+            width: 42,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xffcbd5e1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'THANH TOÁN QUA SEPAY',
+          style: TextStyle(
+            color: Color(0xffd97706),
+            fontSize: 12,
+            letterSpacing: 1,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          widget.plan['name']?.toString() ?? '',
+          style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.isUpgrade
+                    ? 'Thanh toán phần chênh lệch'
+                    : 'Thanh toán hàng tháng',
+              ),
+            ),
+            Text(
+              _price(
+                widget.amount,
+                widget.plan['currency']?.toString() ?? 'VND',
+              ),
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _MethodTile(
+          icon: Icons.account_balance_rounded,
+          title: 'QR chuyển khoản',
+          subtitle: 'Quét VietQR bằng ứng dụng ngân hàng',
+          selected: method == 'BANK_TRANSFER',
+          onTap: () => setState(() => method = 'BANK_TRANSFER'),
+        ),
+        const SizedBox(height: 9),
+        _MethodTile(
+          icon: Icons.credit_card_rounded,
+          title: 'Thẻ quốc tế',
+          subtitle: 'Visa · Mastercard · JCB · 3D Secure',
+          selected: method == 'CARD',
+          onTap: () => setState(() => method = 'CARD'),
+        ),
+        const SizedBox(height: 14),
+        const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.verified_user_outlined,
+              size: 18,
+              color: Color(0xff16a34a),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Thanh toán trên cổng bảo mật SePay. DocuMind không lưu thông tin thẻ.',
+                style: TextStyle(fontSize: 12, color: Color(0xff64748b)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: () => Navigator.pop(context, _CheckoutChoice(method)),
+            icon: Icon(
+              method == 'CARD' ? Icons.credit_card : Icons.account_balance,
+            ),
+            label: const Padding(
+              padding: EdgeInsets.all(13),
+              child: Text('Tiếp tục thanh toán'),
+            ),
+          ),
+        ),
+      ],
+    ),
   );
 }
 
 class _MethodTile extends StatelessWidget {
-  const _MethodTile({required this.icon, required this.title, required this.subtitle, required this.selected, required this.onTap});
-  final IconData icon; final String title; final String subtitle; final bool selected; final VoidCallback onTap;
-  @override Widget build(BuildContext context) => InkWell(onTap: onTap, borderRadius: BorderRadius.circular(15), child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(borderRadius: BorderRadius.circular(15), border: Border.all(color: selected ? const Color(0xffd97706) : const Color(0xffcbd5e1), width: selected ? 1.5 : 1)), child: Row(children: [Icon(icon, color: selected ? const Color(0xffd97706) : const Color(0xff475569)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xff64748b)))])), Icon(selected ? Icons.check_circle : Icons.circle_outlined, color: selected ? const Color(0xffd97706) : const Color(0xffcbd5e1))])));
+  const _MethodTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(15),
+    child: Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: selected ? const Color(0xffd97706) : const Color(0xffcbd5e1),
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: selected ? const Color(0xffd97706) : const Color(0xff475569),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xff64748b),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            selected ? Icons.check_circle : Icons.circle_outlined,
+            color: selected ? const Color(0xffd97706) : const Color(0xffcbd5e1),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _CheckoutWebView extends StatefulWidget {
   const _CheckoutWebView({required this.checkout});
   final Map<String, dynamic> checkout;
-  @override State<_CheckoutWebView> createState() => _CheckoutWebViewState();
+  @override
+  State<_CheckoutWebView> createState() => _CheckoutWebViewState();
 }
 
 class _CheckoutWebViewState extends State<_CheckoutWebView> {
@@ -396,85 +708,254 @@ class _CheckoutWebViewState extends State<_CheckoutWebView> {
     });
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(NavigationDelegate(
-        onProgress: (value) => mounted ? setState(() => progress = value) : null,
-        onNavigationRequest: (request) {
-          final uri = Uri.tryParse(request.url);
-          final result = uri?.queryParameters['payment'];
-          if (result != null && ['success', 'cancel', 'error'].contains(result)) {
-            final invoice = uri?.queryParameters['invoice'] ?? widget.checkout['invoiceNumber'].toString();
-            Navigator.pop(context, _PaymentResult(result, invoice));
-            return NavigationDecision.prevent;
-          }
-          return NavigationDecision.navigate;
-        },
-      ))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (value) =>
+              mounted ? setState(() => progress = value) : null,
+          onNavigationRequest: (request) {
+            final uri = Uri.tryParse(request.url);
+            final result = uri?.queryParameters['payment'];
+            if (result != null &&
+                ['success', 'cancel', 'error'].contains(result)) {
+              final invoice =
+                  uri?.queryParameters['invoice'] ??
+                  widget.checkout['invoiceNumber'].toString();
+              Navigator.pop(context, _PaymentResult(result, invoice));
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
+        ),
+      )
       ..loadHtmlString(_checkoutHtml(widget.checkout));
   }
+
   @override
   void dispose() {
     timer?.cancel();
     super.dispose();
   }
-  @override Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Thanh toán SePay'), Text('Phiên ${widget.checkout['invoiceNumber']} · ${_countdown(secondsRemaining)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400))]), bottom: progress < 100 ? PreferredSize(preferredSize: const Size.fromHeight(3), child: LinearProgressIndicator(value: progress / 100)) : null),
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Thanh toán SePay'),
+          Text(
+            'Phiên ${widget.checkout['invoiceNumber']} · ${_countdown(secondsRemaining)}',
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400),
+          ),
+        ],
+      ),
+      bottom: progress < 100
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(3),
+              child: LinearProgressIndicator(value: progress / 100),
+            )
+          : null,
+    ),
     body: WebViewWidget(controller: controller),
   );
 }
 
 class _PaymentRow extends StatelessWidget {
-  const _PaymentRow({required this.payment, required this.showDivider, this.onResume});
-  final Map<String, dynamic> payment; final bool showDivider; final VoidCallback? onResume;
-  @override Widget build(BuildContext context) {
+  const _PaymentRow({
+    required this.payment,
+    required this.showDivider,
+    this.onResume,
+  });
+  final Map<String, dynamic> payment;
+  final bool showDivider;
+  final VoidCallback? onResume;
+  @override
+  Widget build(BuildContext context) {
     final status = payment['status']?.toString() ?? 'PENDING';
-    final color = status == 'PAID' || status == 'SUCCESS' ? const Color(0xff15803d) : status == 'PENDING' ? const Color(0xffd97706) : const Color(0xffdc2626);
-    return Column(children: [
-      InkWell(onTap: onResume, child: Padding(padding: const EdgeInsets.all(15), child: Row(children: [Icon(payment['paymentMethod'] == 'CARD' ? Icons.credit_card : Icons.account_balance, color: const Color(0xff64748b)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${payment['plan']} · ${_price(payment['amount'], payment['currency']?.toString() ?? 'VND')}', style: const TextStyle(fontWeight: FontWeight.w800)), Text(payment['invoiceNumber']?.toString() ?? '', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xff64748b)))])), _Badge(text: onResume != null ? 'TIẾP TỤC' : status, color: color)]))),
-      if (showDivider) const Divider(height: 1, indent: 52),
-    ]);
+    final color = status == 'PAID' || status == 'SUCCESS'
+        ? const Color(0xff15803d)
+        : status == 'PENDING'
+        ? const Color(0xffd97706)
+        : const Color(0xffdc2626);
+    return Column(
+      children: [
+        InkWell(
+          onTap: onResume,
+          child: Padding(
+            padding: const EdgeInsets.all(15),
+            child: Row(
+              children: [
+                Icon(
+                  payment['paymentMethod'] == 'CARD'
+                      ? Icons.credit_card
+                      : Icons.account_balance,
+                  color: const Color(0xff64748b),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${payment['plan']} · ${_price(payment['amount'], payment['currency']?.toString() ?? 'VND')}',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      Text(
+                        payment['invoiceNumber']?.toString() ?? '',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xff64748b),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _Badge(
+                  text: onResume != null ? 'TIẾP TỤC' : status,
+                  color: color,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (showDivider) const Divider(height: 1, indent: 52),
+      ],
+    );
   }
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({required this.text, required this.color}); final String text; final Color color;
-  @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: color.withValues(alpha: .1), borderRadius: BorderRadius.circular(20)), child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 10)));
+  const _Badge({required this.text, required this.color});
+  final String text;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .1),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 10),
+    ),
+  );
 }
-class _SectionTitle extends StatelessWidget { const _SectionTitle(this.text); final String text; @override Widget build(BuildContext context) => Text(text, style: const TextStyle(color: Color(0xff475569), letterSpacing: 1, fontWeight: FontWeight.w800, fontSize: 12)); }
-class _LoadError extends StatelessWidget { const _LoadError({required this.message, required this.retry}); final String message; final VoidCallback retry; @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.cloud_off_rounded, size: 42), const SizedBox(height: 12), Text(message, textAlign: TextAlign.center), const SizedBox(height: 14), FilledButton.icon(onPressed: retry, icon: const Icon(Icons.refresh), label: const Text('Thử lại'))]))); }
-class _CheckoutChoice { const _CheckoutChoice(this.method); final String method; }
-class _PaymentResult { const _PaymentResult(this.status, this.invoice); final String status; final String invoice; }
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: const TextStyle(
+      color: Color(0xff475569),
+      letterSpacing: 1,
+      fontWeight: FontWeight.w800,
+      fontSize: 12,
+    ),
+  );
+}
+
+class _LoadError extends StatelessWidget {
+  const _LoadError({required this.message, required this.retry});
+  final String message;
+  final VoidCallback retry;
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 42),
+          const SizedBox(height: 12),
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: retry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Thử lại'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _CheckoutChoice {
+  const _CheckoutChoice(this.method);
+  final String method;
+}
+
+class _PaymentResult {
+  const _PaymentResult(this.status, this.invoice);
+  final String status;
+  final String invoice;
+}
 
 String _checkoutHtml(Map<String, dynamic> checkout) {
   const escape = HtmlEscape(HtmlEscapeMode.attribute);
-  final fields = Map<String, dynamic>.from(checkout['fields'] as Map? ?? const {});
-  final inputs = fields.entries.map((entry) => '<input type="hidden" name="${escape.convert(entry.key)}" value="${escape.convert(entry.value.toString())}">').join();
+  final fields = Map<String, dynamic>.from(
+    checkout['fields'] as Map? ?? const {},
+  );
+  final inputs = fields.entries
+      .map(
+        (entry) =>
+            '<input type="hidden" name="${escape.convert(entry.key)}" value="${escape.convert(entry.value.toString())}">',
+      )
+      .join();
   return '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system;padding:40px;text-align:center;color:#0f172a}.spin{width:32px;height:32px;border:4px solid #ddd;border-top-color:#d97706;border-radius:50%;margin:20px auto;animation:s 1s linear infinite}@keyframes s{to{transform:rotate(360deg)}}</style></head><body><div class="spin"></div><b>Đang kết nối SePay...</b><form id="checkout" method="POST" action="${escape.convert(checkout['checkoutUrl'].toString())}">$inputs</form><script>document.getElementById("checkout").submit();</script></body></html>';
 }
-num _num(dynamic value) => value is num ? value : num.tryParse(value?.toString() ?? '') ?? 0;
-num _checkoutAmount(Map<String, dynamic> selected, List<Map<String, dynamic>> plans, String current) {
+
+num _num(dynamic value) =>
+    value is num ? value : num.tryParse(value?.toString() ?? '') ?? 0;
+num _checkoutAmount(
+  Map<String, dynamic> selected,
+  List<Map<String, dynamic>> plans,
+  String current,
+) {
   if (current == 'STUDENT' && selected['code'] == 'PRO') {
-    final student = plans.firstWhere((p) => p['code'] == 'STUDENT', orElse: () => const {});
-    return (_num(selected['amount']) - _num(student['amount'])).clamp(0, double.infinity);
+    final student = plans.firstWhere(
+      (p) => p['code'] == 'STUDENT',
+      orElse: () => const {},
+    );
+    return (_num(selected['amount']) - _num(student['amount'])).clamp(
+      0,
+      double.infinity,
+    );
   }
   return _num(selected['amount']);
 }
+
 String _price(dynamic amount, String currency) {
-  final digits = _num(amount).round().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+  final digits = _num(amount).round().toString().replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => '.',
+  );
   return currency == 'VND' ? '$digitsđ' : '$digits $currency';
 }
-String _storage(dynamic value) { final mb = _num(value); return mb >= 1024 ? '${(mb / 1024).toStringAsFixed(2)} GB' : '${mb.toStringAsFixed(mb % 1 == 0 ? 0 : 2)} MB'; }
-String _date(DateTime value) => '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+
+String _storage(dynamic value) {
+  final mb = _num(value);
+  return mb >= 1024
+      ? '${(mb / 1024).toStringAsFixed(2)} GB'
+      : '${mb.toStringAsFixed(mb % 1 == 0 ? 0 : 2)} MB';
+}
+
+String _date(DateTime value) =>
+    '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
 bool _isNotExpired(dynamic value) {
   final expiresAt = DateTime.tryParse(value?.toString() ?? '');
   return expiresAt != null && expiresAt.isAfter(DateTime.now());
 }
+
 int _remainingSeconds(dynamic value) {
   final expiresAt = DateTime.tryParse(value?.toString() ?? '');
   if (expiresAt == null) return 0;
-  return expiresAt
-      .difference(DateTime.now())
-      .inSeconds
-      .clamp(0, 86400)
-      .toInt();
+  return expiresAt.difference(DateTime.now()).inSeconds.clamp(0, 86400).toInt();
 }
-String _countdown(int seconds) => '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+
+String _countdown(int seconds) =>
+    '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';

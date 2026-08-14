@@ -2777,11 +2777,11 @@
   list-style: none;
 }
 .plan-grid .plan-features li {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
-  min-height: 48px;
+  min-height: 58px;
   border-bottom: 1px solid var(--border);
   color: var(--muted);
   font-size: 0.78rem;
@@ -2793,12 +2793,17 @@
   gap: 0.45rem;
 }
 .plan-grid .plan-features li > span {
-  flex-shrink: 0;
+  min-width: 0;
 }
 .plan-grid .plan-features li > strong {
   justify-content: flex-end;
+  min-width: 0;
   color: var(--ink);
   text-align: right;
+}
+.plan-grid .plan-features li > span svg,
+.plan-grid .plan-features li > strong svg {
+  flex: 0 0 auto;
 }
 .plan-grid .plan-features li svg {
   color: var(--amber);

@@ -311,6 +311,9 @@ export class DocumentsService {
     const becomesPublicFromPrivate =
       targetVisibility === DocumentVisibility.PUBLIC &&
       existingDocument.visibility === DocumentVisibility.PRIVATE;
+    const becomesPrivateFromPublic =
+      targetVisibility === DocumentVisibility.PRIVATE &&
+      existingDocument.visibility === DocumentVisibility.PUBLIC;
     const shouldModeratePublicDocument =
       targetVisibility === DocumentVisibility.PUBLIC &&
       (becomesPublicFromPrivate ||
@@ -343,6 +346,12 @@ export class DocumentsService {
               rejectionReason: null,
               reviewedAt: null,
               reviewedBy: null,
+              ...(becomesPrivateFromPublic
+                ? {
+                    savedBy: { deleteMany: {} },
+                    saveCount: 0,
+                  }
+                : {}),
             }
           : moderationResult
             ? {

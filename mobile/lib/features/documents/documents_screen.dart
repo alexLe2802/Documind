@@ -98,6 +98,7 @@ class DocumentsScreen extends ConsumerStatefulWidget {
 class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   final search = TextEditingController();
   String subjectId = '', categoryId = '', fileType = '';
+  final selectedIds = <String>{};
 
   DocumentFilters get filters => (
     search: search.text.trim(),
@@ -148,6 +149,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             onCategory: (value) => setState(() => categoryId = value),
             onFileType: (value) => setState(() => fileType = value),
           ),
+          if (selectedIds.isNotEmpty)
+            _SelectionBar(
+              count: selectedIds.length,
+              onClear: () => setState(selectedIds.clear),
+              onDelete: () => _deleteSelected(currentFilters),
+            ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () =>
@@ -174,7 +181,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
                         itemCount: items.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (_, index) => _DocumentTile(items[index]),
+                        itemBuilder: (_, index) => _DocumentTile(
+                          items[index],
+                          selected: selectedIds.contains(items[index]['id']),
+                          selectionMode: selectedIds.isNotEmpty,
+                          onToggleSelection: () =>
+                              _toggleSelection(items[index]['id'].toString()),
+                          onChanged: () {
+                            setState(
+                              () => selectedIds.remove(items[index]['id']),
+                            );
+                            ref.invalidate(filteredDocumentsProvider);
+                            ref.invalidate(documentsProvider);
+                          },
+                        ),
                       ),
               ),
             ),
@@ -183,6 +203,97 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       ),
     );
   }
+
+  void _toggleSelection(String id) => setState(() {
+    if (!selectedIds.add(id)) selectedIds.remove(id);
+  });
+
+  Future<void> _deleteSelected(DocumentFilters currentFilters) async {
+    final ids = selectedIds.toList(growable: false);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Xóa ${ids.length} tài liệu?'),
+        content: const Text(
+          'Tài liệu đã xóa sẽ không thể khôi phục. Nếu đang công khai, tài liệu cũng biến mất khỏi Cộng đồng và mục Đã lưu của người khác.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final api = ref.read(apiClientProvider);
+      await Future.wait(ids.map((id) => api.delete('/documents/$id')));
+      if (!mounted) return;
+      setState(selectedIds.clear);
+      ref.invalidate(filteredDocumentsProvider(currentFilters));
+      ref.invalidate(documentsProvider);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Đã xóa ${ids.length} tài liệu.')));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể xóa tài liệu: $error')),
+        );
+      }
+    }
+  }
+}
+
+class _SelectionBar extends StatelessWidget {
+  const _SelectionBar({
+    required this.count,
+    required this.onClear,
+    required this.onDelete,
+  });
+  final int count;
+  final VoidCallback onClear;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+    child: Container(
+      padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: const Color(0xfffff7ed),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xfffed7aa)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_rounded, color: Color(0xffd97706)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Đã chọn $count tài liệu',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Bỏ chọn',
+            onPressed: onClear,
+            icon: const Icon(Icons.close_rounded),
+          ),
+          FilledButton.icon(
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            label: const Text('Xóa'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _LibraryFilters extends StatelessWidget {
@@ -320,8 +431,18 @@ class _FilterMenu extends StatelessWidget {
 }
 
 class _DocumentTile extends ConsumerWidget {
-  const _DocumentTile(this.document);
+  const _DocumentTile(
+    this.document, {
+    required this.selected,
+    required this.selectionMode,
+    required this.onToggleSelection,
+    required this.onChanged,
+  });
   final Map<String, dynamic> document;
+  final bool selected;
+  final bool selectionMode;
+  final VoidCallback onToggleSelection;
+  final VoidCallback onChanged;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fileName = document['fileName']?.toString() ?? '';
@@ -329,8 +450,12 @@ class _DocumentTile extends ConsumerWidget {
     final status = document['aiStatus']?.toString() ?? 'PENDING';
     return Card(
       clipBehavior: Clip.antiAlias,
+      color: selected ? const Color(0xfffffbeb) : null,
       child: InkWell(
-        onTap: () => _showActions(context, ref),
+        onLongPress: onToggleSelection,
+        onTap: selectionMode
+            ? onToggleSelection
+            : () => _showActions(context, ref),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -382,11 +507,14 @@ class _DocumentTile extends ConsumerWidget {
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: 'Tùy chọn tài liệu',
-                onPressed: () => _showActions(context, ref),
-                icon: const Icon(Icons.chevron_right_rounded),
-              ),
+              if (selectionMode)
+                Checkbox(value: selected, onChanged: (_) => onToggleSelection())
+              else
+                IconButton(
+                  tooltip: 'Tùy chọn tài liệu',
+                  onPressed: () => _showActions(context, ref),
+                  icon: const Icon(Icons.chevron_right_rounded),
+                ),
             ],
           ),
         ),
@@ -397,52 +525,184 @@ class _DocumentTile extends ConsumerWidget {
   Future<void> _showActions(BuildContext context, WidgetRef ref) async {
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       useSafeArea: true,
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              document['title']?.toString() ?? 'Document',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              leading: const Icon(Icons.visibility_outlined),
-              title: const Text('Xem trước'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _showPreview(context, ref);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.download_outlined),
-              title: const Text('Tải xuống'),
-              onTap: () => _openUrl(
-                sheetContext,
-                ref,
-                '/documents/${document['id']}/download',
+      builder: (sheetContext) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(sheetContext).height * .82,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                document['title']?.toString() ?? 'Document',
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.auto_awesome_rounded),
-              title: const Text('Hỏi AI'),
-              subtitle: const Text('Dùng tài liệu này làm nguồn trả lời'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Mở Hỏi AI và chọn tài liệu này.'),
-                  ),
-                );
-              },
-            ),
-          ],
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.visibility_outlined),
+                title: const Text('Xem trước'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _showPreview(context, ref);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: const Text('Tải xuống'),
+                onTap: () => _openUrl(
+                  sheetContext,
+                  ref,
+                  '/documents/${document['id']}/download',
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.auto_awesome_rounded),
+                title: const Text('Hỏi AI'),
+                subtitle: const Text('Dùng tài liệu này làm nguồn trả lời'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Mở Hỏi AI và chọn tài liệu này.'),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  document['visibility'] == 'PUBLIC'
+                      ? Icons.public_off_rounded
+                      : Icons.public_rounded,
+                ),
+                title: Text(
+                  document['visibility'] == 'PUBLIC'
+                      ? 'Gỡ khỏi cộng đồng'
+                      : 'Công khai tài liệu',
+                ),
+                subtitle: document['visibility'] == 'PUBLIC'
+                    ? const Text('Đồng thời xóa khỏi mục Đã lưu của người khác')
+                    : const Text('Gửi tài liệu lên trang Cộng đồng'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _changeVisibility(context, ref);
+                },
+              ),
+              ListTile(
+                textColor: const Color(0xffdc2626),
+                iconColor: const Color(0xffdc2626),
+                leading: const Icon(Icons.delete_outline_rounded),
+                title: const Text('Xóa tài liệu'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _deleteDocument(context, ref);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _changeVisibility(BuildContext context, WidgetRef ref) async {
+    final currentlyPublic = document['visibility'] == 'PUBLIC';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          currentlyPublic ? 'Gỡ khỏi cộng đồng?' : 'Công khai tài liệu?',
+        ),
+        content: Text(
+          currentlyPublic
+              ? 'Tài liệu sẽ chuyển về riêng tư và bị xóa khỏi mục Đã lưu của tất cả người dùng khác.'
+              : 'Tài liệu sẽ được gửi kiểm duyệt trước khi xuất hiện trên Cộng đồng.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(currentlyPublic ? 'Gỡ công khai' : 'Công khai'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await ref
+          .read(apiClientProvider)
+          .put(
+            '/documents/${document['id']}/visibility',
+            data: {'visibility': currentlyPublic ? 'PRIVATE' : 'PUBLIC'},
+          );
+      ref.invalidate(filteredDocumentsProvider);
+      ref.invalidate(documentsProvider);
+      onChanged();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              currentlyPublic
+                  ? 'Đã gỡ tài liệu khỏi cộng đồng.'
+                  : 'Đã gửi tài liệu để công khai.',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể cập nhật tài liệu: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteDocument(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa tài liệu?'),
+        content: const Text('Tài liệu đã xóa sẽ không thể khôi phục.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await ref.read(apiClientProvider).delete('/documents/${document['id']}');
+      onChanged();
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã xóa tài liệu.')));
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể xóa tài liệu: $error')),
+        );
+      }
+    }
   }
 
   Future<void> _showPreview(BuildContext context, WidgetRef ref) async {
@@ -797,19 +1057,43 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Thêm môn học'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: nameController, autofocus: true, decoration: const InputDecoration(labelText: 'Tên môn học *')),
-          const SizedBox(height: 10),
-          TextField(controller: codeController, textCapitalization: TextCapitalization.characters, decoration: const InputDecoration(labelText: 'Mã môn học', hintText: 'VD: PRM')),
-        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Tên môn học *'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: codeController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Mã môn học',
+                hintText: 'VD: PRM',
+              ),
+            ),
+          ],
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Hủy')),
-          FilledButton(onPressed: () {
-            final name = nameController.text.trim();
-            if (name.length < 2) return;
-            final code = (codeController.text.trim().isEmpty ? name.substring(0, name.length.clamp(0, 3).toInt()) : codeController.text.trim()).toUpperCase();
-            Navigator.pop(dialogContext, [name, code]);
-          }, child: const Text('Tạo')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              if (name.length < 2) return;
+              final code =
+                  (codeController.text.trim().isEmpty
+                          ? name.substring(0, name.length.clamp(0, 3).toInt())
+                          : codeController.text.trim())
+                      .toUpperCase();
+              Navigator.pop(dialogContext, [name, code]);
+            },
+            child: const Text('Tạo'),
+          ),
         ],
       ),
     );
@@ -817,7 +1101,12 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
     codeController.dispose();
     if (values == null) return;
     try {
-      final raw = await ref.read(apiClientProvider).post('/subjects', data: {'name': values[0], 'code': values[1], 'description': ''});
+      final raw = await ref
+          .read(apiClientProvider)
+          .post(
+            '/subjects',
+            data: {'name': values[0], 'code': values[1], 'description': ''},
+          );
       final item = Map<String, dynamic>.from(raw as Map);
       setState(() {
         subjects.add(item);
@@ -825,13 +1114,19 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
         categoryId = '';
       });
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Không thể tạo môn học: $error')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể tạo môn học: $error')),
+        );
+      }
     }
   }
 
   Future<void> createCategory() async {
     if (subjectId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hãy chọn hoặc tạo môn học trước.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Hãy chọn hoặc tạo môn học trước.')),
+      );
       return;
     }
     final controller = TextEditingController();
@@ -839,30 +1134,60 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Thêm danh mục'),
-        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Tên danh mục *')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Tên danh mục *'),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Hủy')),
-          FilledButton(onPressed: () { if (controller.text.trim().length >= 2) Navigator.pop(dialogContext, controller.text.trim()); }, child: const Text('Tạo')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().length >= 2) {
+                Navigator.pop(dialogContext, controller.text.trim());
+              }
+            },
+            child: const Text('Tạo'),
+          ),
         ],
       ),
     );
     controller.dispose();
     if (name == null) return;
     try {
-      final raw = await ref.read(apiClientProvider).post('/categories', data: {'name': name, 'subjectId': subjectId, 'description': ''});
+      final raw = await ref
+          .read(apiClientProvider)
+          .post(
+            '/categories',
+            data: {'name': name, 'subjectId': subjectId, 'description': ''},
+          );
       final item = Map<String, dynamic>.from(raw as Map);
       setState(() {
         allCategories.add(item);
         categoryId = item['id'].toString();
       });
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Không thể tạo danh mục: $error')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể tạo danh mục: $error')),
+        );
+      }
     }
   }
 
   Future<void> submit() async {
-    if (file == null || title.text.trim().isEmpty || subjectId.isEmpty || categoryId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng chọn tệp, môn học và danh mục.')));
+    if (file == null ||
+        title.text.trim().isEmpty ||
+        subjectId.isEmpty ||
+        categoryId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn tệp, môn học và danh mục.'),
+        ),
+      );
       return;
     }
     setState(() => loading = true);
@@ -937,51 +1262,69 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
             decoration: const InputDecoration(labelText: 'Mô tả'),
           ),
           const SizedBox(height: 12),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: DropdownButtonFormField<String>(
-            initialValue: subjectId.isEmpty ? null : subjectId,
-            decoration: const InputDecoration(labelText: 'Môn học *'),
-            items: subjects
-                .map(
-                  (e) => DropdownMenuItem(
-                    value: e['id'].toString(),
-                    child: Text(e['name'].toString()),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) => setState(() {
-              subjectId = value!;
-              final filtered = categories;
-              if (filtered.isNotEmpty) {
-                categoryId = filtered.first['id'].toString();
-              }
-            }),
-          )),
-          const SizedBox(width: 8),
-          IconButton.filledTonal(tooltip: 'Thêm môn học', onPressed: loading ? null : createSubject, icon: const Icon(Icons.add_rounded)),
-          ]),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: subjectId.isEmpty ? null : subjectId,
+                  decoration: const InputDecoration(labelText: 'Môn học *'),
+                  items: subjects
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e['id'].toString(),
+                          child: Text(e['name'].toString()),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(() {
+                    subjectId = value!;
+                    final filtered = categories;
+                    if (filtered.isNotEmpty) {
+                      categoryId = filtered.first['id'].toString();
+                    }
+                  }),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                tooltip: 'Thêm môn học',
+                onPressed: loading ? null : createSubject,
+                icon: const Icon(Icons.add_rounded),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: DropdownButtonFormField<String>(
-            key: ValueKey('$subjectId-$categoryId'),
-            initialValue:
-                categories.any((e) => e['id'].toString() == categoryId)
-                ? categoryId
-                : categories.firstOrNull?['id']?.toString(),
-            decoration: const InputDecoration(labelText: 'Danh mục *'),
-            items: categories
-                .map(
-                  (e) => DropdownMenuItem(
-                    value: e['id'].toString(),
-                    child: Text(e['name'].toString()),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) => categoryId = value ?? '',
-          )),
-          const SizedBox(width: 8),
-          IconButton.filledTonal(tooltip: 'Thêm danh mục', onPressed: loading ? null : createCategory, icon: const Icon(Icons.add_rounded)),
-          ]),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey('$subjectId-$categoryId'),
+                  initialValue:
+                      categories.any((e) => e['id'].toString() == categoryId)
+                      ? categoryId
+                      : categories.firstOrNull?['id']?.toString(),
+                  decoration: const InputDecoration(labelText: 'Danh mục *'),
+                  items: categories
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e['id'].toString(),
+                          child: Text(e['name'].toString()),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => categoryId = value ?? '',
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                tooltip: 'Thêm danh mục',
+                onPressed: loading ? null : createCategory,
+                icon: const Icon(Icons.add_rounded),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: tagInput,
@@ -990,13 +1333,28 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
             decoration: InputDecoration(
               labelText: 'Thẻ (không bắt buộc)',
               hintText: 'Nhập thẻ rồi nhấn Thêm',
-              suffixIcon: IconButton(onPressed: addTag, icon: const Icon(Icons.add_rounded)),
+              suffixIcon: IconButton(
+                onPressed: addTag,
+                icon: const Icon(Icons.add_rounded),
+              ),
             ),
           ),
-          if (tags.isNotEmpty) Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Wrap(spacing: 7, runSpacing: 7, children: tags.map((tag) => InputChip(label: Text(tag), onDeleted: () => setState(() => tags.remove(tag)))).toList()),
-          ),
+          if (tags.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: tags
+                    .map(
+                      (tag) => InputChip(
+                        label: Text(tag),
+                        onDeleted: () => setState(() => tags.remove(tag)),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             value: isPublic,

@@ -524,6 +524,30 @@ export function LibraryView() {
     }
   }
 
+  async function handleUnpublishDocument(document: LibraryDocument) {
+    if (document.visibility !== "PUBLIC" || publishingDocumentIds.has(document.id)) return;
+    if (!window.confirm(text(
+      "Gỡ tài liệu này khỏi cộng đồng? Tài liệu cũng sẽ bị xóa khỏi mục Đã lưu của những người dùng khác.",
+      "Remove this document from Community? It will also be removed from other users' Saved libraries.",
+    ))) return;
+
+    setErrorMessage("");
+    setPublishingDocumentIds((current) => new Set(current).add(document.id));
+    try {
+      const privateDocument = await updateDocumentVisibility(document.id, "PRIVATE");
+      setDocuments((current) => current.map((item) => (item.id === document.id ? privateDocument : item)));
+      setPreviewDocument((current) => (current?.id === document.id ? privateDocument : current));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : text("Không thể gỡ công khai tài liệu.", "Could not remove the document from Community."));
+    } finally {
+      setPublishingDocumentIds((current) => {
+        const next = new Set(current);
+        next.delete(document.id);
+        return next;
+      });
+    }
+  }
+
   async function handleRetryExtraction(document: LibraryDocument) {
     if (document.indexStatus !== "FAILED" || retryingDocumentIds.has(document.id)) {
       return;
@@ -933,7 +957,7 @@ export function LibraryView() {
                         </div>
                       </td>
                       <td className="library-table-actions">
-                        <DocumentActions document={document} text={text} isRetrying={retryingDocumentIds.has(document.id)} isPublishing={publishingDocumentIds.has(document.id)} onPreview={() => setPreviewDocument(document)} onDownload={() => void openObject(document, "download")} onRetry={() => void handleRetryExtraction(document)} onPublish={() => void handlePublishDocument(document)} onDelete={() => void handleDeleteSingleDocument(document.id)} />
+                        <DocumentActions document={document} text={text} isRetrying={retryingDocumentIds.has(document.id)} isPublishing={publishingDocumentIds.has(document.id)} onPreview={() => setPreviewDocument(document)} onDownload={() => void openObject(document, "download")} onRetry={() => void handleRetryExtraction(document)} onPublish={() => void handlePublishDocument(document)} onUnpublish={() => void handleUnpublishDocument(document)} onDelete={() => void handleDeleteSingleDocument(document.id)} />
                       </td>
                       <td className="library-table-ai">
                         <span className={`index-status index-status--${document.indexStatus.toLowerCase()}`}>{getIndexStatusLabel(document.indexStatus)}</span>
@@ -972,7 +996,7 @@ export function LibraryView() {
                     <span>{document.category}</span>
                     <span>{formatFileSize(document.fileSize)}</span>
                   </div>
-                  <DocumentActions document={document} text={text} isRetrying={retryingDocumentIds.has(document.id)} isPublishing={publishingDocumentIds.has(document.id)} onPreview={() => setPreviewDocument(document)} onDownload={() => void openObject(document, "download")} onRetry={() => void handleRetryExtraction(document)} onPublish={() => void handlePublishDocument(document)} onDelete={() => void handleDeleteSingleDocument(document.id)} />
+                  <DocumentActions document={document} text={text} isRetrying={retryingDocumentIds.has(document.id)} isPublishing={publishingDocumentIds.has(document.id)} onPreview={() => setPreviewDocument(document)} onDownload={() => void openObject(document, "download")} onRetry={() => void handleRetryExtraction(document)} onPublish={() => void handlePublishDocument(document)} onUnpublish={() => void handleUnpublishDocument(document)} onDelete={() => void handleDeleteSingleDocument(document.id)} />
                 </article>
               ))}
             </section>
@@ -1075,7 +1099,7 @@ export function LibraryView() {
   );
 }
 
-export function DocumentActions({ document, text, isRetrying, isPublishing, onPreview, onDownload, onRetry, onPublish, onDelete }: { document: LibraryDocument; text: (vi: string, en: string) => string; isRetrying: boolean; isPublishing: boolean; onPreview: () => void; onDownload: () => void; onRetry: () => void; onPublish: () => void; onDelete: () => void }) {
+export function DocumentActions({ document, text, isRetrying, isPublishing, onPreview, onDownload, onRetry, onPublish, onUnpublish, onDelete }: { document: LibraryDocument; text: (vi: string, en: string) => string; isRetrying: boolean; isPublishing: boolean; onPreview: () => void; onDownload: () => void; onRetry: () => void; onPublish: () => void; onUnpublish: () => void; onDelete: () => void }) {
   const retryLabel = isRetrying ? text("Đang chạy lại", "Retrying") : text("Chạy lại AI", "Retry AI");
 
   return (
@@ -1091,7 +1115,12 @@ export function DocumentActions({ document, text, isRetrying, isPublishing, onPr
           <Globe2 size={16} />
           <span>{isPublishing ? text("Đang công khai", "Publishing") : text("Công khai", "Publish")}</span>
         </button>
-      ) : null}
+      ) : (
+        <button type="button" className="publish-document-action" title={text("Gỡ khỏi cộng đồng", "Remove from Community")} aria-label={text(`Gỡ công khai ${document.title}`, `Make ${document.title} private`)} onClick={onUnpublish} disabled={isPublishing}>
+          <Globe2 size={16} />
+          <span>{isPublishing ? text("Đang gỡ", "Removing") : text("Gỡ công khai", "Unpublish")}</span>
+        </button>
+      )}
       {document.indexStatus === "READY" ? (
         <Link href={`${ROUTES.aiChat}?scope=document&document=${document.id}`} className="ask-document-action">
           <Bot size={16} />

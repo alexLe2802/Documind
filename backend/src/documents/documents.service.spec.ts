@@ -720,6 +720,45 @@ describe('DocumentsService', () => {
     });
   });
 
+  it('removes every saved copy when an owner makes a public document private', async () => {
+    prisma.document.findFirst.mockResolvedValue({
+      id: 'doc-id',
+      ownerId: 'owner-id',
+      fileSize: BigInt(42),
+      visibility: DocumentVisibility.PUBLIC,
+      extractionStatus: ExtractionStatus.COMPLETED,
+      moderationStatus: ModerationStatus.APPROVED,
+      title: 'Public notes',
+      fileName: 'notes.pdf',
+      description: null,
+      content: { extractedText: 'Academic content' },
+    });
+    prisma.document.update.mockResolvedValue({
+      id: 'doc-id',
+      ownerId: 'owner-id',
+      fileSize: BigInt(42),
+      visibility: DocumentVisibility.PRIVATE,
+      savedBy: [],
+    });
+
+    await service.updateVisibility(
+      'doc-id',
+      'owner-id',
+      DocumentVisibility.PRIVATE,
+    );
+
+    expect(prisma.document.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'doc-id' },
+        data: expect.objectContaining({
+          visibility: DocumentVisibility.PRIVATE,
+          savedBy: { deleteMany: {} },
+          saveCount: 0,
+        }),
+      }),
+    );
+  });
+
   it('creates a download URL using the original file name', async () => {
     prisma.document.findFirst.mockResolvedValue({
       id: 'doc-id',

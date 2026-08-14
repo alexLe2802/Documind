@@ -69,6 +69,9 @@ class ApiClient {
   Future<dynamic> patch(String path, {Object? data}) async =>
       unwrap((await dio.patch<dynamic>(path, data: data)).data);
 
+  Future<dynamic> put(String path, {Object? data}) async =>
+      unwrap((await dio.put<dynamic>(path, data: data)).data);
+
   Future<dynamic> delete(String path, {Object? data}) async =>
       unwrap((await dio.delete<dynamic>(path, data: data)).data);
 }

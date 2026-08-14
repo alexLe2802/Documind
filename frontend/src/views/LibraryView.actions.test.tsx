@@ -23,7 +23,7 @@ const privateDocument: LibraryDocument = {
 
 const text = (_vi: string, en: string) => en;
 
-function renderActions(document: LibraryDocument, onPublish = vi.fn()) {
+function renderActions(document: LibraryDocument, onPublish = vi.fn(), onUnpublish = vi.fn()) {
   render(
     <DocumentActions
       document={document}
@@ -34,6 +34,7 @@ function renderActions(document: LibraryDocument, onPublish = vi.fn()) {
       onDownload={vi.fn()}
       onRetry={vi.fn()}
       onPublish={onPublish}
+      onUnpublish={onUnpublish}
       onDelete={vi.fn()}
     />,
   );
@@ -57,5 +58,16 @@ describe("Library document actions", () => {
     expect(
       screen.queryByRole("button", { name: "Make Private notes public" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("lets the owner remove a public document from Community", () => {
+    const onUnpublish = vi.fn();
+    renderActions({ ...privateDocument, visibility: "PUBLIC" }, vi.fn(), onUnpublish);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Make Private notes private" }),
+    );
+
+    expect(onUnpublish).toHaveBeenCalledOnce();
   });
 });
