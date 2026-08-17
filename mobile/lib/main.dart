@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'app.dart';
 import 'core/firebase_options.dart';
@@ -8,6 +9,12 @@ import 'core/firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Object? startupError;
+  String versionLabel = '';
+  try {
+    final packageInfo = await PackageInfo.fromPlatform();
+    versionLabel =
+        'Version ${packageInfo.version} (${packageInfo.buildNumber})';
+  } catch (_) {}
   try {
     await Firebase.initializeApp(
       options: DocuMindFirebaseOptions.currentPlatform,
@@ -19,14 +26,16 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       child: startupError == null
-          ? const _SplashBootstrap()
+          ? _SplashBootstrap(versionLabel: versionLabel)
           : FirebaseSetupRequiredApp(error: startupError),
     ),
   );
 }
 
 class _SplashBootstrap extends StatefulWidget {
-  const _SplashBootstrap();
+  const _SplashBootstrap({required this.versionLabel});
+
+  final String versionLabel;
   @override
   State<_SplashBootstrap> createState() => _SplashBootstrapState();
 }
@@ -83,10 +92,11 @@ class _SplashBootstrapState extends State<_SplashBootstrap> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Version 1.0.1 (2)',
-                      style: TextStyle(color: Color(0xff64748b)),
-                    ),
+                    if (widget.versionLabel.isNotEmpty)
+                      Text(
+                        widget.versionLabel,
+                        style: const TextStyle(color: Color(0xff64748b)),
+                      ),
                     const SizedBox(height: 24),
                     LinearProgressIndicator(
                       value: progress,
