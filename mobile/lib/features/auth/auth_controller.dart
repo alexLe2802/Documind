@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/api_client.dart';
+import '../../core/firebase_options.dart';
 
 final firebaseAuthProvider = Provider((_) => FirebaseAuth.instance);
 final apiClientProvider = Provider(
@@ -65,7 +66,11 @@ class AuthController {
   Future<GoogleRegistrationData?> signInWithGoogle() async {
     await _auth.signOut();
     final google = GoogleSignIn.instance;
-    await google.initialize();
+    await google.initialize(
+      serverClientId: DocuMindFirebaseOptions.googleServerClientId.isEmpty
+          ? null
+          : DocuMindFirebaseOptions.googleServerClientId,
+    );
     try {
       await google.disconnect();
     } catch (_) {}

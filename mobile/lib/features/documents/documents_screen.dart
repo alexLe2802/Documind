@@ -19,6 +19,39 @@ final documentsProvider =
       return api.listFrom(result);
     });
 
+final aiSourceDocumentsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+      final api = ref.watch(apiClientProvider);
+      final results = await Future.wait([
+        api.get(
+          '/documents',
+          query: {'ownerOnly': true, 'page': 1, 'limit': 100},
+        ),
+        api.get(
+          '/documents',
+          query: {'savedOnly': true, 'page': 1, 'limit': 100},
+        ),
+      ]);
+      return mergeAiSourceDocuments(
+        api.listFrom(results[0]),
+        api.listFrom(results[1]),
+      );
+    });
+
+List<Map<String, dynamic>> mergeAiSourceDocuments(
+  List<Map<String, dynamic>> owned,
+  List<Map<String, dynamic>> saved,
+) {
+  final merged = <String, Map<String, dynamic>>{};
+  for (final document in owned) {
+    merged[document['id'].toString()] = document;
+  }
+  for (final document in saved) {
+    merged[document['id'].toString()] = {...document, 'isCommunitySaved': true};
+  }
+  return merged.values.toList(growable: false);
+}
+
 typedef DocumentFilters = ({
   String search,
   String subjectId,

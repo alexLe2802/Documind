@@ -46,11 +46,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (pending != null && mounted) {
         await _openWebRegistration(pending);
       }
-    } catch (_) {
-      setState(
-        () => error =
-            'Không thể đăng nhập bằng Google. Hãy kiểm tra cấu hình Google Sign-In.',
-      );
+    } catch (signInError) {
+      setState(() => error = _googleSignInErrorMessage(signInError));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -188,7 +185,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 OutlinedButton.icon(
                   onPressed: loading ? null : googleSignIn,
-                  icon: const Icon(Icons.g_mobiledata_rounded, size: 30),
+                  icon: const GoogleLogo(size: 22),
                   label: const Padding(
                     padding: EdgeInsets.all(13),
                     child: Text('Tiếp tục với Google'),
@@ -206,4 +203,68 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     ),
   );
+}
+
+String _googleSignInErrorMessage(Object error) {
+  final detail = error.toString().toLowerCase();
+  if (detail.contains('configuration') ||
+      detail.contains('developer_error') ||
+      detail.contains('10:')) {
+    return 'Google Sign-In chưa được cấu hình đúng cho ứng dụng này.';
+  }
+  if (detail.contains('canceled') || detail.contains('cancelled')) {
+    return 'Bạn đã hủy đăng nhập bằng Google.';
+  }
+  return 'Không thể đăng nhập bằng Google. Vui lòng thử lại.';
+}
+
+class GoogleLogo extends StatelessWidget {
+  const GoogleLogo({this.size = 22, super.key});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size.square(size), painter: _GoogleLogoPainter());
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = size.width * .2;
+    final rect = Rect.fromLTWH(
+      stroke / 2,
+      stroke / 2,
+      size.width - stroke,
+      size.height - stroke,
+    );
+    void arc(Color color, double start, double sweep) => canvas.drawArc(
+      rect,
+      start,
+      sweep,
+      false,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.butt,
+    );
+
+    arc(const Color(0xff4285f4), -.12, 1.45);
+    arc(const Color(0xff34a853), 1.33, 1.28);
+    arc(const Color(0xfffbbc05), 2.61, .88);
+    arc(const Color(0xffea4335), 3.49, 1.76);
+    canvas.drawRect(
+      Rect.fromLTWH(
+        size.width * .51,
+        size.height * .45,
+        size.width * .45,
+        stroke,
+      ),
+      Paint()..color = const Color(0xff4285f4),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

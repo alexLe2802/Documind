@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 
 abstract final class DocuMindFirebaseOptions {
   static const _apiKey = String.fromEnvironment('FIREBASE_API_KEY');
+  static const _androidApiKey = String.fromEnvironment(
+    'FIREBASE_ANDROID_API_KEY',
+  );
   static const _iosAppId = String.fromEnvironment('FIREBASE_IOS_APP_ID');
   static const _androidAppId = String.fromEnvironment(
     'FIREBASE_ANDROID_APP_ID',
@@ -19,23 +22,26 @@ abstract final class DocuMindFirebaseOptions {
     defaultValue: 'icu.documind.mobile',
   );
 
+  static const googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+  );
+
   static FirebaseOptions get currentPlatform {
     final appId = switch (defaultTargetPlatform) {
-      // Keep existing builds usable while the Android app is being registered
-      // in Firebase. A platform-specific ID takes precedence when configured.
-      TargetPlatform.android => _androidAppId.isNotEmpty
-          ? _androidAppId
-          : _iosAppId,
+      TargetPlatform.android => _androidAppId,
       TargetPlatform.iOS => _iosAppId,
       _ => '',
     };
-    if (_apiKey.isEmpty || appId.isEmpty || _projectId.isEmpty) {
+    final apiKey = defaultTargetPlatform == TargetPlatform.android
+        ? _androidApiKey
+        : _apiKey;
+    if (apiKey.isEmpty || appId.isEmpty || _projectId.isEmpty) {
       throw StateError(
         'Missing Firebase configuration. Run with the dart-defines documented in mobile/README.md.',
       );
     }
     return FirebaseOptions(
-      apiKey: _apiKey,
+      apiKey: apiKey,
       appId: appId,
       messagingSenderId: _messagingSenderId,
       projectId: _projectId,

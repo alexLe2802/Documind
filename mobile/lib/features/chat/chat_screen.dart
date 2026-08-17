@@ -18,8 +18,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialDocumentId != null) selected.add(widget.initialDocumentId!);
+    if (widget.initialDocumentId != null) {
+      selected.add(widget.initialDocumentId!);
+    }
   }
+
   Future<void> choose(List<Map<String, dynamic>> docs) async {
     final draft = {...selected};
     final result = await showModalBottomSheet<Set<String>>(
@@ -148,13 +151,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final docs =
-        (ref.watch(documentsProvider).value ?? const <Map<String, dynamic>>[])
+        (ref.watch(aiSourceDocumentsProvider).value ??
+                const <Map<String, dynamic>>[])
             .where((d) => ['COMPLETED', 'MOCKED'].contains(d['aiStatus']))
             .toList();
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(documentsProvider);
-        await ref.read(documentsProvider.future);
+        ref.invalidate(aiSourceDocumentsProvider);
+        await ref.read(aiSourceDocumentsProvider.future);
       },
       child: LayoutBuilder(
         builder: (context, box) => SingleChildScrollView(

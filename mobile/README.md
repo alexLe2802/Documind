@@ -37,9 +37,12 @@ với `frontend/fe.env`. Không dùng `NEXT_PUBLIC_FIREBASE_APP_ID` của web ch
 Với Android, thêm app có package `icu.documind.mobile` trong cùng Firebase
 project, rồi điền `mobilesdk_app_id` vào `FIREBASE_ANDROID_APP_ID`. Đăng ký SHA-1
 và SHA-256 của khóa ký nếu dùng Google Sign-In.
-Trong thời gian chưa đăng ký, app có thể khởi động bằng cấu hình project hiện
-có, nhưng Google Sign-In trên Android chỉ được bảo đảm sau khi có Android App ID
-và SHA fingerprints chính thức.
+Điền API key trong Android `google-services.json` vào
+`FIREBASE_ANDROID_API_KEY`.
+Điền OAuth 2.0 Web client ID của cùng Firebase project vào
+`GOOGLE_SERVER_CLIENT_ID`. Android không dùng Firebase iOS App ID làm giá trị
+dự phòng; build thiếu Android App ID sẽ dừng sớm để tránh phát hành APK có
+Google Sign-In bị lỗi cấu hình.
 
 ## Chạy trên iPhone
 
