@@ -8,6 +8,7 @@ import { CheckCircle2, UserPlus } from "lucide-react";
 import { useAuth } from "../features/auth/useAuth";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getFirebaseAuth } from "../lib/firebase";
+import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import {
   clearPendingGoogleRegistration,
   readPendingGoogleRegistration,
@@ -68,6 +69,52 @@ export function RegisterView() {
       isActive = false;
     };
   }, [pendingGoogleRegistration]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function restoreMobileGoogleRegistration() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("source") !== "mobile-google") return;
+
+      const emailFromMobile = params.get("email") ?? "";
+      const fullNameFromMobile = params.get("fullName") ?? "";
+      if (isActive) {
+        setEmail(emailFromMobile);
+        setFullName(fullNameFromMobile);
+      }
+
+      const fragment = new URLSearchParams(window.location.hash.slice(1));
+      const googleIdToken = fragment.get("googleIdToken");
+      window.history.replaceState({}, "", window.location.pathname);
+      if (!googleIdToken) {
+        if (isActive) {
+          setError("Phiên Google đã hết hạn. Vui lòng tiếp tục lại với Google.");
+        }
+        return;
+      }
+
+      try {
+        const credential = GoogleAuthProvider.credential(googleIdToken);
+        const result = await signInWithCredential(getFirebaseAuth(), credential);
+        if (!isActive) return;
+        setFullName(fullNameFromMobile || result.user.displayName || "");
+        setEmail(emailFromMobile || result.user.email || "");
+        setIsGoogleRegistration(true);
+      } catch {
+        if (isActive) {
+          setError(
+            "Không thể tiếp tục phiên Google từ ứng dụng. Vui lòng chọn Tiếp tục với Google.",
+          );
+        }
+      }
+    }
+
+    void restoreMobileGoogleRegistration();
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

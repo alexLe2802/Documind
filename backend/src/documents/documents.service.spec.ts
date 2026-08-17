@@ -20,7 +20,7 @@ describe('DocumentsService', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
-      update: jest.fn(),
+      update: jest.fn<Promise<unknown>, [Prisma.DocumentUpdateArgs]>(),
       delete: jest.fn(),
     },
   };
@@ -747,16 +747,15 @@ describe('DocumentsService', () => {
       DocumentVisibility.PRIVATE,
     );
 
-    expect(prisma.document.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'doc-id' },
-        data: expect.objectContaining({
-          visibility: DocumentVisibility.PRIVATE,
-          savedBy: { deleteMany: {} },
-          saveCount: 0,
-        }),
-      }),
-    );
+    const updateArgs = prisma.document.update.mock.calls[0]?.[0] as
+      | Prisma.DocumentUpdateArgs
+      | undefined;
+    expect(updateArgs?.where).toEqual({ id: 'doc-id' });
+    expect(updateArgs?.data).toMatchObject({
+      visibility: DocumentVisibility.PRIVATE,
+      savedBy: { deleteMany: {} },
+      saveCount: 0,
+    });
   });
 
   it('creates a download URL using the original file name', async () => {

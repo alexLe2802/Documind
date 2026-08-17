@@ -86,10 +86,13 @@ class AuthController {
                 '')
           : '';
       if (message.contains('Account registration is required')) {
-        return GoogleRegistrationData(
+        final registration = GoogleRegistrationData(
           fullName: account.displayName ?? '',
           email: account.email,
+          googleIdToken: idToken,
         );
+        await _auth.signOut();
+        return registration;
       }
       await _auth.signOut();
       rethrow;
@@ -109,9 +112,14 @@ class AuthController {
 }
 
 class GoogleRegistrationData {
-  const GoogleRegistrationData({required this.fullName, required this.email});
+  const GoogleRegistrationData({
+    required this.fullName,
+    required this.email,
+    this.googleIdToken,
+  });
   final String fullName;
   final String email;
+  final String? googleIdToken;
 }
 
 final authControllerProvider = Provider(
