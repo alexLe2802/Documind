@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createHmac } from 'crypto';
 import {
   PaymentMethod,
   PaymentStatus,
@@ -186,6 +187,40 @@ describe('PaymentsService', () => {
     });
     expect(checkout.fields.signature).toEqual(expect.any(String));
     expect(JSON.stringify(checkout)).not.toContain('secret-key');
+  });
+
+  it('signs and submits checkout fields in SePay required order', async () => {
+    const checkout = await service.createCheckout(user, {
+      plan: SubscriptionPlan.STUDENT,
+      paymentMethod: PaymentMethod.BANK_TRANSFER,
+    });
+
+    const fieldNames = Object.keys(checkout.fields);
+    expect(fieldNames).toEqual([
+      'order_amount',
+      'merchant',
+      'currency',
+      'operation',
+      'order_description',
+      'order_invoice_number',
+      'customer_id',
+      'payment_method',
+      'success_url',
+      'error_url',
+      'cancel_url',
+      'signature',
+    ]);
+
+    const signaturePayload = fieldNames
+      .filter((name) => name !== 'signature')
+      .map((name) => `${name}=${checkout.fields[name]}`)
+      .join(',');
+    expect(checkout.fields.signature).toBe(
+      createHmac('sha256', 'secret-key')
+        .update(signaturePayload)
+        .digest('base64'),
+    );
+    expect(checkout.fields).not.toHaveProperty('custom_data');
   });
 
   it('keeps production plan prices in the public plan list', () => {

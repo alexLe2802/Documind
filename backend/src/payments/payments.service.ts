@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomBytes, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { SePayPgClient } from 'sepay-pg-node';
 import {
   DocumentStatus,
@@ -293,19 +293,31 @@ export class PaymentsService {
   ): CheckoutResponseDto {
     const callbackUrl = `${this.frontendUrl}/goi-dich-vu`;
     const description = `DocuMind ${plan} monthly subscription`;
-    const fields = client.checkout.initOneTimePaymentFields({
-      operation: 'PURCHASE',
-      payment_method: paymentMethod,
-      order_invoice_number: invoiceNumber,
+    // SePay verifies both the signature and submitted form fields in this
+    // insertion order. sepay-pg-node 1.0.0 instead signs Object.keys(fields)
+    // and appends merchant last, producing an invalid signature.
+    const unsignedFields: CheckoutFields = {
       order_amount: amount,
+      merchant: this.merchantId,
       currency: CURRENCY,
+      operation: 'PURCHASE',
       order_description: description,
+      order_invoice_number: invoiceNumber,
       customer_id: userId,
+      payment_method: paymentMethod,
       success_url: `${callbackUrl}?payment=success&invoice=${invoiceNumber}`,
       error_url: `${callbackUrl}?payment=error&invoice=${invoiceNumber}`,
       cancel_url: `${callbackUrl}?payment=cancel&invoice=${invoiceNumber}`,
-      custom_data: JSON.stringify({ userId, plan }),
-    } as never) as CheckoutFields;
+    };
+    const signaturePayload = Object.entries(unsignedFields)
+      .map(([name, value]) => `${name}=${value}`)
+      .join(',');
+    const fields: CheckoutFields = {
+      ...unsignedFields,
+      signature: createHmac('sha256', this.secretKey)
+        .update(signaturePayload)
+        .digest('base64'),
+    };
 
     return {
       invoiceNumber,
