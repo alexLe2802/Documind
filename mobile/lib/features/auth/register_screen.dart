@@ -18,6 +18,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       confirm = TextEditingController();
   bool accepted = false, loading = false;
   String? error;
+
+  Future<void> backToLogin() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (widget.googleData != null) {
+      await ref.read(authControllerProvider).signOut();
+    }
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
   Future<void> submit() async {
     if (!accepted) {
       setState(
@@ -69,7 +80,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Đăng ký')),
+    appBar: AppBar(
+      leading: IconButton(
+        onPressed: loading ? null : backToLogin,
+        icon: const Icon(Icons.arrow_back),
+        tooltip: 'Quay lại đăng nhập',
+      ),
+      title: const Text('Đăng ký'),
+    ),
     body: SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),

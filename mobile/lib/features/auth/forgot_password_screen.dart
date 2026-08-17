@@ -14,7 +14,14 @@ class _State extends ConsumerState<ForgotPasswordScreen> {
   bool loading = false;
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Quên mật khẩu')),
+    appBar: AppBar(
+      leading: IconButton(
+        onPressed: loading ? null : () => Navigator.of(context).pop(),
+        icon: const Icon(Icons.arrow_back),
+        tooltip: 'Quay lại đăng nhập',
+      ),
+      title: const Text('Quên mật khẩu'),
+    ),
     body: Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
