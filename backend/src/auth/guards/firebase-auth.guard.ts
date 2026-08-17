@@ -12,7 +12,7 @@ import { Prisma, UserStatus } from '../../generated/prisma/client';
 import { FIREBASE_AUTH } from '../../firebase/firebase.constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import { getAuthSessionCookie } from '../auth-session';
-import { AuthenticatedRequest, AuthenticatedUser } from '../auth.types';
+import { AuthenticatedRequest } from '../auth.types';
 import { createMockAdminUser, isMockAuthEnabled } from '../mock-auth';
 
 const AUTHENTICATED_USER_SELECT = {

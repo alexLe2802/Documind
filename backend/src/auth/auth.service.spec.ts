@@ -256,12 +256,16 @@ describe('AuthService', () => {
       authProvider: AuthProvider.GOOGLE,
       termsAcceptedAt: null,
     });
-    prisma.user.update.mockResolvedValue({
-      ...baseUser,
-      fullName: 'Completed Google User',
-      authProvider: AuthProvider.GOOGLE,
-      status: UserStatus.INACTIVE,
-      termsAcceptedAt: new Date(),
+    let updateArgument: unknown;
+    prisma.user.update.mockImplementation((args: unknown) => {
+      updateArgument = args;
+      return Promise.resolve({
+        ...baseUser,
+        fullName: 'Completed Google User',
+        authProvider: AuthProvider.GOOGLE,
+        status: UserStatus.INACTIVE,
+        termsAcceptedAt: new Date(),
+      });
     });
 
     await service.register('token', {
@@ -272,16 +276,18 @@ describe('AuthService', () => {
     expect(firebaseAuth.updateUser).toHaveBeenCalledWith(baseUser.firebaseUid, {
       emailVerified: false,
     });
-    expect(prisma.user.update).toHaveBeenCalledWith({
+    expect(updateArgument).toMatchObject({
       where: { id: baseUser.id },
-      data: expect.objectContaining({
+      data: {
         fullName: 'Completed Google User',
+        avatarUrl: null,
         authProvider: AuthProvider.GOOGLE,
         status: UserStatus.INACTIVE,
-        termsAcceptedAt: expect.any(Date),
-      }),
-      select: expect.any(Object),
+      },
     });
+    const updateData = (updateArgument as { data: { termsAcceptedAt: unknown } })
+      .data;
+    expect(updateData.termsAcceptedAt).toBeInstanceOf(Date);
     expect(authEmailService.sendRegistrationEmail).toHaveBeenCalledWith(
       baseUser.email,
       'Completed Google User',
