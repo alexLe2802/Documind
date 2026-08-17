@@ -99,10 +99,16 @@ class AuthController {
     final account = await google.authenticate();
     final idToken = account.authentication.idToken;
     if (idToken == null) throw StateError('Google did not return an ID token');
-    await _auth.signInWithCredential(
+    final credential = await _auth.signInWithCredential(
       GoogleAuthProvider.credential(idToken: idToken),
     );
     try {
+      await credential.user?.reload();
+      final refreshedUser = _auth.currentUser;
+      if (refreshedUser == null) {
+        throw StateError('Google session expired');
+      }
+      await refreshedUser.getIdToken(true);
       await _api.post('/auth/firebase-login');
       return null;
     } on DioException catch (error) {

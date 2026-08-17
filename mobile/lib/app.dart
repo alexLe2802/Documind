@@ -90,7 +90,11 @@ class _BackendSessionGateState extends ConsumerState<_BackendSessionGate> {
 
   Future<_BackendSessionState> _validateSession() async {
     try {
-      final result = await ref.read(apiClientProvider).get('/auth/me');
+      await widget.firebaseUser.reload();
+      await widget.firebaseUser.getIdToken(true);
+      final result = await ref
+          .read(apiClientProvider)
+          .post('/auth/firebase-login');
       final profile = Map<String, dynamic>.from(result['user'] ?? result);
       final backendUid = profile['firebaseUid']?.toString();
       final backendEmail = profile['email']?.toString().toLowerCase();
@@ -106,7 +110,15 @@ class _BackendSessionGateState extends ConsumerState<_BackendSessionGate> {
       final isGoogleUser = widget.firebaseUser.providerData.any(
         (provider) => provider.providerId == 'google.com',
       );
-      if (error.response?.statusCode == 403 && isGoogleUser) {
+      final body = error.response?.data;
+      final message = body is Map
+          ? ((body['error'] is Map ? body['error']['message'] : body['message'])
+                    ?.toString() ??
+                '')
+          : '';
+      if (error.response?.statusCode == 403 &&
+          isGoogleUser &&
+          message.contains('Account registration is required')) {
         return _BackendSessionState.registrationRequired;
       }
       rethrow;
