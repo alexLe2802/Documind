@@ -17,6 +17,24 @@ void main() {
     expect(find.byType(GoogleLogo), findsOneWidget);
   });
 
+  testWidgets('opens native registration from the sign-in form', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MaterialApp(home: LoginScreen())),
+    );
+
+    final registrationLink = find.text('Chưa có tài khoản? Đăng ký');
+    await tester.ensureVisible(registrationLink);
+    await tester.pumpAndSettle();
+    await tester.tap(registrationLink);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(RegisterScreen), findsOneWidget);
+    expect(find.text('Bắt đầu cùng DocuMind'), findsOneWidget);
+    expect(find.byTooltip('Quay lại đăng nhập'), findsOneWidget);
+  });
+
   test('AI sources combine owned and saved community documents once', () {
     final result = mergeAiSourceDocuments(
       [

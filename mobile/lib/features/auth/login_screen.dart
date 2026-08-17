@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'auth_controller.dart';
 import 'forgot_password_screen.dart';
@@ -56,14 +55,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
-  }
-
-  Future<void> _openBlankWebRegistration() async {
-    final opened = await launchUrl(
-      Uri.parse('https://documind.icu/dang-ky'),
-      mode: LaunchMode.externalApplication,
-    );
-    if (!opened) throw StateError('Không thể mở trang đăng ký DocuMind.');
   }
 
   @override
@@ -175,7 +166,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 10),
                 TextButton(
-                  onPressed: loading ? null : _openBlankWebRegistration,
+                  onPressed: loading
+                      ? null
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        ),
                   child: const Text('Chưa có tài khoản? Đăng ký'),
                 ),
               ],
