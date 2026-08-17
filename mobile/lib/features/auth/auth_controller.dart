@@ -96,7 +96,6 @@ class AuthController {
           email: account.email,
           googleIdToken: idToken,
         );
-        await _auth.signOut();
         return registration;
       }
       await _auth.signOut();

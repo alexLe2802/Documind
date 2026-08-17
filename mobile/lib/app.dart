@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:dio/dio.dart';
 
 import 'features/auth/auth_controller.dart';
 import 'features/auth/login_screen.dart';
+import 'features/auth/register_screen.dart';
 import 'features/home/home_shell.dart';
 
 class DocuMindApp extends ConsumerWidget {
@@ -84,19 +86,30 @@ class _BackendSessionGate extends ConsumerStatefulWidget {
 }
 
 class _BackendSessionGateState extends ConsumerState<_BackendSessionGate> {
-  late final Future<void> check = _validateSession();
+  late final Future<_BackendSessionState> check = _validateSession();
 
-  Future<void> _validateSession() async {
-    final result = await ref.read(apiClientProvider).get('/auth/me');
-    final profile = Map<String, dynamic>.from(result['user'] ?? result);
-    final backendUid = profile['firebaseUid']?.toString();
-    final backendEmail = profile['email']?.toString().toLowerCase();
-    final firebaseEmail = widget.firebaseUser.email?.toLowerCase();
-    if ((backendUid != null && backendUid != widget.firebaseUser.uid) ||
-        (backendEmail != null &&
-            firebaseEmail != null &&
-            backendEmail != firebaseEmail)) {
-      throw StateError('Phiên đăng nhập không khớp với tài khoản đã chọn.');
+  Future<_BackendSessionState> _validateSession() async {
+    try {
+      final result = await ref.read(apiClientProvider).get('/auth/me');
+      final profile = Map<String, dynamic>.from(result['user'] ?? result);
+      final backendUid = profile['firebaseUid']?.toString();
+      final backendEmail = profile['email']?.toString().toLowerCase();
+      final firebaseEmail = widget.firebaseUser.email?.toLowerCase();
+      if ((backendUid != null && backendUid != widget.firebaseUser.uid) ||
+          (backendEmail != null &&
+              firebaseEmail != null &&
+              backendEmail != firebaseEmail)) {
+        throw StateError('Phiên đăng nhập không khớp với tài khoản đã chọn.');
+      }
+      return _BackendSessionState.authenticated;
+    } on DioException catch (error) {
+      final isGoogleUser = widget.firebaseUser.providerData.any(
+        (provider) => provider.providerId == 'google.com',
+      );
+      if (error.response?.statusCode == 403 && isGoogleUser) {
+        return _BackendSessionState.registrationRequired;
+      }
+      rethrow;
     }
   }
 
@@ -111,7 +124,17 @@ class _BackendSessionGateState extends ConsumerState<_BackendSessionGate> {
         Future.microtask(() => ref.read(authControllerProvider).signOut());
         return const LoginScreen();
       }
+      if (s.data == _BackendSessionState.registrationRequired) {
+        return RegisterScreen(
+          googleData: GoogleRegistrationData(
+            fullName: widget.firebaseUser.displayName ?? '',
+            email: widget.firebaseUser.email ?? '',
+          ),
+        );
+      }
       return const HomeShell();
     },
   );
 }
+
+enum _BackendSessionState { authenticated, registrationRequired }

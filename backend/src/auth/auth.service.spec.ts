@@ -67,6 +67,24 @@ describe('AuthService', () => {
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
+  it('requires registration for a legacy auto-provisioned user without accepted terms', async () => {
+    firebaseAuth.verifyIdToken.mockResolvedValue({
+      uid: baseUser.firebaseUid,
+      email: baseUser.email,
+      email_verified: true,
+      firebase: { sign_in_provider: 'google.com', identities: {} },
+    });
+    prisma.user.findUnique.mockResolvedValue({
+      ...baseUser,
+      authProvider: AuthProvider.GOOGLE,
+      termsAcceptedAt: null,
+    });
+
+    await expect(service.firebaseLogin('token')).rejects.toThrow(
+      'Account registration is required',
+    );
+  });
+
   it('blocks an inactive account until email is verified', async () => {
     firebaseAuth.verifyIdToken.mockResolvedValue({
       uid: baseUser.firebaseUid,
@@ -220,6 +238,53 @@ describe('AuthService', () => {
     expect(authEmailService.sendRegistrationEmail).toHaveBeenCalledWith(
       baseUser.email,
       'Student Updated',
+    );
+  });
+
+  it('repairs a legacy auto-provisioned Google user through registration', async () => {
+    firebaseAuth.verifyIdToken.mockResolvedValue({
+      uid: baseUser.firebaseUid,
+      email: baseUser.email,
+      email_verified: true,
+      firebase: {
+        sign_in_provider: 'google.com',
+        identities: { 'google.com': ['google-subject'] },
+      },
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      ...baseUser,
+      authProvider: AuthProvider.GOOGLE,
+      termsAcceptedAt: null,
+    });
+    prisma.user.update.mockResolvedValue({
+      ...baseUser,
+      fullName: 'Completed Google User',
+      authProvider: AuthProvider.GOOGLE,
+      status: UserStatus.INACTIVE,
+      termsAcceptedAt: new Date(),
+    });
+
+    await service.register('token', {
+      fullName: 'Completed Google User',
+      acceptedTerms: true,
+    });
+
+    expect(firebaseAuth.updateUser).toHaveBeenCalledWith(baseUser.firebaseUid, {
+      emailVerified: false,
+    });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: baseUser.id },
+      data: expect.objectContaining({
+        fullName: 'Completed Google User',
+        authProvider: AuthProvider.GOOGLE,
+        status: UserStatus.INACTIVE,
+        termsAcceptedAt: expect.any(Date),
+      }),
+      select: expect.any(Object),
+    });
+    expect(authEmailService.sendRegistrationEmail).toHaveBeenCalledWith(
+      baseUser.email,
+      'Completed Google User',
     );
   });
 

@@ -129,7 +129,44 @@ export class AuthService {
       select: AUTH_USER_SELECT,
     });
 
+    const isGoogleRegistration = this.hasProviderIdentity(
+      decodedToken,
+      'google.com',
+    );
+
     if (existingUser) {
+      if (
+        existingUser.firebaseUid === decodedToken.uid &&
+        !existingUser.termsAcceptedAt
+      ) {
+        if (isGoogleRegistration && decodedToken.email_verified) {
+          await this.firebaseAuth.updateUser(decodedToken.uid, {
+            emailVerified: false,
+          });
+        }
+        const repairedUser = await this.prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            fullName: payload.fullName.trim(),
+            avatarUrl: this.resolveAvatarUrl(decodedToken),
+            authProvider: isGoogleRegistration
+              ? AuthProvider.GOOGLE
+              : AuthProvider.EMAIL_PASSWORD,
+            status: UserStatus.INACTIVE,
+            termsAcceptedAt: new Date(),
+          },
+          select: AUTH_USER_SELECT,
+        });
+        await this.createAuditLog(
+          repairedUser.id,
+          'auth.registration_pending',
+        );
+        await this.authEmailService.sendRegistrationEmail(
+          email,
+          payload.fullName.trim(),
+        );
+        return this.toAuthLoginResponse(repairedUser, false);
+      }
       if (
         existingUser.firebaseUid === decodedToken.uid &&
         existingUser.status === UserStatus.INACTIVE
@@ -156,11 +193,6 @@ export class AuthService {
       update: {},
       create: { name: RoleName.USER },
     });
-    const isGoogleRegistration = this.hasProviderIdentity(
-      decodedToken,
-      'google.com',
-    );
-
     if (isGoogleRegistration && decodedToken.email_verified) {
       await this.firebaseAuth.updateUser(decodedToken.uid, {
         emailVerified: false,
@@ -286,7 +318,7 @@ export class AuthService {
       select: AUTH_USER_SELECT,
     });
 
-    if (!user) {
+    if (!user || !user.termsAcceptedAt) {
       throw new ForbiddenException('Account registration is required');
     }
 

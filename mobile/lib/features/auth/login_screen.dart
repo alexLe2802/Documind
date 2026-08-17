@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'auth_controller.dart';
 import 'forgot_password_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -44,35 +45,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final pending = await ref.read(authControllerProvider).signInWithGoogle();
       if (pending != null && mounted) {
-        await _openWebRegistration(pending);
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => RegisterScreen(googleData: pending),
+          ),
+        );
       }
     } catch (signInError) {
       setState(() => error = _googleSignInErrorMessage(signInError));
     } finally {
       if (mounted) setState(() => loading = false);
-    }
-  }
-
-  Future<void> _openWebRegistration(GoogleRegistrationData profile) async {
-    final query = Uri(
-      queryParameters: {
-        'email': profile.email,
-        'fullName': profile.fullName,
-        'source': 'mobile-google',
-      },
-    ).query;
-    final handoff = Uri(
-      queryParameters: {'googleIdToken': profile.googleIdToken ?? ''},
-    ).query;
-    final registrationUrl = Uri.parse(
-      'https://documind.icu/dang-ky?$query#$handoff',
-    );
-    final opened = await launchUrl(
-      registrationUrl,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!opened) {
-      throw StateError('Không thể mở trang đăng ký DocuMind.');
     }
   }
 

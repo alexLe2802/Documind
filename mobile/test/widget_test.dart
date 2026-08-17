@@ -1,4 +1,6 @@
 import 'package:documind_mobile/features/auth/login_screen.dart';
+import 'package:documind_mobile/features/auth/auth_controller.dart';
+import 'package:documind_mobile/features/auth/register_screen.dart';
 import 'package:documind_mobile/features/documents/documents_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,5 +32,30 @@ void main() {
     expect(result.map((item) => item['id']), ['owned', 'same', 'saved']);
     expect(result[1]['isCommunitySaved'], isTrue);
     expect(result[2]['isCommunitySaved'], isTrue);
+  });
+
+  testWidgets('Google registration stays in app and requires terms', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: RegisterScreen(
+            googleData: GoogleRegistrationData(
+              fullName: 'Google User',
+              email: 'google@example.com',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Hoàn tất thông tin để tạo tài khoản DocuMind.'),
+      findsOneWidget,
+    );
+    expect(find.text('google@example.com'), findsOneWidget);
+    expect(find.text('Mật khẩu'), findsNothing);
+    expect(find.byType(CheckboxListTile), findsOneWidget);
   });
 }

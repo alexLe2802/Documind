@@ -13,11 +13,9 @@ describe('FirebaseAuthGuard', () => {
   const verifyIdToken = jest.fn();
   const verifySessionCookie = jest.fn();
   const findUnique = jest.fn();
-  const findOrCreateFirebaseUser = jest.fn();
   const guard = new FirebaseAuthGuard(
     { verifyIdToken, verifySessionCookie } as never,
     { user: { findUnique } } as never,
-    { findOrCreateFirebaseUser } as never,
   );
 
   const createContext = (authorization?: string, cookie?: string) => {
@@ -95,6 +93,7 @@ describe('FirebaseAuthGuard', () => {
       id: 'user-id',
       firebaseUid: 'firebase-uid',
       status: UserStatus.ACTIVE,
+      termsAcceptedAt: new Date(),
       role: { name: RoleName.USER },
     };
     findUnique.mockResolvedValue(user);
@@ -110,6 +109,7 @@ describe('FirebaseAuthGuard', () => {
       id: 'user-id',
       firebaseUid: 'firebase-uid',
       status: UserStatus.ACTIVE,
+      termsAcceptedAt: new Date(),
       role: { name: RoleName.USER },
     };
     findUnique.mockResolvedValue(user);
@@ -141,26 +141,33 @@ describe('FirebaseAuthGuard', () => {
     );
   });
 
-  it('auto-provisions (findOrCreateFirebaseUser) the user when they do not have a local account', async () => {
+  it('rejects auto-provisioned users that never accepted the terms', async () => {
+    verifyIdToken.mockResolvedValue({ uid: 'firebase-uid' });
+    findUnique.mockResolvedValue({
+      id: 'user-id',
+      status: UserStatus.ACTIVE,
+      termsAcceptedAt: null,
+      role: { name: RoleName.USER },
+    });
+    const { context } = createContext('Bearer valid-token');
+
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'Account registration is required',
+    );
+  });
+
+  it('requires registration instead of auto-provisioning a missing local account', async () => {
     const decodedToken = {
       uid: 'firebase-uid',
       email: 'new-user@documind.local',
     };
     verifyIdToken.mockResolvedValue(decodedToken);
     findUnique.mockResolvedValue(null);
-    const provisionedUser = {
-      id: 'new-user-id',
-      firebaseUid: 'firebase-uid',
-      status: UserStatus.ACTIVE,
-      role: { name: RoleName.USER },
-    };
-    findOrCreateFirebaseUser.mockResolvedValue({ user: provisionedUser });
+    const { context } = createContext('Bearer valid-token');
 
-    const { context, request } = createContext('Bearer valid-token');
-
-    await expect(guard.canActivate(context)).resolves.toBe(true);
-    expect(findOrCreateFirebaseUser).toHaveBeenCalledWith(decodedToken);
-    expect(request).toHaveProperty('user', provisionedUser);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'Account registration is required',
+    );
   });
 
   it('preserves HttpException instances raised during authentication', async () => {

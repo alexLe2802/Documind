@@ -84,7 +84,7 @@ class _SplashBootstrapState extends State<_SplashBootstrap> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Version 1.0.0 (1)',
+                      'Version 1.0.1 (2)',
                       style: TextStyle(color: Color(0xff64748b)),
                     ),
                     const SizedBox(height: 24),

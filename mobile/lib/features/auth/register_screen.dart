@@ -44,11 +44,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đăng ký thành công. Hãy kiểm tra email xác thực.'),
+          SnackBar(
+            content: Text(
+              widget.googleData == null
+                  ? 'Đăng ký thành công. Hãy kiểm tra email xác thực.'
+                  : 'Đăng ký thành công. Hãy kiểm tra email để kích hoạt tài khoản.',
+            ),
           ),
         );
-        Navigator.pop(context);
+        if (widget.googleData == null) Navigator.pop(context);
       }
     } catch (e) {
       setState(() => error = e.toString());
@@ -83,6 +87,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (widget.googleData != null) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Hoàn tất thông tin để tạo tài khoản DocuMind.',
+                style: TextStyle(color: Color(0xff64748b)),
+              ),
+            ],
             const SizedBox(height: 24),
             TextField(
               controller: name,
