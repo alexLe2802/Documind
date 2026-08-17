@@ -52,8 +52,25 @@ class AuthController {
     await _auth.signOut();
   }
 
-  Future<void> registerGoogle(String fullName) async {
-    if (_auth.currentUser == null) throw StateError('Google session expired');
+  Future<void> registerGoogle(
+    String fullName,
+    String email,
+    String password,
+  ) async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('Google session expired');
+    final hasPasswordProvider = user.providerData.any(
+      (provider) => provider.providerId == 'password',
+    );
+    if (!hasPasswordProvider) {
+      await user.linkWithCredential(
+        EmailAuthProvider.credential(email: email.trim(), password: password),
+      );
+    } else {
+      await user.updatePassword(password);
+    }
+    await user.updateDisplayName(fullName.trim());
+    await user.getIdToken(true);
     await _api.post(
       '/auth/register',
       data: {'fullName': fullName.trim(), 'acceptedTerms': true},

@@ -55,7 +55,31 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('google@example.com'), findsOneWidget);
-    expect(find.text('Mật khẩu'), findsNothing);
+    expect(find.text('Mật khẩu'), findsOneWidget);
+    expect(find.text('Xác nhận mật khẩu'), findsOneWidget);
     expect(find.byType(CheckboxListTile), findsOneWidget);
+  });
+
+  testWidgets('Google registration validates password before creating user', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: RegisterScreen(
+            googleData: GoogleRegistrationData(
+              fullName: 'Google User',
+              email: 'google@example.com',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.tap(find.widgetWithText(FilledButton, 'Đăng ký'));
+    await tester.pump();
+
+    expect(find.text('Mật khẩu phải có ít nhất 8 ký tự.'), findsOneWidget);
   });
 }

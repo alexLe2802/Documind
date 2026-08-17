@@ -26,7 +26,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       );
       return;
     }
-    if (widget.googleData == null && password.text != confirm.text) {
+    if (password.text.length < 8) {
+      setState(() => error = 'Mật khẩu phải có ít nhất 8 ký tự.');
+      return;
+    }
+    if (password.text != confirm.text) {
       setState(() => error = 'Mật khẩu xác nhận không khớp.');
       return;
     }
@@ -36,7 +40,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
     try {
       if (widget.googleData != null) {
-        await ref.read(authControllerProvider).registerGoogle(name.text);
+        await ref
+            .read(authControllerProvider)
+            .registerGoogle(name.text, email.text, password.text);
       } else {
         await ref
             .read(authControllerProvider)
@@ -105,22 +111,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               readOnly: widget.googleData != null,
               decoration: const InputDecoration(labelText: 'Email'),
             ),
-            if (widget.googleData == null) ...[
-              const SizedBox(height: 12),
-              TextField(
-                controller: password,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Mật khẩu'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: password,
+              obscureText: true,
+              enableSuggestions: false,
+              autocorrect: false,
+              autofillHints: const [AutofillHints.newPassword],
+              decoration: const InputDecoration(
+                labelText: 'Mật khẩu',
+                helperText: 'Ít nhất 8 ký tự',
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: confirm,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Xác nhận mật khẩu',
-                ),
-              ),
-            ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirm,
+              obscureText: true,
+              enableSuggestions: false,
+              autocorrect: false,
+              autofillHints: const [AutofillHints.newPassword],
+              decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu'),
+            ),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
               value: accepted,
