@@ -10,6 +10,8 @@ abstract final class DocuMindFirebaseOptions {
   static const _androidAppId = String.fromEnvironment(
     'FIREBASE_ANDROID_APP_ID',
   );
+  static const _webAppId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
+  static const _authDomain = String.fromEnvironment('FIREBASE_AUTH_DOMAIN');
   static const _messagingSenderId = String.fromEnvironment(
     'FIREBASE_MESSAGING_SENDER_ID',
   );
@@ -25,14 +27,19 @@ abstract final class DocuMindFirebaseOptions {
   static const googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
   );
+  static const googleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+  );
 
   static FirebaseOptions get currentPlatform {
-    final appId = switch (defaultTargetPlatform) {
-      TargetPlatform.android => _androidAppId,
-      TargetPlatform.iOS => _iosAppId,
-      _ => '',
-    };
-    final apiKey = defaultTargetPlatform == TargetPlatform.android
+    final appId = kIsWeb
+        ? _webAppId
+        : switch (defaultTargetPlatform) {
+            TargetPlatform.android => _androidAppId,
+            TargetPlatform.iOS => _iosAppId,
+            _ => '',
+          };
+    final apiKey = !kIsWeb && defaultTargetPlatform == TargetPlatform.android
         ? _androidApiKey
         : _apiKey;
     if (apiKey.isEmpty || appId.isEmpty || _projectId.isEmpty) {
@@ -46,6 +53,7 @@ abstract final class DocuMindFirebaseOptions {
       messagingSenderId: _messagingSenderId,
       projectId: _projectId,
       storageBucket: _storageBucket,
+      authDomain: kIsWeb ? _authDomain : null,
       iosBundleId: defaultTargetPlatform == TargetPlatform.iOS
           ? _iosBundleId
           : null,

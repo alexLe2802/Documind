@@ -44,6 +44,10 @@ và SHA-256 của khóa ký nếu dùng Google Sign-In.
 dự phòng; build thiếu Android App ID sẽ dừng sớm để tránh phát hành APK có
 Google Sign-In bị lỗi cấu hình.
 
+Để chạy trên Chrome, điền thêm `FIREBASE_WEB_APP_ID`,
+`FIREBASE_AUTH_DOMAIN` và `GOOGLE_WEB_CLIENT_ID`, rồi vẫn chạy bằng
+`--dart-define-from-file=config.json`.
+
 ## Chạy trên iPhone
 
 Flutter SDK cục bộ nằm trong `.tools/` và không được commit:

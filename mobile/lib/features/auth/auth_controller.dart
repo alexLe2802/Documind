@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -67,9 +68,13 @@ class AuthController {
     await _auth.signOut();
     final google = GoogleSignIn.instance;
     await google.initialize(
-      serverClientId: DocuMindFirebaseOptions.googleServerClientId.isEmpty
-          ? null
-          : DocuMindFirebaseOptions.googleServerClientId,
+      clientId: kIsWeb && DocuMindFirebaseOptions.googleWebClientId.isNotEmpty
+          ? DocuMindFirebaseOptions.googleWebClientId
+          : null,
+      serverClientId:
+          !kIsWeb && DocuMindFirebaseOptions.googleServerClientId.isNotEmpty
+          ? DocuMindFirebaseOptions.googleServerClientId
+          : null,
     );
     try {
       await google.disconnect();

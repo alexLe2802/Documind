@@ -228,6 +228,7 @@ describe('SRS five business main flows (e2e)', () => {
         authProvider: 'EMAIL_PASSWORD',
         roleId: 'role-user-id',
         status: UserStatus.ACTIVE,
+        termsAcceptedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
         role: { name: RoleName.USER },
