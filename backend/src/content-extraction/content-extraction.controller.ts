@@ -32,8 +32,10 @@ import { UploadedContentFile } from './interfaces/uploaded-file.interface';
 @UseGuards(FirebaseAuthGuard)
 @Controller('content-extraction')
 export class ContentExtractionController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly service: ContentExtractionService) {}
 
+  // Thực hiện chức năng test.
   @Post('test')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Test content extraction with file upload' })

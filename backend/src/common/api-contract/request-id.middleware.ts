@@ -5,6 +5,7 @@ interface RequestWithId extends Request {
   requestId?: string;
 }
 
+// Thực hiện chức năng yêu cầu id middleware.
 export function requestIdMiddleware(
   request: RequestWithId,
   response: Response,

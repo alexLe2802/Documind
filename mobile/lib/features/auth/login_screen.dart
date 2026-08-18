@@ -7,6 +7,7 @@ import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
@@ -17,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool loading = false;
   String? error;
 
+  // Thực hiện chức năng submit.
   Future<void> submit() async {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
@@ -35,6 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  // Thực hiện chức năng google sign in.
   Future<void> googleSignIn() async {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
@@ -57,6 +60,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(
@@ -184,6 +188,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   );
 }
 
+// Thực hiện chức năng google sign in lỗi tin nhắn.
 String _googleSignInErrorMessage(Object error) {
   final detail = error.toString().toLowerCase();
   if (detail.contains('configuration') ||
@@ -202,12 +207,14 @@ class GoogleLogo extends StatelessWidget {
 
   final double size;
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) =>
       CustomPaint(size: Size.square(size), painter: _GoogleLogoPainter());
 }
 
 class _GoogleLogoPainter extends CustomPainter {
+  // Thực hiện chức năng paint.
   @override
   void paint(Canvas canvas, Size size) {
     final stroke = size.width * .2;
@@ -217,6 +224,7 @@ class _GoogleLogoPainter extends CustomPainter {
       size.width - stroke,
       size.height - stroke,
     );
+    // Thực hiện chức năng arc.
     void arc(Color color, double start, double sweep) => canvas.drawArc(
       rect,
       start,
@@ -244,6 +252,7 @@ class _GoogleLogoPainter extends CustomPainter {
     );
   }
 
+  // Kiểm tra điều kiện repaint.
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

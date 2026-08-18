@@ -41,11 +41,13 @@ export type AdminUsersResponse = {
 
 @Injectable()
 export class AdminUsersService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
   ) {}
 
+  // Lấy danh sách dữ liệu phù hợp.
   async findAll(query: AdminUsersQueryDto): Promise<AdminUsersResponse> {
     const where = this.buildWhere(query);
     const page = query.page;
@@ -75,6 +77,7 @@ export class AdminUsersService {
     };
   }
 
+  // Cập nhật trạng thái.
   async updateStatus(
     id: string,
     status: AdminMutableUserStatus,
@@ -109,6 +112,7 @@ export class AdminUsersService {
       );
     }
 
+    // Cập nhật người dùng trong database.
     const user = await this.prisma.user.update({
       where: { id },
       data: { status },
@@ -129,6 +133,7 @@ export class AdminUsersService {
     return this.toAdminUserDto(user);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa where.
   private buildWhere(query: AdminUsersQueryDto): Prisma.UserWhereInput {
     return {
       status: query.status,
@@ -142,6 +147,7 @@ export class AdminUsersService {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa admin người dùng dto.
   private toAdminUserDto(user: UserWithRole): AdminUserDto {
     return {
       id: user.id,

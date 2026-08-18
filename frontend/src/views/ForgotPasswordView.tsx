@@ -7,6 +7,7 @@ import { forgotPassword } from "../api/auth.api";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { ROUTES } from "../lib/routes";
 
+// Hiển thị giao diện forgot password view.
 export function ForgotPasswordView() {
   const { t } = useLanguage();
   const [email, setEmail] = useState("");
@@ -14,6 +15,7 @@ export function ForgotPasswordView() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Xử lý sự kiện submit.
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setMessage("");

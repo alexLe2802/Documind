@@ -8,8 +8,10 @@ export class PdfExtractorService {
   private readonly logger = new Logger(PdfExtractorService.name);
   private readonly ocrCache = new Map<string, Promise<string>>();
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly configService: ConfigService) {}
 
+  // Kiểm tra điều kiện ocr page limit.
   async validateOcrPageLimit(buffer: Buffer): Promise<void> {
     const parser = new PDFParse({ data: buffer });
     try {
@@ -29,6 +31,7 @@ export class PdfExtractorService {
     }
   }
 
+  // Xử lý extract.
   async extract(buffer: Buffer, originalName?: string): Promise<string> {
     const localResult = await this.extractLocally(buffer);
     if (!localResult.includes('[NOTE: No selectable')) {
@@ -77,6 +80,7 @@ export class PdfExtractorService {
     }
   }
 
+  // Xử lý locally.
   private async extractLocally(buffer: Buffer): Promise<string> {
     this.logger.log('Using local pdf-parse first...');
     const parser = new PDFParse({ data: buffer });
@@ -125,11 +129,13 @@ export class PdfExtractorService {
     }
   }
 
+  // Lấy dữ liệu max ocr pages.
   private getMaxOcrPages(): number {
     const configured = Number(this.configService.get<string>('OCR_MAX_PAGES'));
     return Number.isInteger(configured) && configured > 0 ? configured : 20;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa normalize.
   private normalize(text: string): string {
     return text
       .replace(/[ \t]+/g, ' ')
@@ -138,11 +144,13 @@ export class PdfExtractorService {
       .trim();
   }
 
+  // Kiểm tra điều kiện meaningful text.
   private hasMeaningfulText(text: string): boolean {
     const withoutPageMarkers = text.replace(/--\s*\d+ of \d+\s*--/g, '');
     return /[\p{L}\p{N}]/u.test(withoutPageMarkers);
   }
 
+  // Xử lý with llama parse.
   private async extractWithLlamaParse(
     buffer: Buffer,
     filename: string,

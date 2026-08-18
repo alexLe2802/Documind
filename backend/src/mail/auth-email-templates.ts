@@ -9,6 +9,7 @@ type PasswordResetEmailInput = {
   logoUrl: string;
 };
 
+// Thực hiện chức năng escape html.
 function escapeHtml(value: string): string {
   return value.replace(
     /[&<>'"]/g,
@@ -23,6 +24,7 @@ function escapeHtml(value: string): string {
   );
 }
 
+// Chuyển đổi hoặc chuẩn hóa email layout.
 function buildEmailLayout(input: {
   preheader: string;
   title: string;
@@ -67,6 +69,7 @@ function buildEmailLayout(input: {
 </html>`;
 }
 
+// Chuyển đổi hoặc chuẩn hóa registration email.
 export function buildRegistrationEmail(input: RegistrationEmailInput): string {
   return buildEmailLayout({
     preheader: 'Xác thực email để kích hoạt tài khoản DocuMind.',
@@ -81,6 +84,7 @@ export function buildRegistrationEmail(input: RegistrationEmailInput): string {
   });
 }
 
+// Chuyển đổi hoặc chuẩn hóa password reset email.
 export function buildPasswordResetEmail(
   input: PasswordResetEmailInput,
 ): string {

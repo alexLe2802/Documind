@@ -20,18 +20,22 @@ import { TagsService } from './tags.service';
 @ApiBearerAuth()
 @Controller('tags')
 export class TagsController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly service: TagsService) {}
 
+  // Lấy danh sách dữ liệu phù hợp.
   @Get()
   findAll(): ReturnType<TagsService['findAll']> {
     return this.service.findAll();
   }
 
+  // Lấy một bản ghi dữ liệu phù hợp.
   @Get(':id')
   findOne(@Param('id') id: string): ReturnType<TagsService['findOne']> {
     return this.service.findOne(id);
   }
 
+  // Tạo hoặc lưu create.
   @Post()
   @UseGuards(FirebaseAuthGuard, RolesGuard)
   @Roles(RoleName.ADMIN)
@@ -39,6 +43,7 @@ export class TagsController {
     return this.service.create(dto);
   }
 
+  // Cập nhật update.
   @Patch(':id')
   @UseGuards(FirebaseAuthGuard, RolesGuard)
   @Roles(RoleName.ADMIN)
@@ -49,6 +54,7 @@ export class TagsController {
     return this.service.update(id, dto);
   }
 
+  // Xóa hoặc giải phóng remove.
   @Delete(':id')
   @UseGuards(FirebaseAuthGuard, RolesGuard)
   @Roles(RoleName.ADMIN)

@@ -112,6 +112,7 @@ class RejectDocumentDto {
 @UseGuards(FirebaseAuthGuard, RolesGuard)
 @Roles(RoleName.ADMIN)
 export class AdminDocumentsController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
@@ -119,6 +120,7 @@ export class AdminDocumentsController {
     private readonly documentsService: DocumentsService,
   ) {}
 
+  // Lấy danh sách dữ liệu phù hợp.
   @Get()
   @ApiOperation({ summary: 'List all documents for administrative moderation' })
   async findAll(@Query() query: AdminDocumentsQueryDto): Promise<{
@@ -272,6 +274,7 @@ export class AdminDocumentsController {
     };
   }
 
+  // Thực hiện chức năng xem trước.
   @Get(':id/preview')
   @ApiOperation({ summary: 'Create an admin preview URL for a document' })
   async preview(
@@ -285,6 +288,7 @@ export class AdminDocumentsController {
     return this.documentsService.createPreviewUrl(id, document.ownerId);
   }
 
+  // Thực hiện nghiệp vụ approve.
   @Put(':id/approve')
   @ApiOperation({ summary: 'Approve a pending document for publication' })
   async approve(
@@ -296,6 +300,7 @@ export class AdminDocumentsController {
       select: { id: true, ownerId: true, title: true },
     });
     if (!existing) throw new NotFoundException('Document not found');
+    // Cập nhật tài liệu trong database.
     const updated = await this.prisma.document.update({
       where: { id },
       data: {
@@ -329,6 +334,7 @@ export class AdminDocumentsController {
     return updated;
   }
 
+  // Thực hiện nghiệp vụ reject.
   @Put(':id/reject')
   @ApiOperation({ summary: 'Reject a document with a required reason' })
   async reject(
@@ -343,6 +349,7 @@ export class AdminDocumentsController {
       select: { id: true, ownerId: true, title: true },
     });
     if (!existing) throw new NotFoundException('Document not found');
+    // Cập nhật tài liệu trong database.
     const updated = await this.prisma.document.update({
       where: { id },
       data: {
@@ -376,6 +383,7 @@ export class AdminDocumentsController {
     return updated;
   }
 
+  // Thực hiện chức năng hide.
   @Put(':id/hide')
   @ApiOperation({ summary: 'Moderates a document by hiding or unhiding it' })
   async hide(
@@ -397,6 +405,7 @@ export class AdminDocumentsController {
     }
 
     const status = body.hidden ? DocumentStatus.HIDDEN : DocumentStatus.ACTIVE;
+    // Cập nhật tài liệu trong database.
     const updated = await this.prisma.document.update({
       where: { id },
       data: { status },

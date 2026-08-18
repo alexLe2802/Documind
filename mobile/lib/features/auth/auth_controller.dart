@@ -20,6 +20,7 @@ class AuthController {
   final FirebaseAuth _auth;
   final ApiClient _api;
 
+  // Thực hiện chức năng sign in.
   Future<void> signIn(String email, String password) async {
     await _clearSession();
     try {
@@ -38,6 +39,7 @@ class AuthController {
     }
   }
 
+  // Tạo hoặc lưu đăng ký.
   Future<void> register(String fullName, String email, String password) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
@@ -52,6 +54,7 @@ class AuthController {
     await _auth.signOut();
   }
 
+  // Tạo hoặc lưu đăng ký google.
   Future<void> registerGoogle(
     String fullName,
     String email,
@@ -78,9 +81,11 @@ class AuthController {
     await _auth.signOut();
   }
 
+  // Thực hiện chức năng forgot password.
   Future<void> forgotPassword(String email) =>
       _api.post('/auth/forgot-password', data: {'email': email.trim()});
 
+  // Thực hiện chức năng sign in with google.
   Future<GoogleRegistrationData?> signInWithGoogle() async {
     await _auth.signOut();
     final google = GoogleSignIn.instance;
@@ -131,10 +136,12 @@ class AuthController {
     }
   }
 
+  // Thực hiện chức năng sign out.
   Future<void> signOut() async {
     await _clearSession();
   }
 
+  // Thực hiện chức năng clear phiên.
   Future<void> _clearSession() async {
     await _auth.signOut();
     try {

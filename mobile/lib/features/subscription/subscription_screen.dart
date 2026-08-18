@@ -26,6 +26,7 @@ final subscriptionProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(subscriptionProvider);
@@ -50,6 +51,7 @@ class _SubscriptionContent extends ConsumerWidget {
   const _SubscriptionContent({required this.data});
   final Map<String, dynamic> data;
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final current = Map<String, dynamic>.from(data['current'] as Map);
@@ -137,6 +139,7 @@ class _SubscriptionContent extends ConsumerWidget {
     );
   }
 
+  // Thực hiện chức năng show đơn thanh toán.
   Future<void> _showCheckout(
     BuildContext context,
     WidgetRef ref,
@@ -158,6 +161,7 @@ class _SubscriptionContent extends ConsumerWidget {
     await _startCheckout(context, ref, plan['code'].toString(), result.method);
   }
 
+  // Thực hiện chức năng resume thanh toán.
   Future<void> _resumePayment(
     BuildContext context,
     WidgetRef ref,
@@ -169,6 +173,7 @@ class _SubscriptionContent extends ConsumerWidget {
     payment['paymentMethod']?.toString() ?? 'BANK_TRANSFER',
   );
 
+  // Thực hiện chức năng start đơn thanh toán.
   Future<void> _startCheckout(
     BuildContext context,
     WidgetRef ref,
@@ -227,6 +232,7 @@ class _SubscriptionContent extends ConsumerWidget {
     }
   }
 
+  // Thực hiện chức năng wait for thanh toán.
   Future<bool> _waitForPayment(WidgetRef ref, String invoice) async {
     for (var attempt = 0; attempt < 20; attempt++) {
       final raw = await ref
@@ -247,6 +253,7 @@ class _CurrentPlanCard extends StatelessWidget {
   final Map<String, dynamic> current;
   final String? name;
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final used = _num(current['aiChatsUsed']);
@@ -357,6 +364,7 @@ class _PlanCard extends StatelessWidget {
   final String currentCode;
   final VoidCallback onSelect;
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final code = plan['code']?.toString() ?? 'FREE';
@@ -470,6 +478,7 @@ class _Feature extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -507,12 +516,14 @@ class _CheckoutSheet extends StatefulWidget {
   final Map<String, dynamic> plan;
   final num amount;
   final bool isUpgrade;
+  // Tạo state quản lý vòng đời của widget.
   @override
   State<_CheckoutSheet> createState() => _CheckoutSheetState();
 }
 
 class _CheckoutSheetState extends State<_CheckoutSheet> {
   String method = 'BANK_TRANSFER';
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.fromLTRB(
@@ -635,6 +646,7 @@ class _MethodTile extends StatelessWidget {
   final String subtitle;
   final bool selected;
   final VoidCallback onTap;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
@@ -686,6 +698,7 @@ class _MethodTile extends StatelessWidget {
 class _CheckoutWebView extends StatefulWidget {
   const _CheckoutWebView({required this.checkout});
   final Map<String, dynamic> checkout;
+  // Tạo state quản lý vòng đời của widget.
   @override
   State<_CheckoutWebView> createState() => _CheckoutWebViewState();
 }
@@ -695,6 +708,7 @@ class _CheckoutWebViewState extends State<_CheckoutWebView> {
   Timer? timer;
   int progress = 0;
   int secondsRemaining = 0;
+  // Khởi tạo state và tài nguyên ban đầu.
   @override
   void initState() {
     super.initState();
@@ -730,12 +744,14 @@ class _CheckoutWebViewState extends State<_CheckoutWebView> {
       ..loadHtmlString(_checkoutHtml(widget.checkout));
   }
 
+  // Giải phóng tài nguyên khi đối tượng bị hủy.
   @override
   void dispose() {
     timer?.cancel();
     super.dispose();
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -769,6 +785,7 @@ class _PaymentRow extends StatelessWidget {
   final Map<String, dynamic> payment;
   final bool showDivider;
   final VoidCallback? onResume;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final status = payment['status']?.toString() ?? 'PENDING';
@@ -829,6 +846,7 @@ class _Badge extends StatelessWidget {
   const _Badge({required this.text, required this.color});
   final String text;
   final Color color;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -846,6 +864,7 @@ class _Badge extends StatelessWidget {
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
   final String text;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Text(
     text,
@@ -862,6 +881,7 @@ class _LoadError extends StatelessWidget {
   const _LoadError({required this.message, required this.retry});
   final String message;
   final VoidCallback retry;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
@@ -895,6 +915,7 @@ class _PaymentResult {
   final String invoice;
 }
 
+// Thực hiện chức năng đơn thanh toán html.
 String _checkoutHtml(Map<String, dynamic> checkout) {
   const escape = HtmlEscape(HtmlEscapeMode.attribute);
   final fields = Map<String, dynamic>.from(
@@ -909,8 +930,10 @@ String _checkoutHtml(Map<String, dynamic> checkout) {
   return '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system;padding:40px;text-align:center;color:#0f172a}.spin{width:32px;height:32px;border:4px solid #ddd;border-top-color:#d97706;border-radius:50%;margin:20px auto;animation:s 1s linear infinite}@keyframes s{to{transform:rotate(360deg)}}</style></head><body><div class="spin"></div><b>Đang kết nối SePay...</b><form id="checkout" method="POST" action="${escape.convert(checkout['checkoutUrl'].toString())}">$inputs</form><script>document.getElementById("checkout").submit();</script></body></html>';
 }
 
+// Thực hiện chức năng num.
 num _num(dynamic value) =>
     value is num ? value : num.tryParse(value?.toString() ?? '') ?? 0;
+// Thực hiện chức năng đơn thanh toán amount.
 num _checkoutAmount(
   Map<String, dynamic> selected,
   List<Map<String, dynamic>> plans,
@@ -929,6 +952,7 @@ num _checkoutAmount(
   return _num(selected['amount']);
 }
 
+// Thực hiện chức năng price.
 String _price(dynamic amount, String currency) {
   final digits = _num(amount).round().toString().replaceAllMapped(
     RegExp(r'\B(?=(\d{3})+(?!\d))'),
@@ -937,6 +961,7 @@ String _price(dynamic amount, String currency) {
   return currency == 'VND' ? '$digitsđ' : '$digits $currency';
 }
 
+// Thực hiện chức năng storage.
 String _storage(dynamic value) {
   final mb = _num(value);
   return mb >= 1024
@@ -944,18 +969,22 @@ String _storage(dynamic value) {
       : '${mb.toStringAsFixed(mb % 1 == 0 ? 0 : 2)} MB';
 }
 
+// Thực hiện chức năng date.
 String _date(DateTime value) =>
     '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+// Thực hiện chức năng is not expired.
 bool _isNotExpired(dynamic value) {
   final expiresAt = DateTime.tryParse(value?.toString() ?? '');
   return expiresAt != null && expiresAt.isAfter(DateTime.now());
 }
 
+// Thực hiện chức năng remaining seconds.
 int _remainingSeconds(dynamic value) {
   final expiresAt = DateTime.tryParse(value?.toString() ?? '');
   if (expiresAt == null) return 0;
   return expiresAt.difference(DateTime.now()).inSeconds.clamp(0, 86400).toInt();
 }
 
+// Thực hiện chức năng countdown.
 String _countdown(int seconds) =>
     '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';

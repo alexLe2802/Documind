@@ -28,6 +28,7 @@ type AuthLoginResponse = {
 
 type AuthMeResponse = Omit<AuthLoginResponse, "isNewUser">;
 
+// Tạo hoặc lưu đăng ký.
 export async function register(payload: RegisterPayload) {
   const firebaseAuth = getFirebaseAuth();
   const currentUser = firebaseAuth.currentUser;
@@ -68,6 +69,7 @@ export async function register(payload: RegisterPayload) {
   await signOut(firebaseAuth);
 }
 
+// Thực hiện chức năng đăng nhập.
 export async function login(payload: LoginPayload) {
   try {
     const firebaseAuth = getFirebaseAuth();
@@ -93,6 +95,7 @@ export async function login(payload: LoginPayload) {
   }
 }
 
+// Thực hiện chức năng đăng nhập with firebase token.
 export function loginWithFirebaseToken(payload: GoogleLoginPayload) {
   return apiRequest<AuthLoginResponse>("/auth/firebase-login", {
     method: "POST",
@@ -102,35 +105,42 @@ export function loginWithFirebaseToken(payload: GoogleLoginPayload) {
   }).then((response) => response.user);
 }
 
+// Lấy dữ liệu hiện tại người dùng.
 export function getCurrentUser() {
   return apiRequest<AuthMeResponse>("/auth/me").then(
     (response) => response.user,
   );
 }
 
+// Thực hiện chức năng đăng xuất.
 export function logout() {
   return apiRequest<void>("/auth/logout", { method: "POST" });
 }
 
+// Thực hiện chức năng forgot password.
 export function forgotPassword(email: string) {
-  return apiRequest<void>('/auth/forgot-password', {
-    method: 'POST',
+  return apiRequest<void>("/auth/forgot-password", {
+    method: "POST",
     body: { email },
   });
 }
 
+// Kiểm tra điều kiện email action code.
 export function verifyEmailActionCode(code: string) {
   return applyActionCode(getFirebaseAuth(), code);
 }
 
+// Kiểm tra điều kiện reset password code.
 export function verifyResetPasswordCode(token: string) {
   return verifyPasswordResetCode(getFirebaseAuth(), token);
 }
 
+// Cập nhật password.
 export function resetPassword(token: string, password: string) {
   return confirmPasswordReset(getFirebaseAuth(), token, password);
 }
 
+// Chuyển đổi hoặc chuẩn hóa xác thực lỗi.
 function normalizeAuthError(error: unknown): Error {
   if (
     error instanceof FirebaseError &&

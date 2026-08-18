@@ -13,6 +13,7 @@ type ProtectedRouteProps = {
   children: ReactNode;
 };
 
+// Hiển thị giao diện protected route.
 export function ProtectedRoute({
   allowedRoles,
   children,

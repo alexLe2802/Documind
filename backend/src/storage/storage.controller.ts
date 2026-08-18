@@ -13,8 +13,10 @@ import {
 @Controller('storage')
 @UseGuards(FirebaseAuthGuard)
 export class StorageController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly storageService: StorageService) {}
 
+  // Tạo hoặc lưu tải lên url.
   @Post('upload-url')
   createUploadUrl(
     @CurrentUser() user: AuthenticatedUser,
@@ -23,6 +25,7 @@ export class StorageController {
     return this.storageService.createUploadUrl(user.id, dto);
   }
 
+  // Tạo hoặc lưu tải xuống url.
   @Post('download-url')
   createDownloadUrl(
     @CurrentUser() user: AuthenticatedUser,
@@ -31,6 +34,7 @@ export class StorageController {
     return this.storageService.createDownloadUrl(user.id, dto.key);
   }
 
+  // Tạo hoặc lưu xem trước url.
   @Post('preview-url')
   createPreviewUrl(
     @CurrentUser() user: AuthenticatedUser,
@@ -39,6 +43,7 @@ export class StorageController {
     return this.storageService.createPreviewUrl(user.id, dto.key);
   }
 
+  // Xóa hoặc giải phóng object.
   @Delete('object')
   deleteObject(
     @CurrentUser() user: AuthenticatedUser,

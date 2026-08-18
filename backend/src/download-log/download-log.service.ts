@@ -50,12 +50,16 @@ export interface DownloadLogResponse {
 
 @Injectable()
 export class DownloadLogService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly prisma: PrismaService) {}
 
+  // Tạo hoặc lưu create.
   create(data: CreateDownloadLogInput): Promise<DownloadLog> {
+    // Tạo lịch sử tải xuống trong database.
     return this.prisma.downloadLog.create({ data });
   }
 
+  // Lấy danh sách dữ liệu phù hợp.
   async findAll(query: DownloadLogQueryDto): Promise<DownloadLogResponse> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
@@ -104,6 +108,7 @@ export class DownloadLogService {
     };
   }
 
+  // Lấy dữ liệu most downloaded.
   async getMostDownloaded(
     query: MostDownloadedQuery = {},
   ): Promise<MostDownloadedDocument[]> {
@@ -154,6 +159,7 @@ export class DownloadLogService {
       .filter((item): item is MostDownloadedDocument => item !== undefined);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa where.
   private buildWhere(query: DownloadLogQueryDto): Prisma.DownloadLogWhereInput {
     const where: Prisma.DownloadLogWhereInput = {};
 
@@ -168,6 +174,7 @@ export class DownloadLogService {
     return where;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa date where.
   private buildDateWhere(
     query: MostDownloadedQuery,
   ): Prisma.DownloadLogWhereInput {

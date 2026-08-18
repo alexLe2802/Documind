@@ -38,6 +38,7 @@ final aiSourceDocumentsProvider =
       );
     });
 
+// Thực hiện chức năng merge ai nguồn tài liệu.
 List<Map<String, dynamic>> mergeAiSourceDocuments(
   List<Map<String, dynamic>> owned,
   List<Map<String, dynamic>> saved,
@@ -92,9 +93,11 @@ final libraryMetadataProvider = FutureProvider.autoDispose((ref) async {
 class DocumentsScreen extends ConsumerStatefulWidget {
   const DocumentsScreen({super.key});
 
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<DocumentsScreen> createState() => _DocumentsScreenState();
 
+  // Hiển thị hoặc mở tải lên.
   static Future<void> openUpload(BuildContext context, WidgetRef ref) async {
     final api = ref.read(apiClientProvider);
     try {
@@ -140,12 +143,14 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     fileType: fileType,
   );
 
+  // Giải phóng tài nguyên khi đối tượng bị hủy.
   @override
   void dispose() {
     search.dispose();
     super.dispose();
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final currentFilters = filters;
@@ -237,10 +242,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     );
   }
 
+  // Thực hiện chức năng toggle selection.
   void _toggleSelection(String id) => setState(() {
     if (!selectedIds.add(id)) selectedIds.remove(id);
   });
 
+  // Thực hiện chức năng delete selected.
   Future<void> _deleteSelected(DocumentFilters currentFilters) async {
     final ids = selectedIds.toList(growable: false);
     final confirmed = await showDialog<bool>(
@@ -293,6 +300,7 @@ class _SelectionBar extends StatelessWidget {
   final VoidCallback onClear;
   final VoidCallback onDelete;
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
@@ -350,6 +358,7 @@ class _LibraryFilters extends StatelessWidget {
   final VoidCallback onSearch;
   final ValueChanged<String> onSubject, onCategory, onFileType;
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
@@ -437,6 +446,7 @@ class _FilterMenu extends StatelessWidget {
   final List<({String value, String label})> items;
   final ValueChanged<String> onChanged;
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(
     onSelected: onChanged,
@@ -476,6 +486,7 @@ class _DocumentTile extends ConsumerWidget {
   final bool selectionMode;
   final VoidCallback onToggleSelection;
   final VoidCallback onChanged;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fileName = document['fileName']?.toString() ?? '';
@@ -555,6 +566,7 @@ class _DocumentTile extends ConsumerWidget {
     );
   }
 
+  // Thực hiện chức năng show actions.
   Future<void> _showActions(BuildContext context, WidgetRef ref) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -618,12 +630,18 @@ class _DocumentTile extends ConsumerWidget {
                 ),
                 title: Text(
                   document['visibility'] == 'PUBLIC'
-                      ? 'Gỡ khỏi cộng đồng'
+                      ? document['moderationStatus'] == 'APPROVED'
+                          ? 'Công khai'
+                          : 'Chờ kiểm duyệt'
                       : 'Công khai tài liệu',
                 ),
                 subtitle: document['visibility'] == 'PUBLIC'
-                    ? const Text('Đồng thời xóa khỏi mục Đã lưu của người khác')
-                    : const Text('Gửi tài liệu lên trang Cộng đồng'),
+                    ? Text(
+                        document['moderationStatus'] == 'APPROVED'
+                            ? 'Nhấn để gỡ tài liệu khỏi cộng đồng'
+                            : 'Nhấn để hủy yêu cầu đăng công khai',
+                      )
+                    : const Text('Admin phải duyệt trước khi xuất hiện trên Cộng đồng'),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _changeVisibility(context, ref);
@@ -646,16 +664,25 @@ class _DocumentTile extends ConsumerWidget {
     );
   }
 
+  // Thực hiện chức năng change quyền hiển thị.
   Future<void> _changeVisibility(BuildContext context, WidgetRef ref) async {
     final currentlyPublic = document['visibility'] == 'PUBLIC';
+    final pendingReview =
+        currentlyPublic && document['moderationStatus'] != 'APPROVED';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
-          currentlyPublic ? 'Gỡ khỏi cộng đồng?' : 'Công khai tài liệu?',
+          pendingReview
+              ? 'Hủy yêu cầu công khai?'
+              : currentlyPublic
+                  ? 'Gỡ khỏi cộng đồng?'
+                  : 'Công khai tài liệu?',
         ),
         content: Text(
-          currentlyPublic
+          pendingReview
+              ? 'Tài liệu sẽ chuyển về riêng tư và không còn chờ admin kiểm duyệt.'
+              : currentlyPublic
               ? 'Tài liệu sẽ chuyển về riêng tư và bị xóa khỏi mục Đã lưu của tất cả người dùng khác.'
               : 'Tài liệu sẽ được gửi kiểm duyệt trước khi xuất hiện trên Cộng đồng.',
         ),
@@ -666,7 +693,13 @@ class _DocumentTile extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(currentlyPublic ? 'Gỡ công khai' : 'Công khai'),
+            child: Text(
+              pendingReview
+                  ? 'Hủy yêu cầu'
+                  : currentlyPublic
+                      ? 'Gỡ công khai'
+                      : 'Gửi kiểm duyệt',
+            ),
           ),
         ],
       ),
@@ -688,7 +721,7 @@ class _DocumentTile extends ConsumerWidget {
             content: Text(
               currentlyPublic
                   ? 'Đã gỡ tài liệu khỏi cộng đồng.'
-                  : 'Đã gửi tài liệu để công khai.',
+                  : 'Đã gửi tài liệu cho admin kiểm duyệt.',
             ),
           ),
         );
@@ -702,6 +735,7 @@ class _DocumentTile extends ConsumerWidget {
     }
   }
 
+  // Thực hiện chức năng delete tài liệu.
   Future<void> _deleteDocument(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -738,6 +772,7 @@ class _DocumentTile extends ConsumerWidget {
     }
   }
 
+  // Thực hiện chức năng show xem trước.
   Future<void> _showPreview(BuildContext context, WidgetRef ref) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -747,6 +782,7 @@ class _DocumentTile extends ConsumerWidget {
     );
   }
 
+  // Thực hiện chức năng open url.
   Future<void> _openUrl(
     BuildContext context,
     WidgetRef ref,
@@ -788,6 +824,7 @@ class DocumentPreviewPage extends ConsumerStatefulWidget {
   final bool restrictCommunityActions;
   final VoidCallback? onAskAi;
 
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<DocumentPreviewPage> createState() =>
       _DocumentPreviewPageState();
@@ -798,12 +835,14 @@ class _DocumentPreviewPageState extends ConsumerState<DocumentPreviewPage> {
   String? error;
   int progress = 0;
 
+  // Khởi tạo state và tài nguyên ban đầu.
   @override
   void initState() {
     super.initState();
     _loadPreview();
   }
 
+  // Thực hiện chức năng load xem trước.
   Future<void> _loadPreview() async {
     if (mounted) {
       setState(() {
@@ -855,6 +894,7 @@ class _DocumentPreviewPageState extends ConsumerState<DocumentPreviewPage> {
     }
   }
 
+  // Thực hiện chức năng xem trước url.
   String _previewUrl(Map<String, dynamic> result, String rawUrl) {
     final contentType = result['contentType']?.toString().toLowerCase() ?? '';
     final useOfficeViewer =
@@ -865,6 +905,7 @@ class _DocumentPreviewPageState extends ConsumerState<DocumentPreviewPage> {
         '${Uri.encodeComponent(rawUrl)}';
   }
 
+  // Thực hiện chức năng tải xuống.
   Future<void> _download() async {
     try {
       final result = await ref
@@ -887,6 +928,7 @@ class _DocumentPreviewPageState extends ConsumerState<DocumentPreviewPage> {
     }
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final title = widget.document['title']?.toString() ?? 'Tài liệu';
@@ -1000,6 +1042,7 @@ class _PreviewError extends StatelessWidget {
   final String message;
   final VoidCallback retry;
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
@@ -1031,6 +1074,7 @@ class _UploadSheet extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> subjects;
   final List<Map<String, dynamic>> categories;
   final VoidCallback onUploaded;
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<_UploadSheet> createState() => _UploadSheetState();
 }
@@ -1048,6 +1092,7 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
   bool isPublic = false;
   bool loading = false;
 
+  // Giải phóng tài nguyên khi đối tượng bị hủy.
   @override
   void dispose() {
     title.dispose();
@@ -1061,6 +1106,7 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
     return linked == null || linked.isEmpty || linked == subjectId;
   }).toList();
 
+  // Thực hiện chức năng pick tệp.
   Future<void> pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       withData: true,
@@ -1074,6 +1120,7 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
     });
   }
 
+  // Tạo hoặc lưu thẻ.
   void addTag() {
     final value = tagInput.text.trim().toLowerCase();
     if (value.isEmpty || tags.contains(value) || tags.length >= 10) return;
@@ -1083,6 +1130,7 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
     });
   }
 
+  // Tạo hoặc lưu môn học.
   Future<void> createSubject() async {
     final nameController = TextEditingController();
     final codeController = TextEditingController();
@@ -1155,6 +1203,7 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
     }
   }
 
+  // Tạo hoặc lưu danh mục.
   Future<void> createCategory() async {
     if (subjectId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1211,6 +1260,7 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
     }
   }
 
+  // Thực hiện chức năng submit.
   Future<void> submit() async {
     if (file == null ||
         title.text.trim().isEmpty ||
@@ -1256,6 +1306,7 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
     }
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.fromLTRB(
@@ -1393,6 +1444,9 @@ class _UploadSheetState extends ConsumerState<_UploadSheet> {
             value: isPublic,
             onChanged: (value) => setState(() => isPublic = value),
             title: const Text('Chia sẻ lên cộng đồng'),
+            subtitle: const Text(
+              'Tài liệu chỉ xuất hiện sau khi được admin kiểm duyệt',
+            ),
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
@@ -1422,6 +1476,7 @@ class _EmptyState extends StatelessWidget {
   final String detail;
   final VoidCallback action;
   final String actionLabel;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => ListView(
     children: [

@@ -15,11 +15,13 @@ import { StorageService } from '../storage/storage.service';
 export class SubjectsService {
   private readonly logger = new Logger(SubjectsService.name);
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
   ) {}
 
+  // Tạo hoặc lưu create.
   async create(ownerId: string, dto: CreateSubjectDto): Promise<Subject> {
     const code = dto.code.trim().toUpperCase();
     const duplicate = await this.prisma.subject.findFirst({
@@ -28,6 +30,7 @@ export class SubjectsService {
     if (duplicate) {
       if (duplicate.deletedAt) {
         try {
+          // Cập nhật môn học trong database.
           return await this.prisma.subject.update({
             where: { id: duplicate.id },
             data: {
@@ -45,6 +48,7 @@ export class SubjectsService {
     }
 
     try {
+      // Tạo môn học trong database.
       return await this.prisma.subject.create({
         data: {
           ownerId,
@@ -58,6 +62,7 @@ export class SubjectsService {
     }
   }
 
+  // Lấy danh sách dữ liệu phù hợp.
   findAll(ownerId: string): Promise<Subject[]> {
     return this.prisma.subject.findMany({
       where: this.buildVisibleWhere(ownerId),
@@ -65,6 +70,7 @@ export class SubjectsService {
     });
   }
 
+  // Lấy một bản ghi dữ liệu phù hợp.
   async findOne(id: string, ownerId: string): Promise<Subject> {
     const subject = await this.prisma.subject.findFirst({
       where: { id, ...this.buildVisibleWhere(ownerId) },
@@ -73,6 +79,7 @@ export class SubjectsService {
     return subject;
   }
 
+  // Cập nhật update.
   async update(
     id: string,
     ownerId: string,
@@ -90,6 +97,7 @@ export class SubjectsService {
     }
 
     try {
+      // Cập nhật môn học trong database.
       return await this.prisma.subject.update({
         where: { id },
         data: {
@@ -103,6 +111,7 @@ export class SubjectsService {
     }
   }
 
+  // Xóa hoặc giải phóng remove.
   async remove(id: string, ownerId: string): Promise<{ message: string }> {
     const subject = await this.findOne(id, ownerId);
     if (subject.ownerId && subject.ownerId !== ownerId) {
@@ -117,11 +126,13 @@ export class SubjectsService {
       select: { id: true, storagePath: true },
     });
     const operations: Prisma.PrismaPromise<unknown>[] = [
+      // Xóa các tài liệu trong database.
       this.prisma.document.deleteMany({ where: documentWhere }),
     ];
 
     if (subject.ownerId === ownerId) {
       operations.push(
+        // Cập nhật các danh mục trong database.
         this.prisma.category.updateMany({
           where: {
             ownerId,
@@ -130,6 +141,7 @@ export class SubjectsService {
           },
           data: { deletedAt: new Date() },
         }),
+        // Cập nhật môn học trong database.
         this.prisma.subject.update({
           where: { id },
           data: { deletedAt: new Date() },
@@ -137,28 +149,33 @@ export class SubjectsService {
       );
     }
 
+    // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(operations);
     await this.deleteStorageObjects(ownerId, documents);
 
     return { message: 'Subject deleted' };
   }
 
+  // Xóa hoặc giải phóng storage objects.
   private async deleteStorageObjects(
     ownerId: string,
     documents: Array<{ id: string; storagePath: string }>,
   ): Promise<void> {
     await Promise.all(
       documents.map((document) =>
-        Promise.resolve(this.storage.deleteObject(ownerId, document.storagePath)).catch(
-          (error: unknown) =>
-            this.logger.warn(
-              `Document ${document.id} was deleted from the database, but its storage object could not be removed: ${error instanceof Error ? error.message : String(error)}`,
-            ),
+        Promise.resolve(
+          // Xóa object tương ứng khỏi kho lưu trữ Cloudflare R2.
+          this.storage.deleteObject(ownerId, document.storagePath),
+        ).catch((error: unknown) =>
+          this.logger.warn(
+            `Document ${document.id} was deleted from the database, but its storage object could not be removed: ${error instanceof Error ? error.message : String(error)}`,
+          ),
         ),
       ),
     );
   }
 
+  // Chuyển đổi hoặc chuẩn hóa visible where.
   private buildVisibleWhere(ownerId: string): Prisma.SubjectWhereInput {
     return {
       deletedAt: null,
@@ -177,6 +194,7 @@ export class SubjectsService {
     };
   }
 
+  // Xử lý sự kiện prisma write lỗi.
   private handlePrismaWriteError(error: unknown): never {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {

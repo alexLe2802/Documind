@@ -16,8 +16,10 @@ import { DownloadLogQueryDto } from './dto/download-log-query.dto';
 @UseGuards(FirebaseAuthGuard, RolesGuard)
 @Roles(RoleName.ADMIN)
 export class DownloadLogController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly downloadLogService: DownloadLogService) {}
 
+  // Lấy danh sách dữ liệu phù hợp.
   @Get()
   @ApiOperation({ summary: 'List admin download logs' })
   findAll(@Query() query: DownloadLogQueryDto): Promise<DownloadLogResponse> {

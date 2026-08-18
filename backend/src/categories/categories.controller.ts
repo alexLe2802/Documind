@@ -21,8 +21,10 @@ import { CategoriesService } from './categories.service';
 @Controller('categories')
 @UseGuards(FirebaseAuthGuard)
 export class CategoriesController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly service: CategoriesService) {}
 
+  // Lấy danh sách dữ liệu phù hợp.
   @Get()
   findAll(
     @CurrentUser() user: AuthenticatedUser,
@@ -31,6 +33,7 @@ export class CategoriesController {
     return this.service.findAll(user.id, subjectId);
   }
 
+  // Lấy một bản ghi dữ liệu phù hợp.
   @Get(':id')
   findOne(
     @Param('id') id: string,
@@ -39,6 +42,7 @@ export class CategoriesController {
     return this.service.findOne(id, user.id);
   }
 
+  // Tạo hoặc lưu create.
   @Post()
   create(
     @CurrentUser() user: AuthenticatedUser,
@@ -47,6 +51,7 @@ export class CategoriesController {
     return this.service.create(user.id, dto);
   }
 
+  // Cập nhật update.
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -56,6 +61,7 @@ export class CategoriesController {
     return this.service.update(id, user.id, dto);
   }
 
+  // Xóa hoặc giải phóng remove.
   @Delete(':id')
   remove(
     @Param('id') id: string,

@@ -3,6 +3,7 @@ import JSZip from 'jszip';
 
 @Injectable()
 export class PptxExtractorService {
+  // Xử lý extract.
   async extract(buffer: Buffer): Promise<string> {
     const zip = await JSZip.loadAsync(buffer);
     const slideFiles = Object.values(zip.files)
@@ -22,6 +23,7 @@ export class PptxExtractorService {
     return this.normalize(slideTexts.join('\n\n'));
   }
 
+  // Xử lý slide text.
   private extractSlideText(xml: string, slideNumber: number): string {
     const parts = [`[SLIDE: ${slideNumber}]`];
     const tableXmlBlocks = this.extractBlocks(xml, 'a:tbl');
@@ -47,6 +49,7 @@ export class PptxExtractorService {
     return parts.join('\n');
   }
 
+  // Xử lý table rows.
   private extractTableRows(tableXml: string): string[] {
     return this.extractBlocks(tableXml, 'a:tr')
       .map((rowXml) =>
@@ -59,6 +62,7 @@ export class PptxExtractorService {
       .filter(Boolean);
   }
 
+  // Xử lý blocks.
   private extractBlocks(xml: string, tagName: string): string[] {
     const blocks: string[] = [];
     let index = 0;
@@ -82,6 +86,7 @@ export class PptxExtractorService {
     return blocks;
   }
 
+  // Lấy dữ liệu matching close.
   private findMatchingClose(
     xml: string,
     tagName: string,
@@ -106,13 +111,17 @@ export class PptxExtractorService {
     return -1;
   }
 
+  // Thực hiện chức năng slide number.
   private slideNumber(fileName: string): number {
     return Number(/slide(\d+)\.xml$/.exec(fileName)?.[1] ?? '1');
   }
 
+  // Xử lý text nodes.
   private extractTextNodes(xml: string): string[] {
     return [
-      ...xml.matchAll(/<(?:[A-Za-z0-9_]+:)?t(?:\s[^>]*)?>([\s\S]*?)<\/(?:[A-Za-z0-9_]+:)?t>/g),
+      ...xml.matchAll(
+        /<(?:[A-Za-z0-9_]+:)?t(?:\s[^>]*)?>([\s\S]*?)<\/(?:[A-Za-z0-9_]+:)?t>/g,
+      ),
     ]
       .map((match) =>
         this.normalizeCell(this.stripXmlTags(this.decodeXml(match[1]))),
@@ -120,6 +129,7 @@ export class PptxExtractorService {
       .filter(Boolean);
   }
 
+  // Thực hiện chức năng decode xml.
   private decodeXml(value: string): string {
     return value
       .replace(/&lt;/g, '<')
@@ -129,6 +139,7 @@ export class PptxExtractorService {
       .replace(/&amp;/g, '&');
   }
 
+  // Chuyển đổi hoặc chuẩn hóa normalize.
   private normalize(text: string): string {
     return text
       .replace(/[ \t]+/g, ' ')
@@ -137,10 +148,12 @@ export class PptxExtractorService {
       .trim();
   }
 
+  // Chuyển đổi hoặc chuẩn hóa cell.
   private normalizeCell(text: string): string {
     return text.replace(/\s+/g, ' ').trim();
   }
 
+  // Thực hiện chức năng strip xml thẻ.
   private stripXmlTags(value: string): string {
     return value.replace(/<[^>]+>/g, ' ');
   }

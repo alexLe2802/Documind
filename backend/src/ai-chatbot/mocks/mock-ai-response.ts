@@ -1,15 +1,7 @@
 import { ChatMode } from '../enums/chat-mode.enum';
 import { MessageSender } from '../enums/message-sender.enum';
 
-/**
- * MOCK_AI_RESPONSES
- *
- * A pool of canned AI responses used by GeminiService when running in mock mode.
- * GeminiService uses these responses when GEMINI_MOCK is enabled.
- *
- * Responses are selected round-robin so repeated calls return varied output,
- * making it easier to test multi-turn conversations without an API key.
- */
+// Chứa các phản hồi AI mẫu được chọn luân phiên khi Gemini chạy ở chế độ mock.
 export const MOCK_AI_RESPONSES: string[] = [
   '[MOCK] DocuMind AI received your question. This is a placeholder response while the Gemini integration is being stabilised. Set GEMINI_API_KEY and GEMINI_MOCK=false to enable live responses.',
   '[MOCK] Great question! Based on the document context provided, the answer would normally be generated here by Google Gemini when live mode is enabled.',
@@ -19,9 +11,7 @@ export const MOCK_AI_RESPONSES: string[] = [
 
 let mockResponseIndex = 0;
 
-/**
- * Returns the next mock AI response from the pool (round-robin).
- */
+// Trả phản hồi AI mẫu kế tiếp theo cơ chế luân phiên.
 export function getNextMockResponse(): string {
   const response =
     MOCK_AI_RESPONSES[mockResponseIndex % MOCK_AI_RESPONSES.length];
@@ -29,9 +19,7 @@ export function getNextMockResponse(): string {
   return response;
 }
 
-/**
- * A sample mock chat session used for integration testing.
- */
+// Cung cấp dữ liệu phiên chat mẫu cho kiểm thử tích hợp.
 export const MOCK_SESSION_FIXTURE = {
   id: 'mock-session-00000000-0000-0000-0000-000000000001',
   mode: ChatMode.ASK_MY_LIBRARY,

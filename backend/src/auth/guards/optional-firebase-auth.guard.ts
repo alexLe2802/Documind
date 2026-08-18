@@ -6,8 +6,10 @@ import { FirebaseAuthGuard } from './firebase-auth.guard';
 
 @Injectable()
 export class OptionalFirebaseAuthGuard implements CanActivate {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly firebaseAuthGuard: FirebaseAuthGuard) {}
 
+  // Kiểm tra điều kiện activate.
   canActivate(context: ExecutionContext): boolean | Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 

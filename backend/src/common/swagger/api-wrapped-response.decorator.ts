@@ -7,6 +7,7 @@ import {
 } from '@nestjs/swagger';
 import { ApiErrorEnvelopeDto } from '../api-contract/dto/api-envelope.dto';
 
+// Hiển thị giao diện api wrapped ok phản hồi.
 export function ApiWrappedOkResponse(
   model: Type<unknown>,
   description: string,
@@ -30,6 +31,7 @@ export function ApiWrappedOkResponse(
   );
 }
 
+// Hiển thị giao diện api wrapped array ok phản hồi.
 export function ApiWrappedArrayOkResponse(
   model: Type<unknown>,
   description: string,
@@ -56,6 +58,7 @@ export function ApiWrappedArrayOkResponse(
   );
 }
 
+// Hiển thị giao diện api wrapped lỗi responses.
 export function ApiWrappedErrorResponses(
   responses: Array<{
     status: number;

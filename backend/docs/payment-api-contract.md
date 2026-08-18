@@ -36,12 +36,13 @@ Updated: 2026-06-24
 
 - `FREE` is not checkoutable.
 - Users cannot manually switch to `FREE`; the system switches them to `FREE` only when their paid subscription expires or an active paid order is refunded.
-- If a user is already on the requested active paid plan, checkout returns `409`.
+- Student and Pro are purchasable resource bundles rather than mutually exclusive active tiers.
 - Display prices remain `STUDENT = 149000 VND` and `PRO = 349000 VND`.
 - Test checkout command amounts are sent to SePay as `STUDENT = 5000 VND` and `PRO = 10000 VND`.
-- If a user is on active `STUDENT` and upgrades to `PRO`, checkout amount is only the remaining test checkout difference: `10000 - 5000 = 5000 VND`.
-- A `STUDENT -> PRO` differential upgrade keeps the current subscription expiry date.
-- If a user is on active `PRO`, `STUDENT` checkout is rejected with `409`.
+- Every paid bundle adds 30 days from `max(now, current expiresAt)` and immediately adds its storage, upload, and AI resources.
+- Buying Student while Pro access remains active is allowed; Student AI credits are retained while Pro unlimited AI remains valid.
+- Payment orders snapshot duration and resource deltas so later configuration changes do not alter purchased rights.
+- A unique entitlement ledger row makes webhook and gateway reconciliation idempotent.
 - Pending checkout sessions expire after 2 minutes.
 - If a user repeats checkout for the same pending plan within 2 minutes, the existing checkout session is returned.
 - Frontend success redirects do not directly activate subscriptions. Activation is done by SePay IPN/webhook, with gateway reconciliation as a fallback when the frontend polls payment status.
@@ -136,7 +137,7 @@ Success `200` data:
 }
 ```
 
-For a `STUDENT -> PRO` upgrade while the Student plan is active, `order_amount` is `5000`.
+Checkout charges the full snapshotted price of the selected resource bundle. Existing resources are accumulated rather than replaced or prorated.
 
 Responses:
 
@@ -145,7 +146,6 @@ Responses:
 | 200  | Checkout initialized or existing pending checkout returned     |
 | 400  | Invalid plan/payment method or attempt to checkout `FREE`      |
 | 401  | Missing or invalid bearer token                                |
-| 409  | Requested plan already active or paid-plan downgrade attempted |
 | 503  | SePay is not configured                                        |
 
 ### GET `/payments/history`

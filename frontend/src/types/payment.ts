@@ -15,6 +15,11 @@ export type SubscriptionPlan = {
   amount: number;
   currency: string;
   billingPeriod: "NONE" | "MONTHLY";
+  durationDays: number;
+  storageMb: number;
+  uploadCredits: number;
+  aiCredits: number;
+  unlimitedAiDays: number;
 };
 
 export type CurrentSubscription = {

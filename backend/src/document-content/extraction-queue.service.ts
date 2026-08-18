@@ -17,6 +17,7 @@ export class ExtractionQueueService {
   private readonly concurrency: number;
   private processor?: ExtractionQueueProcessor;
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(configService: ConfigService) {
     const configured = configService.get<number>(
       'EXTRACTION_QUEUE_CONCURRENCY',
@@ -27,11 +28,13 @@ export class ExtractionQueueService {
         : 2;
   }
 
+  // Tạo hoặc lưu đăng ký processor.
   registerProcessor(processor: ExtractionQueueProcessor): void {
     this.processor = processor;
     this.drain();
   }
 
+  // Thực hiện chức năng enqueue.
   enqueue(item: ExtractionQueueItem): void {
     if (
       this.runningJobIds.has(item.jobId) ||
@@ -45,12 +48,14 @@ export class ExtractionQueueService {
     this.drain();
   }
 
+  // Lấy dữ liệu snapshot.
   getSnapshot(): { running: number; queued: number; total: number } {
     const running = this.runningJobIds.size;
     const queued = this.pendingItems.length;
     return { running, queued, total: running + queued };
   }
 
+  // Thực hiện chức năng drain.
   private drain(): void {
     while (
       this.processor &&
@@ -65,6 +70,7 @@ export class ExtractionQueueService {
     }
   }
 
+  // Xử lý process.
   private async process(item: ExtractionQueueItem): Promise<void> {
     try {
       await this.processor?.(item);

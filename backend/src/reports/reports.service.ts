@@ -41,18 +41,21 @@ type PopularDocumentRow = {
 
 @Injectable()
 export class ReportsService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly dashboardService: DashboardService,
     private readonly downloadLogService: DownloadLogService,
     private readonly prisma: PrismaService,
   ) {}
 
+  // Lấy dữ liệu tải lên statistics.
   getUploadStatistics(
     query: UploadStatisticsQueryDto,
   ): Promise<UploadStatisticsResponse> {
     return this.dashboardService.getUploadStatistics(query);
   }
 
+  // Lấy dữ liệu most downloaded.
   async getMostDownloaded(
     query: PopularDocumentsQueryDto,
   ): Promise<MostDownloadedReportResponse> {
@@ -65,6 +68,7 @@ export class ReportsService {
     };
   }
 
+  // Lấy dữ liệu most đã lưu.
   async getMostSaved(
     query: PopularDocumentsQueryDto,
   ): Promise<MostSavedReportResponse> {
@@ -123,6 +127,7 @@ export class ReportsService {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa đã lưu date where.
   private buildSavedDateWhere(
     query: PopularDocumentsQueryDto,
   ): Prisma.SavedDocumentWhereInput {

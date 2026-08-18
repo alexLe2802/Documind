@@ -10,8 +10,10 @@ const EVERY_DAY_AT_MIDNIGHT = '0 0 * * *';
 export class SubscriptionCron {
   private readonly logger = new Logger(SubscriptionCron.name);
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly prisma: PrismaService) {}
 
+  // Kiểm tra điều kiện expired quyền lợi.
   @cron(EVERY_DAY_AT_MIDNIGHT)
   async checkExpiredSubscriptions(): Promise<void> {
     this.logger.log('Starting cron job: checking expired subscriptions...');
@@ -19,6 +21,7 @@ export class SubscriptionCron {
     try {
       const now = new Date();
 
+      // Cập nhật các quyền lợi người dùng trong database.
       const updateResult = await this.prisma.userSubscription.updateMany({
         where: {
           status: SubscriptionStatus.ACTIVE,

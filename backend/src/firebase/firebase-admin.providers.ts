@@ -4,6 +4,7 @@ import { App, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { Auth, getAuth } from 'firebase-admin/auth';
 import { FIREBASE_AUTH } from './firebase.constants';
 
+// Thực hiện chức năng firebase app factory.
 function firebaseAppFactory(configService: ConfigService): App {
   const existingApp = getApps()[0];
   if (existingApp) {

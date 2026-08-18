@@ -9,6 +9,7 @@ import { ROUTES } from "../lib/routes";
 
 type VerificationState = "loading" | "success" | "error";
 
+// Hiển thị giao diện verify email view.
 export function VerifyEmailView() {
   const searchParams = useSearchParams();
   const [state, setState] = useState<VerificationState>("loading");

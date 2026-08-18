@@ -5,6 +5,7 @@ import { ShieldX } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { ROUTES } from "../lib/routes";
 
+// Hiển thị giao diện unauthorized view.
 export function UnauthorizedView() {
   const { t } = useLanguage();
 

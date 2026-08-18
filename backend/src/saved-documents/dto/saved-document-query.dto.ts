@@ -15,6 +15,7 @@ import {
 } from 'class-validator';
 import { ExtractionStatus } from '../../generated/prisma/client';
 
+// Chuyển đổi hoặc chuẩn hóa ids.
 function parseIds(value: unknown): string[] | undefined {
   if (value === undefined || value === null || value === '') {
     return undefined;

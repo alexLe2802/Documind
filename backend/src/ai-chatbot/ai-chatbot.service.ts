@@ -98,6 +98,7 @@ export class AiChatbotService {
   private readonly sessionTurnTails = new Map<string, Promise<void>>();
   private readonly logger = new Logger(AiChatbotService.name);
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly prisma: PrismaService,
     private readonly geminiService: GeminiService,
@@ -106,6 +107,7 @@ export class AiChatbotService {
     private readonly auditLogService?: AuditLogService,
   ) {}
 
+  // Thực hiện chức năng ask tài liệu.
   async askDocument(
     dto: AskDocumentDto,
     user: AuthenticatedUser,
@@ -175,6 +177,7 @@ export class AiChatbotService {
     );
   }
 
+  // Thực hiện chức năng ask library.
   async askLibrary(
     dto: AskLibraryDto,
     user: AuthenticatedUser,
@@ -220,6 +223,7 @@ export class AiChatbotService {
     );
   }
 
+  // Thực hiện chức năng with phiên turn lock.
   private async withSessionTurnLock<T>(
     sessionId: string,
     operation: () => Promise<T>,
@@ -244,6 +248,7 @@ export class AiChatbotService {
     }
   }
 
+  // Lấy dữ liệu phiên.
   async getSessions(
     query: ChatSessionsQueryDto,
     user: AuthenticatedUser,
@@ -335,6 +340,7 @@ export class AiChatbotService {
     };
   }
 
+  // Lấy dữ liệu phiên.
   async getSession(
     sessionId: string,
     user: AuthenticatedUser,
@@ -416,6 +422,7 @@ export class AiChatbotService {
     };
   }
 
+  // Lấy dữ liệu tin nhắn.
   async getMessages(
     sessionId: string,
     query: ChatMessagesQueryDto,
@@ -486,6 +493,7 @@ export class AiChatbotService {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa phiên.
   private async resolveSession(
     userId: string,
     mode: ChatMode,
@@ -497,6 +505,7 @@ export class AiChatbotService {
     }>
   > {
     if (!sessionId) {
+      // Tạo phiên chat trong database.
       return this.prisma.chatSession.create({
         data: {
           userId,
@@ -525,6 +534,7 @@ export class AiChatbotService {
     return session;
   }
 
+  // Xử lý question.
   private async processQuestion(
     question: string,
     session: {
@@ -538,10 +548,7 @@ export class AiChatbotService {
   ): Promise<AiChatResponseDto> {
     const sensitiveRequest = this.isSensitivePromptRequest(question);
     const safeSources = sources.map((source) => this.redactSource(source));
-    const answerIntent = this.classifyAnswerIntent(
-      question,
-      session.messages,
-    );
+    const answerIntent = this.classifyAnswerIntent(question, session.messages);
     const intentAwareQuestion = this.buildIntentAwarePromptQuestion(
       promptQuestion,
       answerIntent,
@@ -557,6 +564,7 @@ export class AiChatbotService {
 
     let dbTimeAccumulator = 0;
     const dbStart1 = performance.now();
+    // Tạo tin nhắn chat trong database.
     await this.prisma.chatMessage.create({
       data: {
         chatSessionId: session.id,
@@ -635,6 +643,7 @@ export class AiChatbotService {
       : baseAnswer;
 
     const dbStart2 = performance.now();
+    // Tạo tin nhắn chat trong database.
     const assistantMessage = await this.prisma.chatMessage.create({
       data: {
         chatSessionId: session.id,
@@ -670,6 +679,7 @@ export class AiChatbotService {
           : {}),
       },
     });
+    // Cập nhật phiên chat trong database.
     await this.prisma.chatSession.update({
       where: { id: session.id },
       data: { title: question.slice(0, 120) },
@@ -726,6 +736,7 @@ export class AiChatbotService {
     };
   }
 
+  // Xử lý no nguồn question.
   private async processNoSourceQuestion(
     question: string,
     session: {
@@ -737,6 +748,7 @@ export class AiChatbotService {
     noSourceAnswer = this.noLibrarySourceAnswer,
   ): Promise<AiChatResponseDto> {
     const dbStart = performance.now();
+    // Tạo tin nhắn chat trong database.
     await this.prisma.chatMessage.create({
       data: {
         chatSessionId: session.id,
@@ -747,6 +759,7 @@ export class AiChatbotService {
     const answer = this.isSensitivePromptRequest(question)
       ? this.sensitiveRequestRefusal
       : noSourceAnswer;
+    // Tạo tin nhắn chat trong database.
     const assistantMessage = await this.prisma.chatMessage.create({
       data: {
         chatSessionId: session.id,
@@ -754,6 +767,7 @@ export class AiChatbotService {
         content: answer,
       },
     });
+    // Cập nhật phiên chat trong database.
     await this.prisma.chatSession.update({
       where: { id: session.id },
       data: { title: question.slice(0, 120) },
@@ -797,6 +811,7 @@ export class AiChatbotService {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa nguồn fallback answer.
   private buildSourceFallbackAnswer(
     question: string,
     citationSources: CitationDto[],
@@ -828,6 +843,7 @@ export class AiChatbotService {
     ].join('\n');
   }
 
+  // Thực hiện chức năng truncate fallback excerpt.
   private truncateFallbackExcerpt(value: string | null | undefined): string {
     const normalized = this.normalizeSnippet(value);
     if (normalized.length <= 1200) {
@@ -837,6 +853,7 @@ export class AiChatbotService {
     return `${normalized.slice(0, 1200)}...`;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa người dùng facing ai failure reason.
   private toUserFacingAiFailureReason(
     errorCode: GeminiErrorCode | null,
   ): string {
@@ -858,6 +875,7 @@ export class AiChatbotService {
     }
   }
 
+  // Kiểm tra điều kiện read tài liệu.
   private canReadDocument(
     document: {
       ownerId: string;
@@ -875,12 +893,14 @@ export class AiChatbotService {
     );
   }
 
+  // Thực hiện chức năng assert can read phiên.
   private assertCanReadSession(ownerId: string, user: AuthenticatedUser): void {
     if (ownerId !== user.id && user.role.name !== RoleName.ADMIN) {
       throw new ForbiddenException('Chat session access denied');
     }
   }
 
+  // Kiểm tra điều kiện read historical tài liệu.
   private canReadHistoricalDocument(
     document: HistoricalSourceDocument,
     user: AuthenticatedUser,
@@ -891,6 +911,7 @@ export class AiChatbotService {
     );
   }
 
+  // Thực hiện chức năng authorized historical nguồn.
   private authorizedHistoricalSources<T extends HistoricalSource>(
     sources: T[],
     user: AuthenticatedUser,
@@ -900,6 +921,7 @@ export class AiChatbotService {
     );
   }
 
+  // Thực hiện chức năng historical tin nhắn nội dung.
   private historicalMessageContent(
     sender: MessageSender,
     content: string,
@@ -915,6 +937,7 @@ export class AiChatbotService {
       : content;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa citation snippet.
   private toCitationSnippet(content: {
     extractedText?: string | null;
     contentSummary?: string | null;
@@ -924,10 +947,12 @@ export class AiChatbotService {
     return snippet.replace(/\s+/g, ' ').slice(0, this.citationSnippetLimit);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa prompt context.
   private toPromptContext(extractedText: string): string {
     return extractedText.slice(0, this.documentContextLimit);
   }
 
+  // Xử lý safe reply.
   private async generateSafeReply(
     contents: Parameters<GeminiService['generateReply']>[0],
     systemInstruction: string,
@@ -956,6 +981,7 @@ export class AiChatbotService {
     }
   }
 
+  // Thực hiện chức năng with timeout.
   private async withTimeout<T>(
     promise: Promise<T>,
     timeoutMs = this.timeoutMs,
@@ -976,6 +1002,7 @@ export class AiChatbotService {
     }
   }
 
+  // Chuyển đổi hoặc chuẩn hóa nguồn.
   private mapSources(
     sources: Array<{
       documentId: string;
@@ -1001,6 +1028,7 @@ export class AiChatbotService {
     );
   }
 
+  // Chuyển đổi hoặc chuẩn hóa unique nguồn.
   private mapUniqueSources(
     sources: Array<{
       documentId: string;
@@ -1018,6 +1046,7 @@ export class AiChatbotService {
     return this.mapSources(unique);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa citations.
   private normalizeCitations(
     sources: CitationDto[],
     truncateSnippet = true,
@@ -1068,6 +1097,7 @@ export class AiChatbotService {
       }));
   }
 
+  // Chuyển đổi hoặc chuẩn hóa prompt nguồn.
   private normalizePromptSources(
     sources: ChatSourceContext[],
     wholeDocumentQuestion = false,
@@ -1125,6 +1155,7 @@ export class AiChatbotService {
     );
   }
 
+  // Thực hiện chức năng sanitize answer citations.
   private sanitizeAnswerCitations(answer: string, sourceCount: number): string {
     // Gemini emits single citations ([1], [Source 2]) as well as grouped ones
     // ([1, 2, 3]); keep only numbers that map to a returned source.
@@ -1141,6 +1172,7 @@ export class AiChatbotService {
     );
   }
 
+  // Thực hiện chức năng redact nguồn.
   private redactSource(source: ChatSourceContext): ChatSourceContext {
     return {
       ...source,
@@ -1158,6 +1190,7 @@ export class AiChatbotService {
     };
   }
 
+  // Thực hiện chức năng redact sensitive text.
   private redactSensitiveText(value: string): string {
     return value
       .replace(
@@ -1173,6 +1206,7 @@ export class AiChatbotService {
       );
   }
 
+  // Kiểm tra điều kiện sensitive prompt yêu cầu.
   private isSensitivePromptRequest(question: string): boolean {
     const normalized = this.normalizeForRetrieval(question);
     const disclosureIntent =
@@ -1191,6 +1225,7 @@ export class AiChatbotService {
     return (disclosureIntent && sensitiveTarget) || overrideAttempt;
   }
 
+  // Thực hiện chức năng limit prompt context.
   private limitPromptContext(sources: CitationDto[]): CitationDto[] {
     let remaining = this.maxPromptContextCharacters;
 
@@ -1204,6 +1239,7 @@ export class AiChatbotService {
       .filter((source): source is CitationDto => source !== null);
   }
 
+  // Thực hiện chức năng align citation passages.
   private alignCitationPassages(
     citations: CitationDto[],
     promptSources: CitationDto[],
@@ -1227,6 +1263,7 @@ export class AiChatbotService {
     });
   }
 
+  // Thực hiện chức năng join unique context blocks.
   private joinUniqueContextBlocks(left: string, right: string): string {
     const blocks = [left, right]
       .flatMap((value) => value.split(/\n{2,}/))
@@ -1235,6 +1272,7 @@ export class AiChatbotService {
     return [...new Set(blocks)].join('\n\n');
   }
 
+  // Thực hiện chức năng truncate prompt context.
   private truncatePromptContext(
     value: string,
     limit = this.defaultPromptContextPerSource,
@@ -1247,6 +1285,7 @@ export class AiChatbotService {
       .slice(0, limit);
   }
 
+  // Kiểm tra điều kiện whole tài liệu question.
   private isWholeDocumentQuestion(question: string): boolean {
     const normalized = this.normalizeForRetrieval(question);
     return (
@@ -1259,6 +1298,7 @@ export class AiChatbotService {
     );
   }
 
+  // Thực hiện chức năng max relevance score.
   private maxRelevanceScore(
     left: number | null,
     right: number | null,
@@ -1268,12 +1308,7 @@ export class AiChatbotService {
     return Math.max(left, right);
   }
 
-  /**
-   * Builds a retrieval query that includes context from previous user turns
-   * when the current question depends on prior context. This prevents
-   * follow-up messages like "Hướng dẫn chi tiết" or "phân tích nội dung này"
-   * from losing the topic established earlier in the conversation.
-   */
+  // Ghép ngữ cảnh các câu hỏi trước để truy vấn tiếp nối không bị mất chủ đề.
   private buildRetrievalQuery(
     question: string,
     history: Array<{ sender: MessageSender; content: string }>,
@@ -1294,6 +1329,7 @@ export class AiChatbotService {
     return `${prevUserMessages.join(' ')} ${question}`.slice(0, 500);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa prompt question.
   private buildPromptQuestion(
     question: string,
     history: Array<{ sender: MessageSender; content: string }>,
@@ -1317,6 +1353,7 @@ export class AiChatbotService {
     ].join('\n');
   }
 
+  // Thực hiện chức năng classify answer intent.
   private classifyAnswerIntent(
     question: string,
     history: Array<{ sender: MessageSender; content: string }>,
@@ -1343,6 +1380,7 @@ export class AiChatbotService {
     return 'DIRECT_QUESTION';
   }
 
+  // Chuyển đổi hoặc chuẩn hóa intent aware prompt question.
   private buildIntentAwarePromptQuestion(
     promptQuestion: string,
     answerIntent: AnswerIntent,
@@ -1360,6 +1398,7 @@ export class AiChatbotService {
     ].join('\n');
   }
 
+  // Thực hiện chức năng answer intent instruction.
   private answerIntentInstruction(answerIntent: AnswerIntent): string {
     switch (answerIntent) {
       case 'FULL_DOCUMENT_CONTENT':
@@ -1375,6 +1414,7 @@ export class AiChatbotService {
     }
   }
 
+  // Thực hiện chức năng detect partial coverage.
   private detectPartialCoverage(
     answer: string,
     sources: CitationDto[],
@@ -1407,6 +1447,7 @@ export class AiChatbotService {
     return missingSections.length > 0;
   }
 
+  // Xử lý numbered section keys.
   private extractNumberedSectionKeys(value: string): string[] {
     const normalized = this.normalizeForRetrieval(value);
     const keys: string[] = [];
@@ -1420,6 +1461,7 @@ export class AiChatbotService {
     return [...new Set(keys)];
   }
 
+  // Chuyển đổi hoặc chuẩn hóa gemini reply options.
   private toGeminiReplyOptions(
     answerIntent: AnswerIntent,
   ): GeminiReplyOptions | undefined {
@@ -1436,6 +1478,7 @@ export class AiChatbotService {
     return undefined;
   }
 
+  // Kiểm tra điều kiện vague follow up.
   private isVagueFollowUp(question: string): boolean {
     if (this.hasExplicitSectionReference(question)) {
       return false;
@@ -1444,6 +1487,7 @@ export class AiChatbotService {
     return question.trim().length < 30 || this.isContextualFollowUp(question);
   }
 
+  // Kiểm tra điều kiện explicit section reference.
   private hasExplicitSectionReference(question: string): boolean {
     const normalized = this.normalizeForRetrieval(question);
 
@@ -1452,6 +1496,7 @@ export class AiChatbotService {
     );
   }
 
+  // Kiểm tra điều kiện detailed question.
   private isDetailedQuestion(question: string): boolean {
     const normalized = this.normalizeForRetrieval(question);
 
@@ -1465,6 +1510,7 @@ export class AiChatbotService {
     );
   }
 
+  // Kiểm tra điều kiện summary question.
   private isSummaryQuestion(question: string): boolean {
     const normalized = this.normalizeForRetrieval(question);
 
@@ -1473,6 +1519,7 @@ export class AiChatbotService {
     );
   }
 
+  // Kiểm tra điều kiện contextual follow up.
   private isContextualFollowUp(question: string): boolean {
     const normalized = this.normalizeForRetrieval(question);
     const contextualPhrases = [
@@ -1499,6 +1546,7 @@ export class AiChatbotService {
     return contextualPhrases.some((phrase) => normalized.includes(phrase));
   }
 
+  // Chuyển đổi hoặc chuẩn hóa for retrieval.
   private normalizeForRetrieval(value: string): string {
     return value
       .toLowerCase()
@@ -1510,6 +1558,7 @@ export class AiChatbotService {
       .trim();
   }
 
+  // Thực hiện chức năng truncate citation snippet.
   private truncateCitationSnippet(
     snippet: string | null | undefined,
     limit = this.citationSnippetLimit,
@@ -1517,10 +1566,12 @@ export class AiChatbotService {
     return this.normalizeSnippet(snippet).slice(0, limit);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa snippet.
   private normalizeSnippet(snippet: string | null | undefined): string {
     return (snippet ?? '').trim().replace(/\s+/g, ' ');
   }
 
+  // Thực hiện chức năng pagination.
   private pagination(
     page: number,
     limit: number,

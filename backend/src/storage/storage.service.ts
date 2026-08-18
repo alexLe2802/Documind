@@ -62,16 +62,19 @@ const DEFAULT_PRESIGNED_URL_TTL_SECONDS = 300;
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly configService: ConfigService,
     @Inject(R2_S3_CLIENT) private readonly client: S3Client,
     @Inject(R2_PRESIGNER) private readonly presign: R2Presigner,
   ) {}
 
+  // Tạo hoặc lưu object key.
   createObjectKey(ownerId: string, fileName: string): string {
     return `users/${this.sanitizeKeySegment(ownerId)}/${randomUUID()}-${this.sanitizeFileName(fileName)}`;
   }
 
+  // Xử lý object key.
   generateObjectKey(
     ownerId: string,
     documentId: string,
@@ -80,6 +83,7 @@ export class StorageService {
     return `users/${this.sanitizeKeySegment(ownerId)}/documents/${this.sanitizeKeySegment(documentId)}/${this.sanitizeFileName(originalFileName)}`;
   }
 
+  // Tạo hoặc lưu tải lên url.
   async createUploadUrl(
     ownerId: string,
     dto: CreateUploadUrlDto,
@@ -114,6 +118,7 @@ export class StorageService {
     ownerId: string,
     file: UploadedFile,
   ): Promise<UploadedObjectResponse>;
+  // Tạo hoặc lưu tải lên object.
   async uploadObject(
     inputOrOwnerId: UploadObjectInput | string,
     file?: UploadedFile,
@@ -148,6 +153,7 @@ export class StorageService {
     objectKey: string,
     originalFileName: string,
   ): Promise<PresignedObjectUrl>;
+  // Tạo hoặc lưu tải xuống url.
   async createDownloadUrl(
     objectKeyOrOwnerId: string,
     keyOrFileName: string,
@@ -171,6 +177,7 @@ export class StorageService {
     );
   }
 
+  // Tạo hoặc lưu object xem trước url.
   async createObjectPreviewUrl(
     objectKey: string,
     contentType?: string,
@@ -196,6 +203,7 @@ export class StorageService {
     };
   }
 
+  // Tạo hoặc lưu object tải xuống url.
   async createObjectDownloadUrl(
     objectKey: string,
     originalFileName: string,
@@ -218,6 +226,7 @@ export class StorageService {
     key: string,
   ): Promise<PreviewUrlResponse>;
   createPreviewUrl(objectKey: string): Promise<PresignedObjectUrl>;
+  // Tạo hoặc lưu xem trước url.
   async createPreviewUrl(
     objectKeyOrOwnerId: string,
     key?: string,
@@ -243,6 +252,7 @@ export class StorageService {
     return this.createPresignedUrl(objectKeyOrOwnerId, 'inline');
   }
 
+  // Lấy dữ liệu object buffer.
   async getObjectBuffer(objectKey: string): Promise<Buffer<ArrayBufferLike>> {
     try {
       const result: GetObjectCommandOutput = await this.client.send(
@@ -265,6 +275,7 @@ export class StorageService {
     }
   }
 
+  // Thực hiện chức năng object exists.
   async objectExists(objectKey: string): Promise<boolean> {
     try {
       await this.client.send(
@@ -298,6 +309,7 @@ export class StorageService {
     key: string,
   ): Promise<{ message: string }>;
   async deleteObject(objectKey: string): Promise<void>;
+  // Xóa hoặc giải phóng object.
   async deleteObject(
     objectKeyOrOwnerId: string,
     key?: string,
@@ -311,6 +323,7 @@ export class StorageService {
     await this.deleteStoredObject(objectKeyOrOwnerId);
   }
 
+  // Thực hiện chức năng put object.
   private async putObject(
     input: UploadObjectInput,
   ): Promise<UploadObjectResult> {
@@ -338,6 +351,7 @@ export class StorageService {
     }
   }
 
+  // Xóa hoặc giải phóng stored object.
   private async deleteStoredObject(objectKey: string): Promise<void> {
     try {
       await this.client.send(
@@ -354,6 +368,7 @@ export class StorageService {
     }
   }
 
+  // Tạo hoặc lưu presigned url.
   private async createPresignedUrl(
     objectKey: string,
     disposition: ObjectDisposition,
@@ -386,6 +401,7 @@ export class StorageService {
     }
   }
 
+  // Chuyển đổi hoặc chuẩn hóa buffer.
   private async toBuffer(
     body: NonNullable<GetObjectCommandOutput['Body']>,
   ): Promise<Buffer<ArrayBufferLike>> {
@@ -412,6 +428,7 @@ export class StorageService {
     throw new Error('Unsupported stored object body type');
   }
 
+  // Kiểm tra điều kiện transform to byte array.
   private hasTransformToByteArray(
     body: unknown,
   ): body is ByteArrayTransformableBody {
@@ -424,6 +441,7 @@ export class StorageService {
     );
   }
 
+  // Lấy dữ liệu bucket name.
   private getBucketName(): string {
     const bucketName = this.configService.get<string>('R2_BUCKET_NAME', '');
 
@@ -434,11 +452,13 @@ export class StorageService {
     return bucketName;
   }
 
+  // Lấy dữ liệu public url.
   private getPublicUrl(): string | undefined {
     const publicUrl = this.configService.get<string>('R2_PUBLIC_URL', '');
     return publicUrl || undefined;
   }
 
+  // Lấy dữ liệu presigned url ttl.
   private getPresignedUrlTtl(): number {
     return this.configService.get<number>(
       'R2_PRESIGNED_URL_TTL_SECONDS',
@@ -446,6 +466,7 @@ export class StorageService {
     );
   }
 
+  // Thực hiện chức năng sanitize tệp name.
   private sanitizeFileName(originalFileName: string): string {
     const baseName = path.posix.basename(
       path.win32.basename(originalFileName.trim()),
@@ -464,6 +485,7 @@ export class StorageService {
     return `${safeStem || 'file'}${safeExtension}`;
   }
 
+  // Thực hiện chức năng sanitize key segment.
   private sanitizeKeySegment(value: string): string {
     const sanitized = value.trim().replace(/[^a-zA-Z0-9_-]/g, '');
 
@@ -474,6 +496,7 @@ export class StorageService {
     return sanitized;
   }
 
+  // Thực hiện chức năng assert owned key.
   private assertOwnedKey(ownerId: string, key: string): void {
     if (!key.startsWith(`users/${this.sanitizeKeySegment(ownerId)}/`)) {
       throw new BadRequestException(
@@ -482,6 +505,7 @@ export class StorageService {
     }
   }
 
+  // Chuyển đổi hoặc chuẩn hóa public url.
   private buildPublicUrl(key: string, configuredPublicUrl?: string): string {
     const publicUrl = configuredPublicUrl ?? this.getPublicUrl();
 
@@ -492,6 +516,7 @@ export class StorageService {
     return `${publicUrl.replace(/\/$/, '')}/${key}`;
   }
 
+  // Thực hiện chức năng log storage lỗi.
   private logStorageError(
     operation: string,
     objectKey: string,

@@ -18,8 +18,10 @@ import {
 @UseGuards(FirebaseAuthGuard, RolesGuard)
 @Roles(RoleName.ADMIN)
 export class ReportsController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly reportsService: ReportsService) {}
 
+  // Lấy dữ liệu tải lên statistics.
   @Get('upload-statistics')
   @ApiOperation({ summary: 'Get active document upload statistics report' })
   getUploadStatistics(
@@ -28,6 +30,7 @@ export class ReportsController {
     return this.reportsService.getUploadStatistics(query);
   }
 
+  // Lấy dữ liệu most downloaded.
   @Get('most-downloaded')
   @ApiOperation({ summary: 'Get most downloaded documents report' })
   getMostDownloaded(
@@ -36,6 +39,7 @@ export class ReportsController {
     return this.reportsService.getMostDownloaded(query);
   }
 
+  // Lấy dữ liệu most đã lưu.
   @Get('most-saved')
   @ApiOperation({ summary: 'Get most saved documents report' })
   getMostSaved(

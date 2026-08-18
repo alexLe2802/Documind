@@ -5,6 +5,7 @@ import 'auth_controller.dart';
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({this.googleData, super.key});
   final GoogleRegistrationData? googleData;
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -19,6 +20,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool accepted = false, loading = false;
   String? error;
 
+  // Thực hiện chức năng back to đăng nhập.
   Future<void> backToLogin() async {
     FocusManager.instance.primaryFocus?.unfocus();
     if (widget.googleData != null) {
@@ -29,6 +31,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  // Thực hiện chức năng submit.
   Future<void> submit() async {
     if (!accepted) {
       setState(
@@ -78,6 +81,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(

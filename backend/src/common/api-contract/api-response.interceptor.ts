@@ -17,6 +17,7 @@ export class ApiResponseInterceptor<T> implements NestInterceptor<
   T,
   ApiSuccessEnvelope<T>
 > {
+  // Thực hiện chức năng intercept.
   intercept(
     context: ExecutionContext,
     next: CallHandler<T>,
@@ -34,6 +35,7 @@ export class ApiResponseInterceptor<T> implements NestInterceptor<
       );
   }
 
+  // Thực hiện chức năng wrap.
   private wrap(data: T): ApiSuccessEnvelope<T> {
     if (this.isSuccessEnvelope(data)) {
       return data;
@@ -55,6 +57,7 @@ export class ApiResponseInterceptor<T> implements NestInterceptor<
     };
   }
 
+  // Kiểm tra điều kiện success envelope.
   private isSuccessEnvelope(value: unknown): value is ApiSuccessEnvelope<T> {
     return (
       this.isRecord(value) &&
@@ -64,6 +67,7 @@ export class ApiResponseInterceptor<T> implements NestInterceptor<
     );
   }
 
+  // Kiểm tra điều kiện paginated result.
   private isPaginatedResult(value: unknown): value is PaginatedResult<T> {
     return (
       this.isRecord(value) &&
@@ -76,6 +80,7 @@ export class ApiResponseInterceptor<T> implements NestInterceptor<
     );
   }
 
+  // Kiểm tra điều kiện record.
   private isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
   }

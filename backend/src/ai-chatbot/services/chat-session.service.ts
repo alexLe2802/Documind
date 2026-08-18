@@ -4,7 +4,7 @@ import { ChatMode } from '../enums/chat-mode.enum';
 import { MessageSender } from '../enums/message-sender.enum';
 import { SessionMessage } from './prompt-builder.service';
 
-/** Full internal session record */
+// Mô tả đầy đủ dữ liệu nội bộ của một phiên chat.
 export interface ChatSession {
   id: string;
   mode: ChatMode;
@@ -13,30 +13,15 @@ export interface ChatSession {
   history: SessionMessage[];
 }
 
-/**
- * ChatSessionService
- *
- * Manages the lifecycle of chat sessions:
- *   - Create sessions with a mode (ASK_THIS_DOCUMENT | ASK_MY_LIBRARY | COMMUNITY_SEARCH)
- *   - Retrieve session state and history
- *   - Append user and AI messages to the conversation history
- *
- * Sprint 1: In-memory Map store.
- * Future: Replace with a persistent store (Redis / DB).
- */
+// Quản lý vòng đời, lịch sử và tin nhắn của phiên chat trong bộ nhớ.
 @Injectable()
 export class ChatSessionService {
   private readonly logger = new Logger(ChatSessionService.name);
 
-  /** In-memory store: sessionId → ChatSession */
+  // Lưu phiên chat theo sessionId trong bộ nhớ tiến trình.
   private readonly sessions = new Map<string, ChatSession>();
 
-  /**
-   * Creates a new chat session.
-   *
-   * @param mode       - ASK_THIS_DOCUMENT, ASK_MY_LIBRARY, or COMMUNITY_SEARCH
-   * @param documentId - Required for ASK_THIS_DOCUMENT mode
-   */
+  // Tạo phiên chat mới theo phạm vi và tài liệu được chọn.
   create(mode: ChatMode, documentId?: string): ChatSession {
     const session: ChatSession = {
       id: randomUUID(),
@@ -52,11 +37,7 @@ export class ChatSessionService {
     return session;
   }
 
-  /**
-   * Retrieves a session by ID.
-   *
-   * @throws NotFoundException if the session does not exist
-   */
+  // Lấy phiên chat theo ID hoặc báo lỗi khi phiên không tồn tại.
   findById(sessionId: string): ChatSession {
     const session = this.sessions.get(sessionId);
     if (!session) {
@@ -65,13 +46,7 @@ export class ChatSessionService {
     return session;
   }
 
-  /**
-   * Appends a message to the session history.
-   *
-   * @param sessionId - Target session ID
-   * @param sender    - MessageSender.USER or MessageSender.AI
-   * @param content   - Message text
-   */
+  // Thêm một tin nhắn của user hoặc AI vào lịch sử phiên chat.
   appendMessage(
     sessionId: string,
     sender: MessageSender,

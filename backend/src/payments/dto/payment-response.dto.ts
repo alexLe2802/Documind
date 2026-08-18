@@ -20,6 +20,21 @@ export class SubscriptionPlanDto {
 
   @ApiProperty()
   billingPeriod!: string;
+
+  @ApiProperty()
+  durationDays!: number;
+
+  @ApiProperty()
+  storageMb!: number;
+
+  @ApiProperty()
+  uploadCredits!: number;
+
+  @ApiProperty()
+  aiCredits!: number;
+
+  @ApiProperty()
+  unlimitedAiDays!: number;
 }
 
 export class CheckoutResponseDto {

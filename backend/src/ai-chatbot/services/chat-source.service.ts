@@ -322,11 +322,13 @@ interface MetadataScore {
 export class ChatSourceService {
   private readonly logger = new Logger(ChatSourceService.name);
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly prisma: PrismaService,
     private readonly geminiService: GeminiService,
   ) {}
 
+  // Lấy dữ liệu nguồn for tài liệu.
   async getSourcesForDocument(
     documentId: string,
     question?: string,
@@ -440,6 +442,7 @@ export class ChatSourceService {
     }
   }
 
+  // Lấy dữ liệu nguồn for library.
   async getSourcesForLibrary(
     userId: string,
     question: string,
@@ -622,6 +625,7 @@ export class ChatSourceService {
     }
   }
 
+  // Thực hiện chức năng fallback keyword search.
   async fallbackKeywordSearch(
     userId: string,
     question: string,
@@ -696,12 +700,14 @@ export class ChatSourceService {
     return results.map((item) => ({ ...item, usedFallbackKeyword: true }));
   }
 
+  // Kiểm tra điều kiện selected tài liệu filter.
   private hasSelectedDocumentFilter(
     filters?: LibraryFiltersDto,
   ): filters is LibraryFiltersDto & { documentIds: string[] } {
     return Boolean(filters?.documentIds && filters.documentIds.length > 0);
   }
 
+  // Lấy dữ liệu selected tài liệu nguồn.
   private async getSelectedDocumentSources(
     userId: string,
     filters: LibraryFiltersDto & { documentIds: string[] },
@@ -760,6 +766,7 @@ export class ChatSourceService {
       );
   }
 
+  // Thực hiện chức năng group chunks by tài liệu.
   private groupChunksByDocument(
     chunks: RawChunk[],
     question?: string,
@@ -802,6 +809,7 @@ export class ChatSourceService {
     });
   }
 
+  // Thực hiện chức năng select chunks for prompt.
   private selectChunksForPrompt<
     T extends { content: string; distance: number },
   >(chunks: T[], question: string, limit: number): T[] {
@@ -840,10 +848,12 @@ export class ChatSourceService {
     return selected;
   }
 
+  // Xử lý structure location.
   private extractStructureLocation(content: string): string {
     return /\[(?:SECTION|PAGE|SLIDE|SHEET):[^\]]+\]/.exec(content)?.[0] ?? '';
   }
 
+  // Chuyển đổi hoặc chuẩn hóa citation.
   private toCitation(
     document: {
       id: string;
@@ -876,8 +886,8 @@ export class ChatSourceService {
       : explicitSectionQuestion
         ? WHOLE_DOCUMENT_CONTEXT_LIMIT
         : question && this.isDetailedAnswerQuery(question)
-        ? PROMPT_CONTEXT_LIMIT * 2
-        : PROMPT_CONTEXT_LIMIT;
+          ? PROMPT_CONTEXT_LIMIT * 2
+          : PROMPT_CONTEXT_LIMIT;
     return {
       sourceNumber,
       documentId: document.id,
@@ -891,6 +901,7 @@ export class ChatSourceService {
     };
   }
 
+  // Xử lý snippet text.
   private extractSnippetText(
     content: {
       extractedText?: string | null;
@@ -917,6 +928,7 @@ export class ChatSourceService {
     return extractedText;
   }
 
+  // Xử lý full text.
   private extractFullText(
     content: {
       extractedText?: string | null;
@@ -951,6 +963,7 @@ export class ChatSourceService {
     return contentSummary || extractedText;
   }
 
+  // Thực hiện chức năng score tài liệu.
   private scoreDocument(
     document: {
       title: string;
@@ -982,6 +995,7 @@ export class ChatSourceService {
     );
   }
 
+  // Thực hiện chức năng score text.
   private scoreText(
     value: string | null | undefined,
     terms: string[],
@@ -1000,6 +1014,7 @@ export class ChatSourceService {
     }, 0);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa tokenize.
   private tokenize(value: string): string[] {
     const tokens = this.normalize(value)
       .split(' ')
@@ -1008,12 +1023,14 @@ export class ChatSourceService {
     return [...new Set(tokens)];
   }
 
+  // Kiểm tra điều kiện search token.
   private isSearchToken(token: string): boolean {
     return (
       !STOPWORDS.has(token) && (token.length >= 2 || /^[0-9]+$/.test(token))
     );
   }
 
+  // Chuyển đổi hoặc chuẩn hóa normalize.
   private normalize(value: string): string {
     return value
       .toLowerCase()
@@ -1025,6 +1042,7 @@ export class ChatSourceService {
       .trim();
   }
 
+  // Chuyển đổi hoặc chuẩn hóa tệp type filter.
   private toFileTypeFilter(
     fileType: string | undefined,
   ): FileTypeFilter | undefined {
@@ -1038,6 +1056,7 @@ export class ChatSourceService {
     return mimeTypes ? { in: mimeTypes } : normalized;
   }
 
+  // Thực hiện chức năng re rank nguồn.
   private reRankSources(
     sources: ChatSourceResult[],
     question: string,
@@ -1074,6 +1093,7 @@ export class ChatSourceService {
       }));
   }
 
+  // Thực hiện chức năng filter semantic nguồn for topic.
   private filterSemanticSourcesForTopic(
     sources: ChatSourceResult[],
     queryAnalysis: QueryAnalysis,
@@ -1098,18 +1118,21 @@ export class ChatSourceService {
     );
   }
 
+  // Xử lý topic filter terms.
   private extractTopicFilterTerms(queryAnalysis: QueryAnalysis): string[] {
     return queryAnalysis.coreTerms.filter(
       (term) => !TOPIC_FILTER_EXCLUDED_TERMS.has(term),
     );
   }
 
+  // Kiểm tra điều kiện strong topic signal.
   private hasStrongTopicSignal(topicTerms: string[]): boolean {
     return (
       topicTerms.length >= 2 || topicTerms.some((term) => term.length >= 3)
     );
   }
 
+  // Thực hiện chức năng count topic matches.
   private countTopicMatches(
     source: Pick<ChatSourceResult, 'title' | 'snippet' | 'promptContext'>,
     coreTerms: string[],
@@ -1131,6 +1154,7 @@ export class ChatSourceService {
     }, 0);
   }
 
+  // Lấy dữ liệu term variants.
   private getTermVariants(term: string): string[] {
     const variants = new Set([term]);
     if (term.endsWith('js') && term.length > 2) {
@@ -1145,6 +1169,7 @@ export class ChatSourceService {
     return [...variants];
   }
 
+  // Kiểm tra điều kiện normalized term.
   private matchesNormalizedTerm(
     normalizedValue: string,
     normalizedValueWithUnderscores: string,
@@ -1155,19 +1180,23 @@ export class ChatSourceService {
       : this.containsTerm(normalizedValue, term);
   }
 
+  // Thực hiện chức năng contains term.
   private containsTerm(value: string, term: string): boolean {
     const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp(`\\b${escapedTerm}\\b`, 'i').test(value);
   }
 
+  // Kiểm tra điều kiện tài liệu discovery intent.
   private isDocumentDiscoveryIntent(question: string): boolean {
     return this.analyzeQuery(question).documentSearchIntent;
   }
 
+  // Xử lý core terms.
   private extractCoreTerms(question: string): string[] {
     return this.analyzeQuery(question).coreTerms;
   }
 
+  // Thực hiện chức năng score tài liệu metadata.
   private scoreDocumentMetadata(
     doc: DocumentDiscoveryRow,
     query: QueryAnalysis | string[],
@@ -1362,6 +1391,7 @@ export class ChatSourceService {
     };
   }
 
+  // Thực hiện chức năng analyze query.
   private analyzeQuery(question: string): QueryAnalysis {
     const normalized = this.normalize(question);
     const allTokens = normalized.split(' ').filter(Boolean);
@@ -1413,6 +1443,7 @@ export class ChatSourceService {
     };
   }
 
+  // Xử lý identifier terms.
   private extractIdentifierTerms(question: string): string[] {
     return [
       ...new Set(
@@ -1429,6 +1460,7 @@ export class ChatSourceService {
     ];
   }
 
+  // Xử lý core phrases.
   private extractCorePhrases(coreTerms: string[]): string[] {
     const phrases: string[] = [];
     const maxPhraseLength = Math.min(4, coreTerms.length);
@@ -1442,6 +1474,7 @@ export class ChatSourceService {
     return [...new Set(phrases)];
   }
 
+  // Kiểm tra điều kiện concise topic query.
   private isConciseTopicQuery(
     originalQuestion: string,
     coreTerms: string[],
@@ -1460,6 +1493,7 @@ export class ChatSourceService {
     return !hasQuestionMark && (hasAcronym || hasTitleCaseTopic);
   }
 
+  // Thực hiện chức năng contains phrase.
   private containsPhrase(value: string, phrase: string): boolean {
     if (!value || !phrase) {
       return false;
@@ -1469,6 +1503,7 @@ export class ChatSourceService {
     return new RegExp(`\\b${escapedPhrase}\\b`, 'i').test(value);
   }
 
+  // Thực hiện chức năng apply score gap filter.
   private applyScoreGapFilter<T extends { relevanceScore: number }>(
     items: T[],
     queryAnalysis: QueryAnalysis,
@@ -1489,6 +1524,7 @@ export class ChatSourceService {
     return items.filter((item) => item.relevanceScore >= minAllowedScore);
   }
 
+  // Xử lý tài liệu discovery.
   private async executeDocumentDiscovery(
     userId: string,
     question: string,
@@ -1594,6 +1630,7 @@ export class ChatSourceService {
     return sources;
   }
 
+  // Thực hiện chức năng re rank chunks.
   private reRankChunks<T extends { content: string; distance: number }>(
     chunks: T[],
     question: string,
@@ -1606,6 +1643,7 @@ export class ChatSourceService {
     });
   }
 
+  // Thực hiện chức năng table chunk bonus.
   private tableChunkBonus(
     content: string,
     queryTerms: string[],
@@ -1630,6 +1668,7 @@ export class ChatSourceService {
     return Math.min(bonus, 0.3);
   }
 
+  // Thực hiện chức năng chunk relevance score.
   private chunkRelevanceScore(
     chunk: { content: string; distance: number },
     question?: string,
@@ -1656,6 +1695,7 @@ export class ChatSourceService {
     );
   }
 
+  // Kiểm tra điều kiện table structure query.
   private isTableStructureQuery(question: string): boolean {
     const normalized = this.normalizeWithUnderscores(question);
     const tokens = normalized.split(' ').filter(Boolean);
@@ -1668,6 +1708,7 @@ export class ChatSourceService {
     );
   }
 
+  // Kiểm tra điều kiện detailed answer query.
   private isDetailedAnswerQuery(question: string): boolean {
     const normalized = this.normalize(question);
     const tokens = normalized.split(' ').filter(Boolean);
@@ -1681,6 +1722,7 @@ export class ChatSourceService {
     );
   }
 
+  // Kiểm tra điều kiện whole tài liệu context query.
   private isWholeDocumentContextQuery(question: string): boolean {
     const normalized = this.normalize(question);
     return (
@@ -1694,6 +1736,7 @@ export class ChatSourceService {
     );
   }
 
+  // Kiểm tra điều kiện continuation query.
   private isContinuationQuery(question: string): boolean {
     const normalized = this.normalize(question);
     return (
@@ -1705,6 +1748,7 @@ export class ChatSourceService {
     );
   }
 
+  // Chuyển đổi hoặc chuẩn hóa whole tài liệu context.
   private buildWholeDocumentContext(text: string): string {
     const normalized = text.trim();
     if (normalized.length <= WHOLE_DOCUMENT_CONTEXT_LIMIT) {
@@ -1734,6 +1778,7 @@ export class ChatSourceService {
       .slice(0, WHOLE_DOCUMENT_CONTEXT_LIMIT);
   }
 
+  // Thực hiện chức năng split into windows.
   private splitIntoWindows(text: string): string[] {
     const windowSize = Math.floor(WHOLE_DOCUMENT_CONTEXT_LIMIT / 3);
     const middleStart = Math.max(0, Math.floor((text.length - windowSize) / 2));
@@ -1744,6 +1789,7 @@ export class ChatSourceService {
     ];
   }
 
+  // Thực hiện chức năng select evenly distributed blocks.
   private selectEvenlyDistributedBlocks(blocks: string[]): string[] {
     if (blocks.length <= WHOLE_DOCUMENT_MAX_BLOCKS) {
       return blocks;
@@ -1757,6 +1803,7 @@ export class ChatSourceService {
     });
   }
 
+  // Xử lý explicit section passage.
   private extractExplicitSectionPassage(
     text: string,
     question: string,
@@ -1795,6 +1842,7 @@ export class ChatSourceService {
     return selectedSections.join('\n\n').slice(0, WHOLE_DOCUMENT_CONTEXT_LIMIT);
   }
 
+  // Xử lý requested section numbers.
   private extractRequestedSectionNumbers(question: string): Set<string> {
     const normalized = this.normalize(question);
     const requestedNumbers = new Set<string>();
@@ -1811,10 +1859,12 @@ export class ChatSourceService {
     return requestedNumbers;
   }
 
+  // Kiểm tra điều kiện explicit numbered section reference.
   private hasExplicitNumberedSectionReference(question: string): boolean {
     return this.extractRequestedSectionNumbers(question).size > 0;
   }
 
+  // Xử lý relevant passage.
   private extractRelevantPassage(text: string, question: string): string {
     if (!text) {
       return '';
@@ -1868,6 +1918,7 @@ export class ChatSourceService {
       : bestBlock.slice(0, PROMPT_CONTEXT_LIMIT);
   }
 
+  // Thực hiện chức năng focus passage within block.
   private focusPassageWithinBlock(
     block: string,
     queryTerms: string[],
@@ -1895,6 +1946,7 @@ export class ChatSourceService {
     let end = bestLineIndex;
     let length = 0;
 
+    // Tạo hoặc lưu line.
     const addLine = (line: string, prepend = false): boolean => {
       const nextLength = length + line.length + (selected.length > 0 ? 1 : 0);
       if (nextLength > PROMPT_CONTEXT_LIMIT) return false;
@@ -1924,10 +1976,12 @@ export class ChatSourceService {
     return selected.join('\n');
   }
 
+  // Kiểm tra điều kiện numbered section lead.
   private isNumberedSectionLead(block: string): boolean {
     return this.numberedSectionLead(block) !== null;
   }
 
+  // Thực hiện chức năng numbered section lead.
   private numberedSectionLead(block: string): string | null {
     if (block.trim().startsWith('[')) {
       return null;
@@ -1941,6 +1995,7 @@ export class ChatSourceService {
     );
   }
 
+  // Thực hiện chức năng collect section blocks.
   private collectSectionBlocks(blocks: string[], startIndex: number): string {
     const selected: string[] = [];
     let totalLength = 0;
@@ -1963,6 +2018,7 @@ export class ChatSourceService {
     return selected.join('\n\n');
   }
 
+  // Chuyển đổi hoặc chuẩn hóa nguồn snippet.
   private toSourceSnippet(text: string, question?: string): string {
     const relevantSnippet = question
       ? this.extractRelevantSnippetText(text, question)
@@ -1972,6 +2028,7 @@ export class ChatSourceService {
     return snippetSource.replace(/\s+/g, ' ').slice(0, CITATION_SNIPPET_LIMIT);
   }
 
+  // Xử lý relevant snippet text.
   private extractRelevantSnippetText(text: string, question: string): string {
     const queryTerms = this.tokenizeWithUnderscores(question);
     const lines = text
@@ -2011,6 +2068,7 @@ export class ChatSourceService {
     return lines.slice(start, end).join('\n');
   }
 
+  // Thực hiện chức năng passage score.
   private passageScore(
     value: string,
     queryTerms: string[],
@@ -2044,10 +2102,12 @@ export class ChatSourceService {
     return score;
   }
 
+  // Kiểm tra điều kiện structured text.
   private isStructuredText(value: string): boolean {
     return /\[(?:SECTION|TABLE|PAGE|SLIDE|SHEET|ROW):/.test(value);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa tokenize with underscores.
   private tokenizeWithUnderscores(value: string): string[] {
     return [
       ...new Set(
@@ -2058,6 +2118,7 @@ export class ChatSourceService {
     ];
   }
 
+  // Chuyển đổi hoặc chuẩn hóa with underscores.
   private normalizeWithUnderscores(value: string): string {
     return value
       .toLowerCase()

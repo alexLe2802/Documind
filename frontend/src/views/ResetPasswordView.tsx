@@ -9,6 +9,7 @@ import { ROUTES } from "../lib/routes";
 
 type LinkState = "checking" | "valid" | "invalid" | "completed";
 
+// Hiển thị giao diện reset password view.
 export function ResetPasswordView() {
   const { t } = useLanguage();
   const [code, setCode] = useState("");
@@ -38,6 +39,7 @@ export function ResetPasswordView() {
       .catch(() => setLinkState("invalid"));
   }, []);
 
+  // Xử lý sự kiện submit.
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError("");

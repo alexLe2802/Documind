@@ -3,6 +3,7 @@ import JSZip from 'jszip';
 const WORKSHEET_PATH = /^xl\/worksheets\/[^/]+\.xml$/;
 const TEN_MILLIMETERS_IN_INCHES = '0.3937';
 
+// Thực hiện chức năng apply xlsx print layout.
 export async function applyXlsxPrintLayout(buffer: Buffer): Promise<Buffer> {
   const archive = await JSZip.loadAsync(buffer);
   const worksheets = Object.values(archive.files).filter(
@@ -19,6 +20,7 @@ export async function applyXlsxPrintLayout(buffer: Buffer): Promise<Buffer> {
   return archive.generateAsync({ type: 'nodebuffer' });
 }
 
+// Thực hiện chức năng apply worksheet print layout.
 export function applyWorksheetPrintLayout(xml: string): string {
   const prefix = getWorksheetPrefix(xml);
   let updated = enableFitToPage(xml, prefix);
@@ -49,6 +51,7 @@ export function applyWorksheetPrintLayout(xml: string): string {
   );
 }
 
+// Thực hiện chức năng enable fit to page.
 function enableFitToPage(xml: string, prefix: string): string {
   if (hasElement(xml, 'pageSetUpPr')) {
     return updateElementAttributes(xml, 'pageSetUpPr', { fitToPage: '1' });
@@ -78,6 +81,7 @@ function enableFitToPage(xml: string, prefix: string): string {
   );
 }
 
+// Thực hiện chức năng upsert element.
 function upsertElement(
   xml: string,
   name: string,
@@ -103,6 +107,7 @@ function upsertElement(
   return xml.replace(/<\/(?:(?:[\w-]+):)?worksheet>/, `${tag}$&`);
 }
 
+// Cập nhật element attributes.
 function updateElementAttributes(
   xml: string,
   name: string,
@@ -124,21 +129,25 @@ function updateElementAttributes(
   });
 }
 
+// Chuyển đổi hoặc chuẩn hóa attributes.
 function serializeAttributes(attributes: Record<string, string>): string {
   return Object.entries(attributes)
     .map(([name, value]) => ` ${name}="${value}"`)
     .join('');
 }
 
+// Kiểm tra điều kiện element.
 function hasElement(xml: string, name: string): boolean {
   return elementPattern(name).test(xml);
 }
 
+// Thực hiện chức năng element pattern.
 function elementPattern(name: string, selfClosingOnly = false): RegExp {
   const closing = selfClosingOnly ? '\\/>' : '\\/?>';
   return new RegExp(`<(?:(?:[\\w-]+):)?${name}\\b[^<>]*${closing}`, 'i');
 }
 
+// Lấy dữ liệu worksheet prefix.
 function getWorksheetPrefix(xml: string): string {
   const match = xml.match(/<((?:[\w-]+):)?worksheet\b/);
   return match?.[1] ?? '';

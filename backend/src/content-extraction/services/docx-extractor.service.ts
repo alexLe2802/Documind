@@ -6,6 +6,7 @@ import * as mammoth from 'mammoth';
 export class DocxExtractorService {
   private readonly logger = new Logger(DocxExtractorService.name);
 
+  // Xử lý extract.
   async extract(buffer: Buffer): Promise<string> {
     const structuredText = await this.extractStructuredText(buffer);
     if (structuredText.trim()) {
@@ -16,6 +17,7 @@ export class DocxExtractorService {
     return result.value ?? '';
   }
 
+  // Xử lý structured text.
   private async extractStructuredText(buffer: Buffer): Promise<string> {
     const zip = await JSZip.loadAsync(buffer);
     const documentXml = await zip.file('word/document.xml')?.async('string');
@@ -74,6 +76,7 @@ export class DocxExtractorService {
     return extracted;
   }
 
+  // Xử lý header footer text.
   private async extractHeaderFooterText(zip: JSZip): Promise<string[]> {
     const fileNames = Object.keys(zip.files).filter((name) =>
       /^word\/(?:header|footer)\d+\.xml$/.test(name),
@@ -95,6 +98,7 @@ export class DocxExtractorService {
     return texts;
   }
 
+  // Xử lý body blocks.
   private extractBodyBlocks(
     xml: string,
   ): Array<{ tagName: string; xml: string }> {
@@ -102,6 +106,7 @@ export class DocxExtractorService {
     return this.extractBlocks(body, ['w:p', 'w:tbl']);
   }
 
+  // Xử lý blocks.
   private extractBlocks(
     xml: string,
     tagNames: string[],
@@ -143,6 +148,7 @@ export class DocxExtractorService {
     return blocks;
   }
 
+  // Lấy dữ liệu matching close.
   private findMatchingClose(
     xml: string,
     tagName: string,
@@ -167,6 +173,7 @@ export class DocxExtractorService {
     return -1;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa table.
   private formatTable(
     tableXml: string,
     currentHeading: string,
@@ -216,6 +223,7 @@ export class DocxExtractorService {
     return [...section, `[TABLE: Table ${tableIndex}]`, ...rows].join('\n');
   }
 
+  // Xử lý direct cell text.
   private extractDirectCellText(cellXml: string): string {
     const withoutNestedTables = cellXml.replace(
       /<w:tbl\b[\s\S]*?<\/w:tbl>/g,
@@ -226,12 +234,14 @@ export class DocxExtractorService {
     );
   }
 
+  // Xử lý text from xml.
   private extractTextFromXml(xml: string): string {
     return [...xml.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)]
       .map((match) => this.decodeXml(match[1]))
       .join(' ');
   }
 
+  // Kiểm tra điều kiện heading.
   private isHeading(paragraphXml: string, paragraph: string): boolean {
     return (
       /<w:pStyle\b[^>]*w:val="Heading\d+"/.test(paragraphXml) ||
@@ -239,10 +249,12 @@ export class DocxExtractorService {
     );
   }
 
+  // Chuyển đổi hoặc chuẩn hóa whitespace.
   private normalizeWhitespace(value: string): string {
     return value.replace(/\s+/g, ' ').trim();
   }
 
+  // Thực hiện chức năng decode xml.
   private decodeXml(value: string): string {
     return value
       .replace(/&lt;/g, '<')

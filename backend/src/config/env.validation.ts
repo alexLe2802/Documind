@@ -182,6 +182,7 @@ const environmentSchema = Joi.object<Environment>({
   SEPAY_BANK_HOLDER_NAME: Joi.string().allow('').default('AI STUDY HUB'),
 }).unknown(true);
 
+// Kiểm tra điều kiện environment.
 export function validateEnvironment(
   config: Record<string, unknown>,
 ): Environment {

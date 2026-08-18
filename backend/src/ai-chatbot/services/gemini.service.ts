@@ -53,8 +53,10 @@ export class GeminiService {
   private readonly quotaCooldownMs = 60_000;
   private readonly quotaCooldownUntil = new Map<string, number>();
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly configService: ConfigService) {}
 
+  // Xử lý embedding.
   async generateEmbedding(text: string): Promise<number[]> {
     if (this.getApiKeys().length === 0) {
       throw new Error('Gemini API key is not configured.');
@@ -65,6 +67,7 @@ export class GeminiService {
     );
   }
 
+  // Thực hiện chức năng invoke embedding.
   private async invokeEmbedding(
     text: string,
     apiKey: string,
@@ -108,6 +111,7 @@ export class GeminiService {
     return embedding;
   }
 
+  // Xử lý reply.
   async generateReply(
     contents: GeminiContent[],
     systemInstruction: string,
@@ -144,6 +148,7 @@ export class GeminiService {
     }
   }
 
+  // Thực hiện chức năng invoke gemini.
   private async invokeGemini(
     contents: GeminiContent[],
     systemInstruction: string,
@@ -196,6 +201,7 @@ export class GeminiService {
     }
   }
 
+  // Lấy dữ liệu with timeout.
   private async fetchWithTimeout(
     url: string,
     init: RequestInit,
@@ -224,6 +230,7 @@ export class GeminiService {
     }
   }
 
+  // Thực hiện chức năng with model failover.
   private async withModelFailover(
     operation: (model: string) => Promise<GeminiGenerateContentResponse>,
   ): Promise<{ answer: string; finishReason: string | null }> {
@@ -259,6 +266,7 @@ export class GeminiService {
     throw lastError;
   }
 
+  // Kiểm tra điều kiện try fallback model.
   private canTryFallbackModel(error: unknown): boolean {
     if (error instanceof GeminiServiceError) {
       return [
@@ -271,11 +279,13 @@ export class GeminiService {
     return this.isNetworkError(error);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa url.
   private buildUrl(modelName: string): string {
     const model = encodeURIComponent(modelName);
     return `${this.endpointBase}/${model}:generateContent`;
   }
 
+  // Xử lý answer.
   private extractAnswer(
     response: GeminiGenerateContentResponse | null,
   ): string {
@@ -292,14 +302,17 @@ export class GeminiService {
     );
   }
 
+  // Kiểm tra điều kiện mock mode.
   private isMockMode(): boolean {
     return this.configService.get<boolean>('GEMINI_MOCK') ?? false;
   }
 
+  // Lấy dữ liệu model.
   private getModel(): string {
     return this.getStringConfig('GEMINI_MODEL') || this.defaultModel;
   }
 
+  // Lấy dữ liệu models.
   private getModels(): string[] {
     return [
       this.getModel(),
@@ -310,6 +323,7 @@ export class GeminiService {
       .filter((model, index, models) => models.indexOf(model) === index);
   }
 
+  // Lấy dữ liệu timeout ms.
   private getTimeoutMs(options?: GeminiReplyOptions): number {
     if (
       typeof options?.timeoutMs === 'number' &&
@@ -331,6 +345,7 @@ export class GeminiService {
     return this.defaultTimeoutMs;
   }
 
+  // Lấy dữ liệu max output tokens.
   private getMaxOutputTokens(): number {
     const configured = this.configService.get<string | number>(
       'GEMINI_MAX_OUTPUT_TOKENS',
@@ -342,10 +357,12 @@ export class GeminiService {
       : this.defaultMaxOutputTokens;
   }
 
+  // Lấy dữ liệu string config.
   private getStringConfig(key: string): string {
     return this.configService.get<string>(key)?.trim() ?? '';
   }
 
+  // Lấy dữ liệu api keys.
   private getApiKeys(): string[] {
     const keys = [
       this.getStringConfig('GEMINI_API_KEY'),
@@ -357,6 +374,7 @@ export class GeminiService {
     return [...new Set(keys)];
   }
 
+  // Thực hiện chức năng with api key failover.
   private async withApiKeyFailover<T>(
     operation: (apiKey: string) => Promise<T>,
   ): Promise<T> {
@@ -413,6 +431,7 @@ export class GeminiService {
     throw lastError;
   }
 
+  // Xử lý sự kiện lỗi.
   private handleError(error: unknown): GeminiSafeResponse {
     if (error instanceof GeminiServiceError) {
       this.logger.warn(error.message);
@@ -434,6 +453,7 @@ export class GeminiService {
     );
   }
 
+  // Kiểm tra điều kiện network lỗi.
   private isNetworkError(error: unknown): boolean {
     if (typeof error !== 'object' || error === null) {
       return false;
@@ -445,6 +465,7 @@ export class GeminiService {
     );
   }
 
+  // Kiểm tra điều kiện abort lỗi.
   private isAbortError(error: unknown): boolean {
     return (
       typeof error === 'object' &&
@@ -453,6 +474,7 @@ export class GeminiService {
     );
   }
 
+  // Chuyển đổi hoặc chuẩn hóa http lỗi tin nhắn.
   private toHttpErrorMessage(status: number): string {
     if (status === 429) {
       return 'Gemini rate limit or quota exceeded.';
@@ -461,6 +483,7 @@ export class GeminiService {
     return `Gemini API returned HTTP ${status}.`;
   }
 
+  // Thực hiện chức năng success.
   private success(
     answer: string,
     isMock: boolean,
@@ -482,6 +505,7 @@ export class GeminiService {
     };
   }
 
+  // Thực hiện chức năng failure.
   private failure(
     errorCode: GeminiErrorCode,
     errorMessage: string,
@@ -498,6 +522,7 @@ export class GeminiService {
 }
 
 export class GeminiServiceError extends Error {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     readonly code: GeminiErrorCode,
     message: string,

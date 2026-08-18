@@ -36,16 +36,19 @@ export type UserProfileResponse = {
 
 @Injectable()
 export class UsersService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
   ) {}
 
+  // Lấy dữ liệu hồ sơ.
   async getProfile(userId: string): Promise<UserProfileResponse> {
     const user = await this.findUser(userId);
     return this.toProfileResponse(user);
   }
 
+  // Cập nhật hồ sơ.
   async updateProfile(
     userId: string,
     payload: UpdateProfileDto,
@@ -58,6 +61,7 @@ export class UsersService {
 
     await this.findUser(userId);
 
+    // Cập nhật người dùng trong database.
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -80,6 +84,7 @@ export class UsersService {
     return this.toProfileResponse(user);
   }
 
+  // Lấy dữ liệu người dùng.
   private async findUser(userId: string): Promise<UserWithRole> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -93,6 +98,7 @@ export class UsersService {
     return user;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa hồ sơ phản hồi.
   private toProfileResponse(user: UserWithRole): UserProfileResponse {
     return {
       id: user.id,

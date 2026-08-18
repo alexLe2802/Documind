@@ -5,6 +5,7 @@ import 'auth_controller.dart';
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({this.initialEmail = '', super.key});
   final String initialEmail;
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<ForgotPasswordScreen> createState() => _State();
 }
@@ -12,6 +13,7 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 class _State extends ConsumerState<ForgotPasswordScreen> {
   late final email = TextEditingController(text: widget.initialEmail);
   bool loading = false;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(

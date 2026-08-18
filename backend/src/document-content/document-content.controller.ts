@@ -28,8 +28,10 @@ import { ExtractionStatusResponseDto } from './dto/extraction-status-response.dt
 @UseGuards(FirebaseAuthGuard)
 @Controller('documents/:id')
 export class DocumentContentController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly service: ContentExtractionService) {}
 
+  // Xử lý extract.
   @Post('extract')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiAcceptedResponse({ type: ExtractionJobResponseDto })
@@ -41,6 +43,7 @@ export class DocumentContentController {
     return this.service.startExtraction(id, user);
   }
 
+  // Lấy dữ liệu nội dung.
   @Get('content')
   @ApiOkResponse({ type: DocumentContentResponseDto })
   @ApiOperation({ summary: 'Get extracted document content' })
@@ -51,6 +54,7 @@ export class DocumentContentController {
     return this.service.getDocumentContent(id, user);
   }
 
+  // Lấy dữ liệu trạng thái.
   @Get('extraction-status')
   @ApiOkResponse({ type: ExtractionStatusResponseDto })
   @ApiOperation({ summary: 'Get document extraction status' })

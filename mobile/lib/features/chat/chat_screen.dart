@@ -6,6 +6,7 @@ import '../documents/documents_screen.dart';
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({this.initialDocumentId, super.key});
   final String? initialDocumentId;
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
@@ -15,6 +16,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final messages = <({bool user, String text})>[];
   final selected = <String>{};
   bool loading = false;
+  // Khởi tạo state và tài nguyên ban đầu.
   @override
   void initState() {
     super.initState();
@@ -23,6 +25,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  // Thực hiện chức năng choose.
   Future<void> choose(List<Map<String, dynamic>> docs) async {
     final draft = {...selected};
     final result = await showModalBottomSheet<Set<String>>(
@@ -113,6 +116,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  // Thực hiện nghiệp vụ send.
   Future<void> send() async {
     final q = input.text.trim();
     if (q.isEmpty || loading) return;
@@ -148,6 +152,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final docs =

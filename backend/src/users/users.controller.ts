@@ -13,8 +13,10 @@ import { UserProfileResponse, UsersService } from './users.service';
 @Controller('users')
 @UseGuards(FirebaseAuthGuard)
 export class UsersController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly usersService: UsersService) {}
 
+  // Lấy dữ liệu hồ sơ.
   @Get('profile')
   @ApiOperation({ summary: 'Get the current user profile' })
   @ApiWrappedOkResponse(UserProfileResponseDto, 'Current user profile.')
@@ -24,6 +26,7 @@ export class UsersController {
     return this.usersService.getProfile(user.id);
   }
 
+  // Cập nhật hồ sơ.
   @Patch('profile')
   @ApiOperation({ summary: 'Update the current user profile' })
   @ApiWrappedOkResponse(UserProfileResponseDto, 'Updated current user profile.')

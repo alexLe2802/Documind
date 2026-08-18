@@ -13,6 +13,7 @@ export class AuthEmailService {
   private readonly frontendUrl: string;
   private readonly logoUrl: string;
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     @Inject(FIREBASE_AUTH) private readonly firebaseAuth: Auth,
     private readonly mailService: MailService,
@@ -24,6 +25,7 @@ export class AuthEmailService {
     this.logoUrl = `${this.frontendUrl}/Logo.png`;
   }
 
+  // Thực hiện nghiệp vụ send registration email.
   async sendRegistrationEmail(email: string, fullName: string): Promise<void> {
     const firebaseLink = await this.firebaseAuth.generateEmailVerificationLink(
       email,
@@ -47,6 +49,7 @@ export class AuthEmailService {
     });
   }
 
+  // Thực hiện nghiệp vụ send password reset email.
   async sendPasswordResetEmail(email: string): Promise<void> {
     let firebaseLink: string;
     try {
@@ -71,6 +74,7 @@ export class AuthEmailService {
     });
   }
 
+  // Chuyển đổi hoặc chuẩn hóa frontend action url.
   private buildFrontendActionUrl(
     firebaseLink: string,
     pathname: string,
@@ -86,6 +90,7 @@ export class AuthEmailService {
     return actionUrl.toString();
   }
 
+  // Kiểm tra điều kiện unknown người dùng.
   private isUnknownUser(error: unknown): boolean {
     return (
       typeof error === 'object' &&

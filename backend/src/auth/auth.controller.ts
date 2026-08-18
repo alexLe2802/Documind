@@ -36,8 +36,10 @@ import {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly authService: AuthService) {}
 
+  // Thực hiện chức năng firebase đăng nhập.
   @Post('firebase-login')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
@@ -69,6 +71,7 @@ export class AuthController {
     return result;
   }
 
+  // Tạo hoặc lưu đăng ký.
   @Post('register')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
@@ -91,6 +94,7 @@ export class AuthController {
     return this.authService.register(token, payload);
   }
 
+  // Thực hiện chức năng forgot password.
   @Post('forgot-password')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Send a custom password-reset email' })
@@ -98,6 +102,7 @@ export class AuthController {
     return this.authService.forgotPassword(payload.email);
   }
 
+  // Thực hiện chức năng me.
   @Get('me')
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
@@ -113,6 +118,7 @@ export class AuthController {
     return this.authService.getCurrentUser(user);
   }
 
+  // Thực hiện chức năng đăng xuất.
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Clear the secure authentication session' })
@@ -123,6 +129,7 @@ export class AuthController {
     });
   }
 
+  // Xử lý bearer token.
   private extractBearerToken(authorization?: string): string | undefined {
     const [scheme, token] = authorization?.split(' ') ?? [];
     return scheme === 'Bearer' && token ? token : undefined;

@@ -31,7 +31,7 @@ import { SepayIpnDto } from './dto/sepay-ipn.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 
 const CURRENCY = 'VND';
-const SUBSCRIPTION_MONTHS = 1;
+const ACCESS_DURATION_DAYS = 30;
 const PAYMENT_EXPIRY_MINUTES = 2;
 
 const PLAN_QUOTAS = {
@@ -39,16 +39,19 @@ const PLAN_QUOTAS = {
     storageLimitMb: 100,
     uploadLimit: 10,
     aiChatLimit: 20,
+    unlimitedAiDays: 0,
   },
   STUDENT: {
     storageLimitMb: 1024,
     uploadLimit: 100,
     aiChatLimit: 300,
+    unlimitedAiDays: 0,
   },
   PRO: {
     storageLimitMb: 5120,
     uploadLimit: 500,
-    aiChatLimit: null,
+    aiChatLimit: 0,
+    unlimitedAiDays: ACCESS_DURATION_DAYS,
   },
 } satisfies Record<
   SubscriptionPlan,
@@ -56,6 +59,7 @@ const PLAN_QUOTAS = {
     storageLimitMb: number;
     uploadLimit: number;
     aiChatLimit: number | null;
+    unlimitedAiDays: number;
   }
 >;
 
@@ -97,6 +101,7 @@ export class PaymentsService {
   private readonly proPrice: number;
   private readonly client: SePayPgClient | null;
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     configService: ConfigService,
     private readonly prisma: PrismaService,
@@ -126,6 +131,7 @@ export class PaymentsService {
       : null;
   }
 
+  // Lấy dữ liệu gói dịch vụ.
   getPlans(): SubscriptionPlanDto[] {
     return [
       {
@@ -134,6 +140,11 @@ export class PaymentsService {
         amount: 0,
         currency: CURRENCY,
         billingPeriod: 'NONE',
+        durationDays: 0,
+        storageMb: 0,
+        uploadCredits: 0,
+        aiCredits: 0,
+        unlimitedAiDays: 0,
       },
       {
         code: SubscriptionPlan.STUDENT,
@@ -141,6 +152,11 @@ export class PaymentsService {
         amount: this.studentPrice,
         currency: CURRENCY,
         billingPeriod: 'MONTHLY',
+        durationDays: ACCESS_DURATION_DAYS,
+        storageMb: PLAN_QUOTAS.STUDENT.storageLimitMb,
+        uploadCredits: PLAN_QUOTAS.STUDENT.uploadLimit,
+        aiCredits: PLAN_QUOTAS.STUDENT.aiChatLimit,
+        unlimitedAiDays: 0,
       },
       {
         code: SubscriptionPlan.PRO,
@@ -148,10 +164,16 @@ export class PaymentsService {
         amount: this.proPrice,
         currency: CURRENCY,
         billingPeriod: 'MONTHLY',
+        durationDays: ACCESS_DURATION_DAYS,
+        storageMb: PLAN_QUOTAS.PRO.storageLimitMb,
+        uploadCredits: PLAN_QUOTAS.PRO.uploadLimit,
+        aiCredits: PLAN_QUOTAS.PRO.aiChatLimit,
+        unlimitedAiDays: PLAN_QUOTAS.PRO.unlimitedAiDays,
       },
     ];
   }
 
+  // Lấy dữ liệu hiện tại và quyền lợi.
   async getCurrentSubscription(
     userId: string,
   ): Promise<CurrentSubscriptionDto> {
@@ -166,6 +188,7 @@ export class PaymentsService {
         uploadLimit: true,
         aiChatLimit: true,
         aiChatsUsed: true,
+        unlimitedAiUntil: true,
       },
     });
 
@@ -180,12 +203,15 @@ export class PaymentsService {
       return this.createFreeSubscriptionResponse(userId, usagePeriodStart);
     }
 
+    const hasUnlimitedAi = Boolean(
+      subscription.unlimitedAiUntil && subscription.unlimitedAiUntil > now,
+    );
     const usage = await this.getUserUsage(
       userId,
       subscription.startsAt,
       subscription.uploadLimit,
       subscription.storageLimitMb,
-      subscription.aiChatLimit,
+      hasUnlimitedAi ? null : subscription.aiChatLimit,
     );
 
     return {
@@ -194,11 +220,12 @@ export class PaymentsService {
       expiresAt: subscription.expiresAt?.toISOString() ?? null,
       storageLimitMb: subscription.storageLimitMb,
       uploadLimit: subscription.uploadLimit,
-      aiChatLimit: subscription.aiChatLimit,
+      aiChatLimit: hasUnlimitedAi ? null : subscription.aiChatLimit,
       ...usage,
     };
   }
 
+  // Tạo hoặc lưu đơn thanh toán.
   async createCheckout(
     user: AuthenticatedUser,
     payload: CreateCheckoutDto,
@@ -206,15 +233,8 @@ export class PaymentsService {
     const client = this.requireClient();
     const now = new Date();
 
-    const activeSubscription = await this.prisma.subscription.findUnique({
-      where: { userId: user.id },
-      select: { plan: true, expiresAt: true },
-    });
-    const amount = this.getCheckoutAmount(
-      payload.plan,
-      activeSubscription,
-      now,
-    );
+    const amount = this.getPlanAmount(payload.plan);
+    const resources = PLAN_QUOTAS[payload.plan];
 
     const pendingOrder = await this.prisma.paymentOrder.findFirst({
       where: {
@@ -249,7 +269,9 @@ export class PaymentsService {
       now.getTime() + PAYMENT_EXPIRY_MINUTES * 60 * 1000,
     );
 
+    // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
+      // Tạo hóa đơn thanh toán trong database.
       await transaction.paymentOrder.create({
         data: {
           invoiceNumber,
@@ -259,6 +281,11 @@ export class PaymentsService {
           amount,
           currency: CURRENCY,
           expiresAt,
+          durationDays: ACCESS_DURATION_DAYS,
+          storageMb: resources.storageLimitMb,
+          uploadCredits: resources.uploadLimit,
+          aiCredits: resources.aiChatLimit ?? 0,
+          unlimitedAiDays: resources.unlimitedAiDays ?? 0,
         },
       });
       await this.createAuditLog(transaction, user.id, 'payment.created', {
@@ -282,6 +309,7 @@ export class PaymentsService {
     );
   }
 
+  // Chuyển đổi hoặc chuẩn hóa đơn thanh toán phản hồi.
   private buildCheckoutResponse(
     client: SePayPgClient,
     userId: string,
@@ -327,6 +355,7 @@ export class PaymentsService {
     };
   }
 
+  // Lấy dữ liệu thanh toán.
   async getPayment(
     userId: string,
     invoiceNumber: string,
@@ -344,6 +373,11 @@ export class PaymentsService {
         status: true,
         paidAt: true,
         expiresAt: true,
+        durationDays: true,
+        storageMb: true,
+        uploadCredits: true,
+        aiCredits: true,
+        unlimitedAiDays: true,
         createdAt: true,
       },
     });
@@ -379,6 +413,7 @@ export class PaymentsService {
     return this.toPaymentResponse(refreshedPayment);
   }
 
+  // Lấy dữ liệu lịch sử thanh toán.
   async getPaymentHistory(userId: string): Promise<PaymentOrderDto[]> {
     await this.expirePendingPayments(userId);
     const payments = await this.prisma.paymentOrder.findMany({
@@ -401,6 +436,7 @@ export class PaymentsService {
     return payments.map((payment) => this.toPaymentResponse(payment));
   }
 
+  // Cập nhật thanh toán trạng thái.
   async updatePaymentStatus(
     userId: string,
     invoiceNumber: string,
@@ -422,7 +458,9 @@ export class PaymentsService {
       throw new ConflictException('Paid payments cannot be changed');
     }
 
+    // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
+      // Đánh dấu hóa đơn PAID và lưu mã giao dịch từ webhook SePay.
       await transaction.paymentOrder.updateMany({
         where: { id: payment.id, status: PaymentStatus.PENDING },
         data: { status },
@@ -438,6 +476,7 @@ export class PaymentsService {
     return this.getPayment(userId, invoiceNumber);
   }
 
+  // Xử lý ipn.
   async processIpn(
     authorization: string | undefined,
     payload: SepayIpnDto,
@@ -467,6 +506,7 @@ export class PaymentsService {
     this.validatePaidNotification(payment, payload);
     const paidAt = new Date();
 
+    // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
       const duplicateTransaction = await transaction.paymentOrder.findUnique({
         where: {
@@ -479,6 +519,7 @@ export class PaymentsService {
         throw new ConflictException('SePay transaction already processed');
       }
 
+      // Cập nhật các hóa đơn thanh toán trong database.
       const updateResult = await transaction.paymentOrder.updateMany({
         where: {
           id: payment.id,
@@ -495,32 +536,12 @@ export class PaymentsService {
 
       if (updateResult.count === 0) return;
 
-      const expiresAt = await this.getActivationExpiresAt(
+      // Cộng ngày sử dụng và toàn bộ quota đã chốt trong hóa đơn cho người dùng.
+      const expiresAt = await this.applyPurchasedResources(
         transaction,
         payment,
         paidAt,
       );
-
-      await transaction.subscription.upsert({
-        where: { userId: payment.userId },
-        update: {
-          plan: payment.plan,
-          paymentOrderId: payment.id,
-          startsAt: paidAt,
-          expiresAt,
-          ...PLAN_QUOTAS[payment.plan],
-          aiChatsUsed: 0,
-        },
-        create: {
-          userId: payment.userId,
-          plan: payment.plan,
-          paymentOrderId: payment.id,
-          startsAt: paidAt,
-          expiresAt,
-          ...PLAN_QUOTAS[payment.plan],
-          aiChatsUsed: 0,
-        },
-      });
       await this.createAuditLog(transaction, payment.userId, 'payment.paid', {
         invoiceNumber: payment.invoiceNumber,
         transactionId: payload.transaction.transaction_id,
@@ -541,6 +562,7 @@ export class PaymentsService {
     return { acknowledged: true };
   }
 
+  // Xử lý webhook.
   async processWebhook(
     authorization: string | undefined,
     payload: unknown,
@@ -556,6 +578,7 @@ export class PaymentsService {
     throw new BadRequestException('Unsupported SePay webhook payload');
   }
 
+  // Thực hiện chức năng require client.
   private requireClient(): SePayPgClient {
     if (!this.client) {
       throw new ServiceUnavailableException(
@@ -565,54 +588,22 @@ export class PaymentsService {
     return this.client;
   }
 
+  // Lấy dữ liệu gói dịch vụ amount.
   private getPlanAmount(plan: SubscriptionPlan): number {
     if (plan === SubscriptionPlan.STUDENT) return this.studentPrice;
     if (plan === SubscriptionPlan.PRO) return this.proPrice;
     throw new BadRequestException('The Free plan does not require payment');
   }
 
-  private getCheckoutAmount(
-    requestedPlan: SubscriptionPlan,
-    activeSubscription: {
-      plan: SubscriptionPlan;
-      expiresAt: Date | null;
-    } | null,
-    now: Date,
-  ): number {
-    if (
-      !activeSubscription ||
-      (activeSubscription.expiresAt && activeSubscription.expiresAt <= now)
-    ) {
-      return this.getPlanAmount(requestedPlan);
-    }
-
-    if (activeSubscription.plan === requestedPlan) {
-      throw new ConflictException('This subscription plan is already active');
-    }
-
-    if (
-      activeSubscription.plan === SubscriptionPlan.PRO &&
-      requestedPlan === SubscriptionPlan.STUDENT
-    ) {
-      throw new ConflictException('Cannot downgrade an active paid plan');
-    }
-
-    if (
-      activeSubscription.plan === SubscriptionPlan.STUDENT &&
-      requestedPlan === SubscriptionPlan.PRO
-    ) {
-      return Math.max(0, this.proPrice - this.studentPrice);
-    }
-
-    return this.getPlanAmount(requestedPlan);
-  }
-
+  // Thực hiện chức năng activate gói free.
   private async activateFreePlan(
     userId: string,
     action: string,
   ): Promise<void> {
     const now = new Date();
+    // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
+      // Tạo mới hoặc cập nhật ví tài nguyên trong database.
       await transaction.subscription.upsert({
         where: { userId },
         update: {
@@ -622,6 +613,7 @@ export class PaymentsService {
           expiresAt: null,
           ...PLAN_QUOTAS.FREE,
           aiChatsUsed: 0,
+          unlimitedAiUntil: null,
         },
         create: {
           userId,
@@ -630,6 +622,7 @@ export class PaymentsService {
           expiresAt: null,
           ...PLAN_QUOTAS.FREE,
           aiChatsUsed: 0,
+          unlimitedAiUntil: null,
         },
       });
       await this.createAuditLog(transaction, userId, action, {
@@ -638,34 +631,97 @@ export class PaymentsService {
     });
   }
 
-  private async getActivationExpiresAt(
+  // Cộng quyền lợi đã mua vào ví tài nguyên và ghi sổ cái đúng một lần cho payment.
+  private async applyPurchasedResources(
     transaction: Prisma.TransactionClient,
     payment: {
+      id: string;
       userId: string;
       plan: SubscriptionPlan;
+      durationDays: number;
+      storageMb: number;
+      uploadCredits: number;
+      aiCredits: number;
+      unlimitedAiDays: number;
     },
     paidAt: Date,
   ): Promise<Date> {
-    if (payment.plan === SubscriptionPlan.PRO) {
-      const activeSubscription = await transaction.subscription.findUnique({
-        where: { userId: payment.userId },
-        select: { plan: true, expiresAt: true },
-      });
+    await transaction.$executeRaw(
+      Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${payment.userId}))`,
+    );
+    const existingLedger = await transaction.entitlementTransaction.findUnique({
+      where: { paymentOrderId: payment.id },
+      select: { accessExpiresAt: true },
+    });
+    if (existingLedger) return existingLedger.accessExpiresAt;
 
-      if (
-        activeSubscription?.plan === SubscriptionPlan.STUDENT &&
-        activeSubscription.expiresAt &&
-        activeSubscription.expiresAt > paidAt
-      ) {
-        return activeSubscription.expiresAt;
-      }
-    }
+    const current = await transaction.subscription.findUnique({
+      where: { userId: payment.userId },
+    });
+    const isActive = Boolean(current?.expiresAt && current.expiresAt > paidAt);
+    const baseExpiry = isActive && current?.expiresAt ? current.expiresAt : paidAt;
+    const expiresAt = this.addDays(baseExpiry, payment.durationDays);
+    const unlimitedBase =
+      current?.unlimitedAiUntil && current.unlimitedAiUntil > paidAt
+        ? current.unlimitedAiUntil
+        : paidAt;
+    const unlimitedAiUntil = payment.unlimitedAiDays
+      ? this.addDays(unlimitedBase, payment.unlimitedAiDays)
+      : current?.unlimitedAiUntil;
+    const baseStorage = isActive ? current?.storageLimitMb ?? 0 : PLAN_QUOTAS.FREE.storageLimitMb;
+    const baseUploads = isActive ? current?.uploadLimit ?? 0 : PLAN_QUOTAS.FREE.uploadLimit;
+    const baseAiCredits = isActive ? current?.aiChatLimit ?? 0 : PLAN_QUOTAS.FREE.aiChatLimit ?? 0;
 
-    const expiresAt = new Date(paidAt);
-    expiresAt.setMonth(expiresAt.getMonth() + SUBSCRIPTION_MONTHS);
+    // Tạo mới hoặc cập nhật ví tài nguyên trong database.
+    await transaction.subscription.upsert({
+      where: { userId: payment.userId },
+      update: {
+        plan: payment.plan,
+        paymentOrderId: payment.id,
+        startsAt: isActive && current ? current.startsAt : paidAt,
+        expiresAt,
+        storageLimitMb: baseStorage + payment.storageMb,
+        uploadLimit: baseUploads + payment.uploadCredits,
+        aiChatLimit: baseAiCredits + payment.aiCredits,
+        unlimitedAiUntil,
+        aiChatsUsed: isActive && current ? current.aiChatsUsed : 0,
+      },
+      create: {
+        userId: payment.userId,
+        plan: payment.plan,
+        paymentOrderId: payment.id,
+        startsAt: paidAt,
+        expiresAt,
+        storageLimitMb: PLAN_QUOTAS.FREE.storageLimitMb + payment.storageMb,
+        uploadLimit: PLAN_QUOTAS.FREE.uploadLimit + payment.uploadCredits,
+        aiChatLimit: (PLAN_QUOTAS.FREE.aiChatLimit ?? 0) + payment.aiCredits,
+        unlimitedAiUntil,
+        aiChatsUsed: 0,
+      },
+    });
+    // Tạo sổ cái quyền lợi trong database.
+    await transaction.entitlementTransaction.create({
+      data: {
+        userId: payment.userId,
+        paymentOrderId: payment.id,
+        packageCode: payment.plan,
+        durationDays: payment.durationDays,
+        storageDeltaMb: payment.storageMb,
+        uploadDelta: payment.uploadCredits,
+        aiCreditDelta: payment.aiCredits,
+        unlimitedAiDays: payment.unlimitedAiDays,
+        accessExpiresAt: expiresAt,
+      },
+    });
     return expiresAt;
   }
 
+  // Cộng số ngày theo UTC để thời hạn không bị lệch bởi múi giờ hoặc DST.
+  private addDays(value: Date, days: number): Date {
+    return new Date(value.getTime() + days * 24 * 60 * 60 * 1000);
+  }
+
+  // Tạo hoặc lưu free quyền lợi phản hồi.
   private async createFreeSubscriptionResponse(
     userId: string,
     startsAt: Date,
@@ -686,21 +742,24 @@ export class PaymentsService {
     };
   }
 
+  // Lấy dữ liệu người dùng usage.
   private async getUserUsage(
     userId: string,
     usagePeriodStart: Date,
     uploadLimit: number,
     storageLimitMb: number,
     aiChatLimit: number | null,
-  ): Promise<Pick<
-    CurrentSubscriptionDto,
-    | 'aiChatsUsed'
-    | 'aiChatsRemaining'
-    | 'uploadsUsed'
-    | 'uploadsRemaining'
-    | 'storageUsedMb'
-    | 'storageRemainingMb'
-  >> {
+  ): Promise<
+    Pick<
+      CurrentSubscriptionDto,
+      | 'aiChatsUsed'
+      | 'aiChatsRemaining'
+      | 'uploadsUsed'
+      | 'uploadsRemaining'
+      | 'storageUsedMb'
+      | 'storageRemainingMb'
+    >
+  > {
     const [documents, aiChatsUsed] = await Promise.all([
       this.prisma.document.aggregate({
         where: {
@@ -739,6 +798,7 @@ export class PaymentsService {
     };
   }
 
+  // Thực hiện chức năng expire pending thanh toán.
   private async expirePendingPayments(
     userId: string,
     invoiceNumber?: string,
@@ -754,8 +814,10 @@ export class PaymentsService {
     });
     if (expiredPayments.length === 0) return;
 
+    // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
       for (const payment of expiredPayments) {
+        // Cập nhật các hóa đơn thanh toán trong database.
         const result = await transaction.paymentOrder.updateMany({
           where: { id: payment.id, status: PaymentStatus.PENDING },
           data: { status: PaymentStatus.EXPIRED },
@@ -768,6 +830,7 @@ export class PaymentsService {
     });
   }
 
+  // Xử lý refund.
   private async processRefund(
     payment: {
       id: string;
@@ -779,7 +842,9 @@ export class PaymentsService {
   ): Promise<void> {
     if (payment.status !== PaymentStatus.PAID) return;
 
+    // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
+      // Đánh dấu hóa đơn PAID sau khi đối soát SePay trả trạng thái CAPTURED.
       const result = await transaction.paymentOrder.updateMany({
         where: { id: payment.id, status: PaymentStatus.PAID },
         data: {
@@ -791,19 +856,51 @@ export class PaymentsService {
 
       const activeSubscription = await transaction.subscription.findUnique({
         where: { userId: payment.userId },
-        select: { paymentOrderId: true },
       });
-      if (activeSubscription?.paymentOrderId === payment.id) {
+      const entitlement = await transaction.entitlementTransaction.findUnique({
+        where: { paymentOrderId: payment.id },
+      });
+      if (activeSubscription && entitlement) {
+        const reducedExpiry = activeSubscription.expiresAt
+          ? this.addDays(activeSubscription.expiresAt, -entitlement.durationDays)
+          : null;
+        const accessExpired = Boolean(reducedExpiry && reducedExpiry <= new Date());
+        const reducedUnlimited = activeSubscription.unlimitedAiUntil
+          ? this.addDays(activeSubscription.unlimitedAiUntil, -entitlement.unlimitedAiDays)
+          : null;
+        // Cập nhật ví tài nguyên trong database.
         await transaction.subscription.update({
           where: { userId: payment.userId },
-          data: {
-            plan: SubscriptionPlan.FREE,
-            paymentOrderId: null,
-            startsAt: new Date(),
-            expiresAt: null,
-            ...PLAN_QUOTAS.FREE,
-            aiChatsUsed: 0,
-          },
+          data: accessExpired
+            ? {
+                plan: SubscriptionPlan.FREE,
+                paymentOrderId: null,
+                startsAt: new Date(),
+                expiresAt: null,
+                ...PLAN_QUOTAS.FREE,
+                aiChatsUsed: 0,
+                unlimitedAiUntil: null,
+              }
+            : {
+                paymentOrderId:
+                  activeSubscription.paymentOrderId === payment.id
+                    ? null
+                    : activeSubscription.paymentOrderId,
+                expiresAt: reducedExpiry,
+                storageLimitMb: Math.max(
+                  PLAN_QUOTAS.FREE.storageLimitMb,
+                  activeSubscription.storageLimitMb - entitlement.storageDeltaMb,
+                ),
+                uploadLimit: Math.max(
+                  PLAN_QUOTAS.FREE.uploadLimit,
+                  activeSubscription.uploadLimit - entitlement.uploadDelta,
+                ),
+                aiChatLimit: Math.max(
+                  PLAN_QUOTAS.FREE.aiChatLimit ?? 0,
+                  (activeSubscription.aiChatLimit ?? 0) - entitlement.aiCreditDelta,
+                ),
+                unlimitedAiUntil: reducedUnlimited,
+              },
         });
       }
 
@@ -825,12 +922,14 @@ export class PaymentsService {
     });
   }
 
+  // Tạo hoặc lưu audit log.
   private createAuditLog(
     transaction: Prisma.TransactionClient,
     userId: string,
     action: string,
     metadata: Prisma.InputJsonObject,
   ): Promise<unknown> {
+    // Tạo nhật ký kiểm toán trong database.
     return transaction.auditLog.create({
       data: {
         userId,
@@ -842,10 +941,12 @@ export class PaymentsService {
     });
   }
 
+  // Tạo hoặc lưu invoice number.
   private createInvoiceNumber(): string {
     return `DM${Date.now()}${randomBytes(4).toString('hex').toUpperCase()}`;
   }
 
+  // Kiểm tra điều kiện ipn authorization.
   private verifyIpnAuthorization(authorization: string | undefined): void {
     const match = authorization?.match(/^Apikey\s+(.+)$/i);
     const receivedApiKey = match?.[1]?.trim();
@@ -864,6 +965,7 @@ export class PaymentsService {
     }
   }
 
+  // Xử lý bank webhook.
   private async processBankWebhook(
     authorization: string | undefined,
     payload: SepayBankWebhook,
@@ -923,6 +1025,7 @@ export class PaymentsService {
     });
   }
 
+  // Thực hiện chức năng reconcile pending thanh toán.
   private async reconcilePendingPayment(payment: {
     id: string;
     userId: string;
@@ -931,6 +1034,11 @@ export class PaymentsService {
     amount: number;
     currency: string;
     status: PaymentStatus;
+    durationDays: number;
+    storageMb: number;
+    uploadCredits: number;
+    aiCredits: number;
+    unlimitedAiDays: number;
   }): Promise<void> {
     if (payment.status !== PaymentStatus.PENDING || !this.client) return;
 
@@ -948,7 +1056,9 @@ export class PaymentsService {
 
     const paidAt = new Date();
 
+    // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
+      // Cập nhật các hóa đơn thanh toán trong database.
       const updateResult = await transaction.paymentOrder.updateMany({
         where: {
           id: payment.id,
@@ -964,32 +1074,12 @@ export class PaymentsService {
 
       if (updateResult.count === 0) return;
 
-      const expiresAt = await this.getActivationExpiresAt(
+      // Cộng ngày sử dụng và quota qua nhánh đối soát dự phòng.
+      const expiresAt = await this.applyPurchasedResources(
         transaction,
         payment,
         paidAt,
       );
-
-      await transaction.subscription.upsert({
-        where: { userId: payment.userId },
-        update: {
-          plan: payment.plan,
-          paymentOrderId: payment.id,
-          startsAt: paidAt,
-          expiresAt,
-          ...PLAN_QUOTAS[payment.plan],
-          aiChatsUsed: 0,
-        },
-        create: {
-          userId: payment.userId,
-          plan: payment.plan,
-          paymentOrderId: payment.id,
-          startsAt: paidAt,
-          expiresAt,
-          ...PLAN_QUOTAS[payment.plan],
-          aiChatsUsed: 0,
-        },
-      });
       await this.createAuditLog(transaction, payment.userId, 'payment.paid', {
         invoiceNumber: payment.invoiceNumber,
         orderId: order.id,
@@ -1010,12 +1100,14 @@ export class PaymentsService {
     });
   }
 
+  // Xử lý sepay order detail.
   private extractSepayOrderDetail(payload: unknown): SepayOrderDetail | null {
     if (!this.isRecord(payload)) return null;
     const detail = this.isRecord(payload.data) ? payload.data : payload;
     return this.isRecord(detail) ? detail : null;
   }
 
+  // Kiểm tra điều kiện captured order.
   private validateCapturedOrder(
     payment: {
       userId: string;
@@ -1040,6 +1132,7 @@ export class PaymentsService {
     }
   }
 
+  // Xử lý invoice number.
   private extractInvoiceNumber(payload: SepayBankWebhook): string | null {
     const code = payload.code?.trim();
     if (code?.toUpperCase().startsWith('DM')) {
@@ -1049,6 +1142,7 @@ export class PaymentsService {
     return payload.content.match(/\bDM[0-9A-F]+\b/i)?.[0].toUpperCase() ?? null;
   }
 
+  // Kiểm tra điều kiện bank webhook.
   private isBankWebhook(payload: unknown): payload is SepayBankWebhook {
     if (!this.isRecord(payload)) return false;
 
@@ -1068,6 +1162,7 @@ export class PaymentsService {
     );
   }
 
+  // Kiểm tra điều kiện thanh toán gateway ipn.
   private isPaymentGatewayIpn(payload: unknown): payload is SepayIpnDto {
     if (!this.isRecord(payload)) return false;
 
@@ -1079,10 +1174,12 @@ export class PaymentsService {
     );
   }
 
+  // Kiểm tra điều kiện record.
   private isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
   }
 
+  // Kiểm tra điều kiện paid thông báo.
   private validatePaidNotification(
     payment: {
       amount: number;
@@ -1122,6 +1219,7 @@ export class PaymentsService {
     }
   }
 
+  // Chuyển đổi hoặc chuẩn hóa thanh toán phản hồi.
   private toPaymentResponse(payment: {
     invoiceNumber: string;
     plan: SubscriptionPlan;

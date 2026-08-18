@@ -41,6 +41,7 @@ type NavItem = {
   accent?: boolean;
 };
 
+// Kiểm tra điều kiện active path.
 function isActivePath(pathname: string, href: string) {
   return (
     pathname === href ||
@@ -48,9 +49,11 @@ function isActivePath(pathname: string, href: string) {
   );
 }
 
+// Hiển thị giao diện app layout.
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const { locale, t } = useLanguage();
+  // Thực hiện chức năng text.
   const text = (vi: string, en: string) => localize(locale, vi, en);
   const pathname = usePathname() ?? ROUTES.dashboard;
   const router = useRouter();
@@ -99,12 +102,15 @@ export function AppLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     let active = true;
+    // Lấy dữ liệu load.
     const load = () => {
-      void getNotifications().then((result) => {
-        if (!active) return;
-        setNotifications(result.items);
-        setUnreadCount(result.unreadCount);
-      }).catch(() => undefined);
+      void getNotifications()
+        .then((result) => {
+          if (!active) return;
+          setNotifications(result.items);
+          setUnreadCount(result.unreadCount);
+        })
+        .catch(() => undefined);
     };
     load();
     const timer = window.setInterval(load, 30_000);
@@ -115,6 +121,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   }, [user, pathname]);
 
   useEffect(() => {
+    // Xóa hoặc giải phóng on outside click.
     function closeOnOutsideClick(event: MouseEvent) {
       if (!notificationsRef.current?.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
@@ -124,25 +131,35 @@ export function AppLayout({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("mousedown", closeOnOutsideClick);
   }, []);
 
+  // Lấy dữ liệu thông báo.
   async function readNotification(notification: UserNotification) {
     if (!notification.isRead) {
       await markNotificationRead(notification.id);
-      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, isRead: true } : item));
+      setNotifications((items) =>
+        items.map((item) =>
+          item.id === notification.id ? { ...item, isRead: true } : item,
+        ),
+      );
       setUnreadCount((count) => Math.max(0, count - 1));
     }
   }
 
+  // Lấy dữ liệu danh sách thông báo.
   async function readAllNotifications() {
     await markAllNotificationsRead();
-    setNotifications((items) => items.map((item) => ({ ...item, isRead: true })));
+    setNotifications((items) =>
+      items.map((item) => ({ ...item, isRead: true })),
+    );
     setUnreadCount(0);
   }
 
+  // Xử lý sự kiện đăng xuất.
   async function handleLogout() {
     await logout();
     router.replace(ROUTES.login);
   }
 
+  // Hiển thị hoặc mở link.
   function renderLink(item: NavItem) {
     const Icon = item.icon;
     return (
@@ -178,7 +195,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
             type="button"
             className="sidebar-collapse"
             onClick={() => setIsSidebarCompact((current) => !current)}
-            aria-label={isSidebarCompact ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={
+              isSidebarCompact ? "Expand sidebar" : "Collapse sidebar"
+            }
             title={isSidebarCompact ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isSidebarCompact ? (
@@ -199,7 +218,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
         <nav
           className="side-nav"
-          aria-label={text("Điều hướng không gian học tập", "Workspace navigation")}
+          aria-label={text(
+            "Điều hướng không gian học tập",
+            "Workspace navigation",
+          )}
         >
           <span className="side-nav-label">
             {text("Không gian học tập", "Workspace")}
@@ -230,7 +252,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <nav
             className="side-nav side-nav--admin"
             aria-label={text("Điều hướng quản trị", "Admin navigation")}
-            style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem", marginTop: "1rem" }}
+            style={{
+              borderTop: "1px solid var(--border)",
+              paddingTop: "1rem",
+              marginTop: "1rem",
+            }}
           >
             <span className="side-nav-label">{text("Quản trị", "Admin")}</span>
             {renderLink({
@@ -250,7 +276,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
             })}
           </nav>
         ) : null}
-
       </aside>
 
       <div className="main-column">
@@ -286,30 +311,56 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 onClick={() => setIsNotificationsOpen((open) => !open)}
               >
                 <Bell size={19} />
-                {unreadCount > 0 ? <span className="notification-badge">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
+                {unreadCount > 0 ? (
+                  <span className="notification-badge">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                ) : null}
               </button>
               {isNotificationsOpen ? (
                 <section className="notification-popover">
                   <header>
                     <strong>{text("Thông báo", "Notifications")}</strong>
-                    {unreadCount > 0 ? <button type="button" onClick={() => void readAllNotifications()}>{text("Đánh dấu đã đọc", "Mark all read")}</button> : null}
-                  </header>
-                  <div className="notification-list">
-                    {notifications.length ? notifications.map((notification) => (
+                    {unreadCount > 0 ? (
                       <button
                         type="button"
-                        key={notification.id}
-                        className={`notification-item${notification.isRead ? "" : " unread"}`}
-                        onClick={() => void readNotification(notification)}
+                        onClick={() => void readAllNotifications()}
                       >
-                        <span className={`notification-dot notification-dot--${notification.type.toLowerCase()}`} />
-                        <span>
-                          <strong>{notification.title}</strong>
-                          <small>{notification.message}</small>
-                          <time>{new Date(notification.createdAt).toLocaleString(locale === "vi" ? "vi-VN" : "en-US")}</time>
-                        </span>
+                        {text("Đánh dấu đã đọc", "Mark all read")}
                       </button>
-                    )) : <p className="notification-empty">{text("Chưa có thông báo nào.", "No notifications yet.")}</p>}
+                    ) : null}
+                  </header>
+                  <div className="notification-list">
+                    {notifications.length ? (
+                      notifications.map((notification) => (
+                        <button
+                          type="button"
+                          key={notification.id}
+                          className={`notification-item${notification.isRead ? "" : " unread"}`}
+                          onClick={() => void readNotification(notification)}
+                        >
+                          <span
+                            className={`notification-dot notification-dot--${notification.type.toLowerCase()}`}
+                          />
+                          <span>
+                            <strong>{notification.title}</strong>
+                            <small>{notification.message}</small>
+                            <time>
+                              {new Date(notification.createdAt).toLocaleString(
+                                locale === "vi" ? "vi-VN" : "en-US",
+                              )}
+                            </time>
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="notification-empty">
+                        {text(
+                          "Chưa có thông báo nào.",
+                          "No notifications yet.",
+                        )}
+                      </p>
+                    )}
                   </div>
                 </section>
               ) : null}

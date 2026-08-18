@@ -23,8 +23,10 @@ import type { LibraryDocument } from "../types/document";
 import type { ChatSessionSummary } from "../types/chat";
 import type { CurrentSubscription } from "../types/payment";
 
+// Hiển thị giao diện dashboard view.
 export function DashboardView() {
   const { locale } = useLanguage();
+  // Thực hiện chức năng text.
   const text = (vi: string, en: string) => localize(locale, vi, en);
   const [question, setQuestion] = useState("");
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
@@ -85,6 +87,7 @@ export function DashboardView() {
     ? `${formatStorage(subscription.storageUsedMb)} / ${formatStorage(subscription.storageLimitMb)}`
     : `${formatStorage(fallbackStorageUsedMb)} / —`;
 
+  // Thực hiện chức năng submit question.
   function submitQuestion(event: FormEvent) {
     event.preventDefault();
     if (!question.trim()) return;
@@ -94,8 +97,15 @@ export function DashboardView() {
   return (
     <main id="main-content" className="workspace-dashboard">
       <section className="dashboard-welcome">
-        <p className="eyebrow">{text("KHÔNG GIAN HỌC TẬP AI", "AI STUDY WORKSPACE")}</p>
-        <h1>{text("Hôm nay bạn muốn tìm hiểu điều gì?", "What would you like to understand today?")}</h1>
+        <p className="eyebrow">
+          {text("KHÔNG GIAN HỌC TẬP AI", "AI STUDY WORKSPACE")}
+        </p>
+        <h1>
+          {text(
+            "Hôm nay bạn muốn tìm hiểu điều gì?",
+            "What would you like to understand today?",
+          )}
+        </h1>
         <p>
           {text(
             "Tìm kiếm nguồn tài liệu, tiếp tục chủ đề nghiên cứu hoặc đặt câu hỏi trên toàn bộ thư viện của bạn.",
@@ -108,10 +118,17 @@ export function DashboardView() {
           <input
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
-            placeholder={text("Hỏi bất kỳ điều gì từ tài liệu học tập...", "Ask anything from your study documents...")}
+            placeholder={text(
+              "Hỏi bất kỳ điều gì từ tài liệu học tập...",
+              "Ask anything from your study documents...",
+            )}
             aria-label={text("Hỏi thư viện của bạn", "Ask your library")}
           />
-          <button type="submit" aria-label={text("Hỏi AI", "Ask AI")} disabled={!question.trim()}>
+          <button
+            type="submit"
+            aria-label={text("Hỏi AI", "Ask AI")}
+            disabled={!question.trim()}
+          >
             <ArrowRight size={19} />
           </button>
         </form>
@@ -134,8 +151,15 @@ export function DashboardView() {
           <section className="dashboard-section">
             <header className="dashboard-section-heading">
               <div>
-                <p className="eyebrow">{text("NGUỒN GẦN ĐÂY", "RECENT SOURCES")}</p>
-                <h2>{text("Tiếp tục từ thư viện của bạn", "Continue from your library")}</h2>
+                <p className="eyebrow">
+                  {text("NGUỒN GẦN ĐÂY", "RECENT SOURCES")}
+                </p>
+                <h2>
+                  {text(
+                    "Tiếp tục từ thư viện của bạn",
+                    "Continue from your library",
+                  )}
+                </h2>
               </div>
               <Link href={ROUTES.library}>
                 {text("Xem tất cả", "View all")} <ArrowRight size={15} />
@@ -160,7 +184,9 @@ export function DashboardView() {
                       ? text("AI sẵn sàng", "AI ready")
                       : text("Đang xử lý", "Processing")}
                   </span>
-                  <Link href={`${ROUTES.aiChat}?scope=document&document=${document.id}`}>
+                  <Link
+                    href={`${ROUTES.aiChat}?scope=document&document=${document.id}`}
+                  >
                     <Sparkles size={15} />
                     {text("Hỏi AI", "Ask AI")}
                   </Link>
@@ -172,20 +198,41 @@ export function DashboardView() {
           <section className="dashboard-section">
             <header className="dashboard-section-heading">
               <div>
-                <p className="eyebrow">{text("TRÒ CHUYỆN GẦN ĐÂY", "RECENT CHAT")}</p>
-                <h2>{text("Tiếp tục chủ đề học tập", "Pick up a study thread")}</h2>
+                <p className="eyebrow">
+                  {text("TRÒ CHUYỆN GẦN ĐÂY", "RECENT CHAT")}
+                </p>
+                <h2>
+                  {text("Tiếp tục chủ đề học tập", "Pick up a study thread")}
+                </h2>
               </div>
             </header>
             <div className="recent-chat-grid">
               {recentChats.map((chat) => (
-                <Link href={`${ROUTES.aiChat}?session=${chat.id}`} key={chat.id}>
-                  {chat.document ? <BookOpen size={19} /> : <MessageSquareText size={19} />}
+                <Link
+                  href={`${ROUTES.aiChat}?session=${chat.id}`}
+                  key={chat.id}
+                >
+                  {chat.document ? (
+                    <BookOpen size={19} />
+                  ) : (
+                    <MessageSquareText size={19} />
+                  )}
                   <div>
-                    <strong>{chat.title || chat.lastMessage?.content || text("Cuộc trò chuyện chưa có tiêu đề", "Untitled conversation")}</strong>
+                    <strong>
+                      {chat.title ||
+                        chat.lastMessage?.content ||
+                        text(
+                          "Cuộc trò chuyện chưa có tiêu đề",
+                          "Untitled conversation",
+                        )}
+                    </strong>
                     <span>
                       {chat.document
                         ? chat.document.title
-                        : text(`${chat.messageCount} tin nhắn`, `${chat.messageCount} messages`)}
+                        : text(
+                            `${chat.messageCount} tin nhắn`,
+                            `${chat.messageCount} messages`,
+                          )}
                       {` / ${new Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : "en-US", { dateStyle: "medium" }).format(new Date(chat.updatedAt))}`}
                     </span>
                   </div>
@@ -193,7 +240,12 @@ export function DashboardView() {
                 </Link>
               ))}
               {recentChats.length === 0 && (
-                <p>{text("Chưa có cuộc trò chuyện nào.", "No conversations yet.")}</p>
+                <p>
+                  {text(
+                    "Chưa có cuộc trò chuyện nào.",
+                    "No conversations yet.",
+                  )}
+                </p>
               )}
             </div>
           </section>
@@ -228,10 +280,7 @@ export function DashboardView() {
                       `Đã dùng ${subscription.aiChatsUsed} trong ${subscription.aiChatLimit} lượt chat AI trong kỳ hiện tại.`,
                       `${subscription.aiChatsUsed} of ${subscription.aiChatLimit} AI chats used in the current period.`,
                     )
-                : text(
-                    "Đang tải mức sử dụng AI...",
-                    "Loading AI usage...",
-                  )}
+                : text("Đang tải mức sử dụng AI...", "Loading AI usage...")}
             </p>
             <Link href={ROUTES.subscription}>
               {text("Quản lý gói", "Manage plan")} <ArrowRight size={14} />
@@ -259,7 +308,9 @@ export function DashboardView() {
               <FileText size={21} />
             </span>
             <div>
-              <strong>{text("Thêm nguồn tài liệu mới", "Add a new source")}</strong>
+              <strong>
+                {text("Thêm nguồn tài liệu mới", "Add a new source")}
+              </strong>
               <small>PDF, DOCX, PPTX hoặc XLSX</small>
             </div>
             <ArrowRight size={17} />
@@ -270,6 +321,7 @@ export function DashboardView() {
   );
 }
 
+// Lấy dữ liệu ai usage percent.
 function getAiUsagePercent(subscription?: CurrentSubscription) {
   if (!subscription || subscription.aiChatLimit === null) return 0;
   if (subscription.aiChatLimit <= 0) return 0;
@@ -279,6 +331,7 @@ function getAiUsagePercent(subscription?: CurrentSubscription) {
   );
 }
 
+// Chuyển đổi hoặc chuẩn hóa storage.
 function formatStorage(megabytes: number) {
   if (megabytes >= 1024) {
     return `${(megabytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 2 })} GB`;

@@ -43,10 +43,12 @@ export class SubscriptionService {
     autoRenew: true,
   };
 
+  // Lấy dữ liệu gói dịch vụ.
   getPlans(): SubscriptionPlanResponseDto[] {
     return this.plans;
   }
 
+  // Lấy dữ liệu hiện tại quyền lợi.
   getCurrentSubscription(): CurrentSubscriptionResponseDto {
     return this.currentSubscription;
   }

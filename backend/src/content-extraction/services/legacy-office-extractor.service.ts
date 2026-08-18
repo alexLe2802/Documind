@@ -5,11 +5,13 @@ import { tmpdir } from 'node:os';
 import { basename, extname, join } from 'node:path';
 import { PdfExtractorService } from './pdf-extractor.service';
 
-/** Converts binary Office formats to PDF before the normal, OCR-aware pipeline. */
+// Chuyển định dạng Office cũ sang PDF trước khi chạy pipeline OCR thông thường.
 @Injectable()
 export class LegacyOfficeExtractorService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly pdfExtractor: PdfExtractorService) {}
 
+  // Xử lý extract.
   async extract(buffer: Buffer, fileName: string): Promise<string> {
     const workspace = await mkdtemp(join(tmpdir(), 'legacy-office-extract-'));
     const inputPath = join(workspace, this.safeFileName(fileName));
@@ -33,6 +35,7 @@ export class LegacyOfficeExtractorService {
     }
   }
 
+  // Chuyển đổi hoặc chuẩn hóa to pdf.
   private convertToPdf(outDir: string, inputPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const child = spawn('soffice', [
@@ -58,6 +61,7 @@ export class LegacyOfficeExtractorService {
     });
   }
 
+  // Thực hiện chức năng safe tệp name.
   private safeFileName(fileName: string): string {
     const extension = extname(fileName).toLowerCase();
     const stem = basename(fileName, extension).replace(

@@ -16,8 +16,10 @@ import { SubscriptionService } from './subscription.service';
 @ApiExtraModels(SubscriptionPlanResponseDto, CurrentSubscriptionResponseDto)
 @Controller('subscription')
 export class SubscriptionController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
+  // Lấy dữ liệu gói dịch vụ.
   @Get('plans')
   @ApiOperation({ summary: 'List mock subscription plans' })
   @ApiOkResponse({
@@ -39,6 +41,7 @@ export class SubscriptionController {
     return this.subscriptionService.getPlans();
   }
 
+  // Lấy dữ liệu quyền lợi hiện tại.
   @Get('current')
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()

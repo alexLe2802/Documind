@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ROUTES } from "../../lib/routes";
 
+// Hiển thị giao diện brand.
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link

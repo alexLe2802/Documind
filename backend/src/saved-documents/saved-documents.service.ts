@@ -61,8 +61,10 @@ export interface SavedDocumentListResponse {
 
 @Injectable()
 export class SavedDocumentsService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly prisma: PrismaService) {}
 
+  // Lấy danh sách dữ liệu phù hợp.
   async findAll(
     userId: string,
     query: SavedDocumentQueryDto,
@@ -100,6 +102,7 @@ export class SavedDocumentsService {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa where.
   private buildWhere(
     userId: string,
     query: SavedDocumentQueryDto,
@@ -150,6 +153,7 @@ export class SavedDocumentsService {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa order by.
   private buildOrderBy(
     query: SavedDocumentQueryDto,
   ): Prisma.SavedDocumentOrderByWithRelationInput[] {
@@ -163,6 +167,7 @@ export class SavedDocumentsService {
     return [{ document: { [sortBy]: sortOrder } }, { id: 'desc' }];
   }
 
+  // Chuyển đổi hoặc chuẩn hóa serialize.
   private serialize(
     savedDocument: SavedDocumentPayload,
     currentUserId: string,
@@ -180,6 +185,7 @@ export class SavedDocumentsService {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa mime type.
   private toMimeType(
     fileType: NonNullable<SavedDocumentQueryDto['fileType']>,
   ): string {

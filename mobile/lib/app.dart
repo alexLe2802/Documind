@@ -11,6 +11,7 @@ import 'features/home/home_shell.dart';
 class DocuMindApp extends ConsumerWidget {
   const DocuMindApp({super.key});
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authStateProvider);
@@ -80,6 +81,7 @@ class DocuMindApp extends ConsumerWidget {
 class _BackendSessionGate extends ConsumerStatefulWidget {
   const _BackendSessionGate({required this.firebaseUser, super.key});
   final User firebaseUser;
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<_BackendSessionGate> createState() =>
       _BackendSessionGateState();
@@ -88,6 +90,7 @@ class _BackendSessionGate extends ConsumerStatefulWidget {
 class _BackendSessionGateState extends ConsumerState<_BackendSessionGate> {
   late final Future<_BackendSessionState> check = _validateSession();
 
+  // Thực hiện chức năng validate phiên.
   Future<_BackendSessionState> _validateSession() async {
     try {
       await widget.firebaseUser.reload();
@@ -125,6 +128,7 @@ class _BackendSessionGateState extends ConsumerState<_BackendSessionGate> {
     }
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => FutureBuilder(
     future: check,

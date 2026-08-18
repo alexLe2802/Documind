@@ -15,12 +15,9 @@ import {
 } from "../lib/google-registration";
 import { ROUTES, getAuthenticatedHomeRoute } from "../lib/routes";
 
+// Hiển thị giao diện đăng ký view.
 export function RegisterView() {
-  const {
-    loginWithGoogle,
-    pendingGoogleRegistration,
-    register,
-  } = useAuth();
+  const { loginWithGoogle, pendingGoogleRegistration, register } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
   const [fullName, setFullName] = useState("");
@@ -37,6 +34,7 @@ export function RegisterView() {
   useEffect(() => {
     let isActive = true;
 
+    // Thực hiện chức năng restore google hồ sơ.
     async function restoreGoogleProfile() {
       const profile =
         pendingGoogleRegistration ?? readPendingGoogleRegistration();
@@ -73,6 +71,7 @@ export function RegisterView() {
   useEffect(() => {
     let isActive = true;
 
+    // Thực hiện chức năng restore mobile google registration.
     async function restoreMobileGoogleRegistration() {
       const params = new URLSearchParams(window.location.search);
       if (params.get("source") !== "mobile-google") return;
@@ -89,14 +88,19 @@ export function RegisterView() {
       window.history.replaceState({}, "", window.location.pathname);
       if (!googleIdToken) {
         if (isActive) {
-          setError("Phiên Google đã hết hạn. Vui lòng tiếp tục lại với Google.");
+          setError(
+            "Phiên Google đã hết hạn. Vui lòng tiếp tục lại với Google.",
+          );
         }
         return;
       }
 
       try {
         const credential = GoogleAuthProvider.credential(googleIdToken);
-        const result = await signInWithCredential(getFirebaseAuth(), credential);
+        const result = await signInWithCredential(
+          getFirebaseAuth(),
+          credential,
+        );
         if (!isActive) return;
         setFullName(fullNameFromMobile || result.user.displayName || "");
         setEmail(emailFromMobile || result.user.email || "");
@@ -116,6 +120,7 @@ export function RegisterView() {
     };
   }, []);
 
+  // Xử lý sự kiện submit.
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError("");
@@ -148,6 +153,7 @@ export function RegisterView() {
     }
   }
 
+  // Xử lý sự kiện google đăng ký.
   async function handleGoogleRegister() {
     setError("");
     setIsGoogleSubmitting(true);
@@ -281,9 +287,7 @@ export function RegisterView() {
         <button
           className="primary-button"
           type="submit"
-          disabled={
-            isSubmitting || isGoogleSubmitting || !acceptedTerms
-          }
+          disabled={isSubmitting || isGoogleSubmitting || !acceptedTerms}
         >
           <UserPlus size={18} />
           {isSubmitting ? t("auth.creating") : t("auth.signup")}

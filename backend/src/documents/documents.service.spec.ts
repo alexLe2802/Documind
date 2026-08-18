@@ -633,7 +633,7 @@ describe('DocumentsService', () => {
     );
   });
 
-  it('automatically approves a clean completed private document when published', async () => {
+  it('sends a clean completed private document to admin review when published', async () => {
     prisma.document.findFirst.mockResolvedValue({
       id: 'doc-id',
       fileSize: BigInt(42),
@@ -668,11 +668,19 @@ describe('DocumentsService', () => {
     expect(updateArgs[0].where).toEqual({ id: 'doc-id' });
     expect(updateArgs[0].data.visibility).toBe(DocumentVisibility.PUBLIC);
     expect(updateArgs[0].data).toMatchObject({
-      moderationStatus: ModerationStatus.APPROVED,
+      moderationStatus: ModerationStatus.PENDING,
       moderationFlag: 'NORMAL',
       moderationPriority: 2,
       matchedKeywords: [],
       matchedContexts: [],
+    });
+    expect(notifications.create).toHaveBeenCalledWith({
+      userId: 'owner-id',
+      type: 'DOCUMENT_PENDING_REVIEW',
+      title: 'Tài liệu đang chờ kiểm duyệt',
+      message:
+        'Tài liệu “Clean notes” đã được gửi đến quản trị viên và chỉ xuất hiện trên cộng đồng sau khi được duyệt.',
+      documentId: 'doc-id',
     });
   });
 

@@ -34,10 +34,7 @@ const libraryVi: Record<
 
 const communityVi: Record<
   string,
-  Pick<
-    CommunityDocument,
-    "description" | "subject" | "category" | "updatedAt"
-  >
+  Pick<CommunityDocument, "description" | "subject" | "category" | "updatedAt">
 > = {
   "79c555d8-b4ce-4d98-9f93-15f2fe1c9813": {
     description:
@@ -83,6 +80,7 @@ const communityVi: Record<
   },
 };
 
+// Thực hiện chức năng localize library tài liệu.
 export function localizeLibraryDocument(
   document: LibraryDocument,
   locale: Locale,
@@ -113,6 +111,7 @@ export function localizeLibraryDocument(
   };
 }
 
+// Thực hiện chức năng localize cộng đồng tài liệu.
 export function localizeCommunityDocument(
   document: CommunityDocument,
   locale: Locale,

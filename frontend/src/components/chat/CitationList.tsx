@@ -1,28 +1,36 @@
-'use client'
+"use client";
 
-import { FileText } from 'lucide-react'
-import type { Citation } from '../../types/chat'
-import { useLanguage } from '../../i18n/LanguageProvider'
-import { localize } from '../../i18n/localize'
+import { FileText } from "lucide-react";
+import type { Citation } from "../../types/chat";
+import { useLanguage } from "../../i18n/LanguageProvider";
+import { localize } from "../../i18n/localize";
 
+// Hiển thị giao diện citation list.
 export function CitationList({
   citations,
   selected,
   onSelect,
 }: {
-  citations: Citation[]
-  selected?: number
-  onSelect?: (citation: Citation) => void
+  citations: Citation[];
+  selected?: number;
+  onSelect?: (citation: Citation) => void;
 }) {
-  const { locale } = useLanguage()
-  if (citations.length === 0) return null
+  const { locale } = useLanguage();
+  if (citations.length === 0) return null;
 
   return (
-    <div className="citation-list" aria-label={localize(locale, 'Nguồn của câu trả lời', 'Answer sources')}>
+    <div
+      className="citation-list"
+      aria-label={localize(locale, "Nguồn của câu trả lời", "Answer sources")}
+    >
       {citations.map((citation) => (
         <button
           type="button"
-          className={selected === citation.sourceNumber ? 'citation-row active' : 'citation-row'}
+          className={
+            selected === citation.sourceNumber
+              ? "citation-row active"
+              : "citation-row"
+          }
           key={`${citation.documentId}-${citation.sourceNumber}`}
           onClick={() => onSelect?.(citation)}
         >
@@ -41,5 +49,5 @@ export function CitationList({
         </button>
       ))}
     </div>
-  )
+  );
 }

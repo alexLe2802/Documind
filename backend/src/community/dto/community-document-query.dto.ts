@@ -37,6 +37,7 @@ export enum SortOrder {
   DESC = 'desc',
 }
 
+// Chuyển đổi hoặc chuẩn hóa ids.
 function parseIds(value: unknown): string[] | undefined {
   if (value === undefined || value === null || value === '') {
     return undefined;

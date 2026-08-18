@@ -561,7 +561,7 @@ describe('ContentExtractionService', () => {
     });
   });
 
-  it('automatically approves a clean public document after extraction', async () => {
+  it('keeps a clean public document pending after extraction', async () => {
     const documentId = '22222222-2222-4222-8222-222222222222';
     const jobId = '33333333-3333-4333-8333-333333333333';
     prisma.documentContent.updateMany.mockResolvedValue({ count: 1 });
@@ -585,7 +585,7 @@ describe('ContentExtractionService', () => {
       where: { id: documentId },
       data: {
         extractionStatus: ExtractionStatus.COMPLETED,
-        moderationStatus: ModerationStatus.APPROVED,
+        moderationStatus: ModerationStatus.PENDING,
         moderationFlag: 'NORMAL',
         moderationPriority: 2,
         matchedKeywords: [],

@@ -16,6 +16,7 @@ interface RequestWithId extends Request {
 export class RequestLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(RequestLoggingInterceptor.name);
 
+  // Thực hiện chức năng intercept.
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const startedAt = Date.now();
     const http = context.switchToHttp();
@@ -31,6 +32,7 @@ export class RequestLoggingInterceptor implements NestInterceptor {
     );
   }
 
+  // Thực hiện chức năng log.
   private log(
     request: RequestWithId,
     response: Response,

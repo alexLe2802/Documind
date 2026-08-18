@@ -66,6 +66,7 @@ const DEFAULT_KEYWORDS = [
 export class ModerationScannerService {
   private readonly keywords = this.loadKeywords();
 
+  // Xử lý scan.
   scan(extractedText: string | null | undefined): ModerationScanResult {
     const text = extractedText?.trim();
     if (!text) {
@@ -96,6 +97,7 @@ export class ModerationScannerService {
     };
   }
 
+  // Lấy dữ liệu keywords.
   private loadKeywords(): string[] {
     const configured = process.env.MODERATION_KEYWORDS?.split(',')
       .map((keyword) => keyword.trim())

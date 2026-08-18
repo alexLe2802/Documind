@@ -17,12 +17,14 @@ final currentProfileProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
 class _HomeShellState extends ConsumerState<HomeShell> {
   int index = 0;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final isAdmin = ref.watch(currentProfileProvider).value?['role'] == 'ADMIN';
@@ -113,6 +115,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({required this.onOpen, super.key});
   final ValueChanged<int> onOpen;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final docs = ref.watch(documentsProvider).value ?? const [];
@@ -225,6 +228,7 @@ class _Metric extends StatelessWidget {
   const _Metric({required this.value, required this.label});
   final String value;
   final String label;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
@@ -254,6 +258,7 @@ class _ActionCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Card(
     child: ListTile(

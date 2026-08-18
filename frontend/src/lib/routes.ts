@@ -23,6 +23,7 @@ export const ROUTES = {
   privacy: "/privacy",
 } as const;
 
+// Lấy dữ liệu authenticated home route.
 export function getAuthenticatedHomeRoute(role: "ADMIN" | "USER") {
   return role === "ADMIN" ? ROUTES.adminDashboard : ROUTES.dashboard;
 }

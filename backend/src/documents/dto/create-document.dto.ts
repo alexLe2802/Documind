@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { DocumentVisibility } from '../../generated/prisma/client';
 
+// Chuyển đổi hoặc chuẩn hóa thẻ ids.
 function parseTagIds(value: unknown): string[] | undefined {
   if (value === undefined || value === null || value === '') {
     return undefined;
@@ -46,6 +47,7 @@ function parseTagIds(value: unknown): string[] | undefined {
   return undefined;
 }
 
+// Chuyển đổi hoặc chuẩn hóa thẻ.
 function parseTags(value: unknown): string[] | undefined {
   if (value === undefined || value === null || value === '') return undefined;
   if (Array.isArray(value)) return value.map(String);

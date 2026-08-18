@@ -3,16 +3,22 @@ import JSZip from 'jszip';
 
 @Injectable()
 export class XlsxExtractorService {
+  // Xử lý extract.
   async extract(buffer: Buffer): Promise<string> {
     const zip = await JSZip.loadAsync(buffer);
     const sharedStrings = await this.extractSharedStrings(zip);
     const sheetNames = await this.extractSheetNames(zip);
-    const worksheetTexts = await this.extractWorksheets(zip, sharedStrings, sheetNames);
+    const worksheetTexts = await this.extractWorksheets(
+      zip,
+      sharedStrings,
+      sheetNames,
+    );
     const normalizedWorksheetText = this.normalize(worksheetTexts.join('\n\n'));
 
     return normalizedWorksheetText || this.extractArchiveReadableText(zip);
   }
 
+  // Xử lý shared strings.
   private async extractSharedStrings(zip: JSZip): Promise<string[]> {
     const sharedStringsFile = zip.file('xl/sharedStrings.xml');
 
@@ -32,6 +38,7 @@ export class XlsxExtractorService {
     return items.length > 0 ? items : this.extractTextNodes(xml);
   }
 
+  // Xử lý sheet names.
   private async extractSheetNames(zip: JSZip): Promise<string[]> {
     const workbook = await zip.file('xl/workbook.xml')?.async('text');
     if (!workbook) {
@@ -45,6 +52,7 @@ export class XlsxExtractorService {
     ].map((match) => this.decodeXml(match[2]));
   }
 
+  // Xử lý worksheets.
   private async extractWorksheets(
     zip: JSZip,
     sharedStrings: string[],
@@ -74,6 +82,7 @@ export class XlsxExtractorService {
     return this.extractFallbackWorksheetText(zip, sharedStrings);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa worksheet.
   private formatWorksheet(
     xml: string,
     sheetName: string,
@@ -102,6 +111,7 @@ export class XlsxExtractorService {
     return lines.join('\n');
   }
 
+  // Xử lý cells.
   private extractCells(rowXml: string, sharedStrings: string[]): string[] {
     return [
       ...rowXml.matchAll(
@@ -111,9 +121,7 @@ export class XlsxExtractorService {
       const attrs = match[1];
       const cellXml = match[2];
       const type = this.attr(attrs, 't');
-      const formula = this.decodeXml(
-        this.tagText(cellXml, 'f') ?? '',
-      );
+      const formula = this.decodeXml(this.tagText(cellXml, 'f') ?? '');
       let value: string;
 
       if (type === 's') {
@@ -135,6 +143,7 @@ export class XlsxExtractorService {
     });
   }
 
+  // Xử lý fallback worksheet text.
   private async extractFallbackWorksheetText(
     zip: JSZip,
     sharedStrings: string[],
@@ -169,16 +178,22 @@ export class XlsxExtractorService {
     return chunks;
   }
 
+  // Xử lý text nodes.
   private extractTextNodes(xml: string): string[] {
     return [
-      ...xml.matchAll(/<(?:[A-Za-z0-9_]+:)?t(?:\s[^>]*)?>([\s\S]*?)<\/(?:[A-Za-z0-9_]+:)?t>/g),
+      ...xml.matchAll(
+        /<(?:[A-Za-z0-9_]+:)?t(?:\s[^>]*)?>([\s\S]*?)<\/(?:[A-Za-z0-9_]+:)?t>/g,
+      ),
     ].map((match) => this.decodeXml(match[1]));
   }
 
+  // Xử lý archive readable text.
   private async extractArchiveReadableText(zip: JSZip): Promise<string> {
     const files = Object.values(zip.files)
       .filter((file) => !file.dir && this.isReadableOfficeXml(file.name))
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true }),
+      );
 
     const chunks: string[] = [];
     for (const file of files) {
@@ -194,13 +209,16 @@ export class XlsxExtractorService {
         .filter((value) => this.isUsefulFallbackText(value));
 
       if (visibleText.length > 0) {
-        chunks.push(`[FILE: ${file.name}]\n${[...new Set(visibleText)].join('\n')}`);
+        chunks.push(
+          `[FILE: ${file.name}]\n${[...new Set(visibleText)].join('\n')}`,
+        );
       }
     }
 
     return this.normalize(chunks.join('\n\n'));
   }
 
+  // Kiểm tra điều kiện readable office xml.
   private isReadableOfficeXml(fileName: string): boolean {
     return (
       /^xl\/(?:worksheets|drawings|comments|tables|charts|pivotTables|sharedStrings)\/?.*\.xml$/.test(
@@ -209,6 +227,7 @@ export class XlsxExtractorService {
     );
   }
 
+  // Kiểm tra điều kiện useful fallback text.
   private isUsefulFallbackText(value: string): boolean {
     if (!/[A-Za-z0-9\p{L}]/u.test(value)) {
       return false;
@@ -217,6 +236,7 @@ export class XlsxExtractorService {
     return !/^(Calibri|Arial|Times New Roman|Normal|Sheet\d*|\d+)$/.test(value);
   }
 
+  // Thực hiện chức năng thẻ text.
   private tagText(xml: string, tagName: string): string | null {
     return (
       new RegExp(
@@ -225,12 +245,12 @@ export class XlsxExtractorService {
     );
   }
 
+  // Thực hiện chức năng attr.
   private attr(attrs: string, name: string): string | null {
-    return (
-      new RegExp(`\\b${name}=(["'])(.*?)\\1`).exec(attrs)?.[2] ?? null
-    );
+    return new RegExp(`\\b${name}=(["'])(.*?)\\1`).exec(attrs)?.[2] ?? null;
   }
 
+  // Thực hiện chức năng decode xml.
   private decodeXml(value: string): string {
     return value
       .replace(/&lt;/g, '<')
@@ -240,6 +260,7 @@ export class XlsxExtractorService {
       .replace(/&amp;/g, '&');
   }
 
+  // Chuyển đổi hoặc chuẩn hóa normalize.
   private normalize(text: string): string {
     return text
       .replace(/[ \t]+/g, ' ')
@@ -248,10 +269,12 @@ export class XlsxExtractorService {
       .trim();
   }
 
+  // Chuyển đổi hoặc chuẩn hóa cell.
   private normalizeCell(text: string): string {
     return text.replace(/\s+/g, ' ').trim();
   }
 
+  // Thực hiện chức năng strip xml thẻ.
   private stripXmlTags(value: string): string {
     return value.replace(/<[^>]+>/g, ' ');
   }

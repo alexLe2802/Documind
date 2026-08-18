@@ -10,6 +10,7 @@ import '../subscription/subscription_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -19,6 +20,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool initialized = false;
   bool saving = false;
 
+  // Thực hiện chức năng pick avatar.
   Future<void> pickAvatar() async {
     final image = await ImagePicker().pickImage(
       source: ImageSource.gallery,
@@ -52,6 +54,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  // Tạo hoặc lưu save.
   Future<void> save() async {
     if (name.text.trim().isEmpty) return;
     setState(() => saving = true);
@@ -70,6 +73,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(currentProfileProvider);
@@ -266,6 +270,7 @@ class _Info extends StatelessWidget {
   const _Info({required this.label, required this.value});
   final String label;
   final String value;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(

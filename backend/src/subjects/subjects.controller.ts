@@ -20,8 +20,10 @@ import { SubjectsService } from './subjects.service';
 @Controller('subjects')
 @UseGuards(FirebaseAuthGuard)
 export class SubjectsController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly subjectsService: SubjectsService) {}
 
+  // Lấy danh sách dữ liệu phù hợp.
   @Get()
   findAll(
     @CurrentUser() user: AuthenticatedUser,
@@ -29,6 +31,7 @@ export class SubjectsController {
     return this.subjectsService.findAll(user.id);
   }
 
+  // Lấy một bản ghi dữ liệu phù hợp.
   @Get(':id')
   findOne(
     @Param('id') id: string,
@@ -37,6 +40,7 @@ export class SubjectsController {
     return this.subjectsService.findOne(id, user.id);
   }
 
+  // Tạo hoặc lưu create.
   @Post()
   create(
     @CurrentUser() user: AuthenticatedUser,
@@ -45,6 +49,7 @@ export class SubjectsController {
     return this.subjectsService.create(user.id, dto);
   }
 
+  // Cập nhật update.
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -54,6 +59,7 @@ export class SubjectsController {
     return this.subjectsService.update(id, user.id, dto);
   }
 
+  // Xóa hoặc giải phóng remove.
   @Delete(':id')
   remove(
     @Param('id') id: string,

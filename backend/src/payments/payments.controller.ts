@@ -37,8 +37,10 @@ import { PaymentsService } from './payments.service';
 @ApiTags('subscription')
 @Controller()
 export class PaymentsController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly paymentsService: PaymentsService) {}
 
+  // Lấy dữ liệu gói dịch vụ.
   @Get('subscription/plans')
   @ApiOperation({ summary: 'List available subscription plans' })
   @ApiWrappedArrayOkResponse(
@@ -57,6 +59,7 @@ export class PaymentsController {
     return this.paymentsService.getPlans();
   }
 
+  // Lấy dữ liệu hiện tại quyền lợi.
   @Get('subscription/current')
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
@@ -76,6 +79,7 @@ export class PaymentsController {
     return this.paymentsService.getCurrentSubscription(user.id);
   }
 
+  // Tạo hoặc lưu đơn thanh toán.
   @Post('payments/checkout')
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
@@ -96,13 +100,6 @@ export class PaymentsController {
       message: 'Unauthorized',
     },
     {
-      status: HttpStatus.CONFLICT,
-      description:
-        'Selected plan is already active or the request attempts a paid-plan downgrade.',
-      code: 'CONFLICT',
-      message: 'This subscription plan is already active',
-    },
-    {
       status: HttpStatus.SERVICE_UNAVAILABLE,
       description: 'SePay payment gateway is not configured.',
       code: 'SERVICE_UNAVAILABLE',
@@ -116,6 +113,7 @@ export class PaymentsController {
     return this.paymentsService.createCheckout(user, payload);
   }
 
+  // Lấy dữ liệu thanh toán lịch sử.
   @Get('payments/history')
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
@@ -135,6 +133,7 @@ export class PaymentsController {
     return this.paymentsService.getPaymentHistory(user.id);
   }
 
+  // Lấy dữ liệu thanh toán.
   @Get('payments/:invoiceNumber')
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
@@ -167,6 +166,7 @@ export class PaymentsController {
     return this.paymentsService.getPayment(user.id, invoiceNumber);
   }
 
+  // Cập nhật thanh toán trạng thái.
   @Post('payments/:invoiceNumber/status')
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
@@ -212,6 +212,7 @@ export class PaymentsController {
     );
   }
 
+  // Xử lý ipn.
   @Post('payments/sepay/ipn')
   @ApiOperation({ summary: 'Receive SePay payment and bank webhooks' })
   @ApiResponse({

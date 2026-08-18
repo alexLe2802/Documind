@@ -10,11 +10,13 @@ import { PrismaService } from '../prisma/prisma.service';
 export class HealthService {
   private readonly logger = new Logger(HealthService.name);
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly prisma: PrismaService,
     private readonly extractionQueue: ExtractionQueueService,
   ) {}
 
+  // Thực hiện chức năng liveness.
   liveness(): { status: 'ok'; timestamp: string; uptimeSeconds: number } {
     return {
       status: 'ok',
@@ -23,6 +25,7 @@ export class HealthService {
     };
   }
 
+  // Lấy dữ liệu readiness.
   async readiness(): Promise<{
     status: 'ok';
     timestamp: string;

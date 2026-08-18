@@ -24,6 +24,7 @@ import { AuthContext } from "./auth-context";
 
 const SESSION_RESTORE_TIMEOUT_MS = 8_000;
 
+// Hiển thị giao diện xác thực provider.
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [pendingGoogleRegistration, setPendingGoogleRegistration] =
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     void refreshUser().finally(() => window.clearTimeout(restoreTimeout));
 
+    // Xử lý sự kiện unauthorized.
     function handleUnauthorized() {
       clearStoredAuthToken();
       setUser(null);

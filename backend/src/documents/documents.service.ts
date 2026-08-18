@@ -73,6 +73,7 @@ export interface DocumentListResponse {
 export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -82,6 +83,7 @@ export class DocumentsService {
     private readonly moderationScanner: ModerationScannerService,
   ) {}
 
+  // Lưu tệp và tạo bản ghi tài liệu; tài liệu công khai luôn chờ admin duyệt.
   async upload(
     ownerId: string,
     dto: CreateDocumentDto,
@@ -94,12 +96,14 @@ export class DocumentsService {
       dto.categoryId,
       dto.tagIds,
     );
+    // Tải tệp lên kho lưu trữ Cloudflare R2.
     const uploadedObject = await this.storage.uploadObject(ownerId, file);
     const tagIds = await this.resolveTagIds(dto.tagIds ?? [], dto.tags ?? []);
     const visibility = dto.visibility ?? DocumentVisibility.PRIVATE;
 
     let document: DocumentPayload;
     try {
+      // Tạo tài liệu trong database.
       document = await this.prisma.document.create({
         data: {
           ownerId,
@@ -133,6 +137,7 @@ export class DocumentsService {
       });
     } catch (error) {
       await Promise.resolve(
+        // Xóa object tương ứng khỏi kho lưu trữ Cloudflare R2.
         this.storage.deleteObject(ownerId, uploadedObject.key),
       ).catch(() => undefined);
       throw error;
@@ -154,6 +159,7 @@ export class DocumentsService {
     return this.serialize(document, ownerId);
   }
 
+  // Lấy danh sách dữ liệu phù hợp.
   async findAll(
     ownerId: string,
     query: DocumentListQueryDto,
@@ -188,6 +194,7 @@ export class DocumentsService {
     };
   }
 
+  // Lấy một bản ghi dữ liệu phù hợp.
   async findOne(id: string, ownerId: string): Promise<UiReadyDocument> {
     const document = await this.prisma.document.findFirst({
       where: this.buildVisibleWhere(ownerId, { id }),
@@ -199,11 +206,13 @@ export class DocumentsService {
     return this.serialize(document, ownerId);
   }
 
+  // Tạo hoặc lưu tải xuống url.
   async createDownloadUrl(
     id: string,
     ownerId: string,
   ): Promise<ObjectUrlResponse> {
     const document = await this.findOne(id, ownerId);
+    // Tạo URL tạm thời để truy cập object an toàn từ Cloudflare R2.
     const downloadUrl = await this.storage.createObjectDownloadUrl(
       document.storagePath,
       document.fileName,
@@ -211,6 +220,7 @@ export class DocumentsService {
     );
 
     await Promise.all([
+      // Cập nhật tài liệu trong database.
       this.prisma.document.update({
         where: { id },
         data: { downloadCount: { increment: 1 } },
@@ -224,17 +234,20 @@ export class DocumentsService {
     return downloadUrl;
   }
 
+  // Tạo hoặc lưu xem trước url.
   async createPreviewUrl(
     id: string,
     ownerId: string,
   ): Promise<ObjectUrlResponse> {
     const document = await this.findOne(id, ownerId);
     const previewObject = this.getPreviewObject(document);
+    // Tạo URL tạm thời để truy cập object an toàn từ Cloudflare R2.
     const previewUrl = await this.storage.createObjectPreviewUrl(
       previewObject.storagePath,
       previewObject.fileType,
     );
 
+    // Cập nhật tài liệu trong database.
     await this.prisma.document.update({
       where: { id },
       data: { viewCount: { increment: 1 } },
@@ -247,6 +260,7 @@ export class DocumentsService {
     };
   }
 
+  // Lấy dữ liệu xem trước object.
   private getPreviewObject(document: UiReadyDocument): {
     storagePath: string;
     fileType: string;
@@ -274,6 +288,7 @@ export class DocumentsService {
     };
   }
 
+  // Kiểm tra điều kiện pdf.
   private isPdf(mimeType: string, fileName: string): boolean {
     return (
       mimeType === 'application/pdf' ||
@@ -281,6 +296,7 @@ export class DocumentsService {
     );
   }
 
+  // Kiểm tra điều kiện office tài liệu.
   private isOfficeDocument(mimeType: string, fileName: string): boolean {
     const extension = extname(fileName).toLowerCase();
     return (
@@ -292,6 +308,7 @@ export class DocumentsService {
     );
   }
 
+  // Cập nhật metadata; tài liệu công khai bị sửa sẽ quay lại trạng thái chờ duyệt.
   async update(
     id: string,
     ownerId: string,
@@ -332,9 +349,7 @@ export class DocumentsService {
             .join('\n'),
         )
       : undefined;
-    const canAutoApprove =
-      existingDocument.extractionStatus === ExtractionStatus.COMPLETED &&
-      moderationResult?.flag === 'NORMAL';
+    // Cập nhật tài liệu trong database.
     const document = await this.prisma.document.update({
       where: { id },
       data: {
@@ -355,9 +370,7 @@ export class DocumentsService {
             }
           : moderationResult
             ? {
-                moderationStatus: canAutoApprove
-                  ? ModerationStatus.APPROVED
-                  : ModerationStatus.PENDING,
+                moderationStatus: ModerationStatus.PENDING,
                 moderationFlag: moderationResult.flag,
                 moderationPriority: moderationResult.priority,
                 matchedKeywords: moderationResult.matchedKeywords,
@@ -365,7 +378,7 @@ export class DocumentsService {
                 rejectionReason: null,
                 reviewedAt: null,
                 reviewedBy: null,
-                ...(canAutoApprove ? {} : { submittedAt: new Date() }),
+                submittedAt: new Date(),
                 version: { increment: 1 },
               }
             : {}),
@@ -383,27 +396,18 @@ export class DocumentsService {
       await this.auditLogService.logDocumentHide(ownerId, id, { status });
     }
     if (becomesPublicFromPrivate) {
-      if (document.moderationStatus === ModerationStatus.APPROVED) {
-        await this.notifications.create({
-          userId: ownerId,
-          type: 'DOCUMENT_PUBLISHED',
-          title: 'Công khai tài liệu thành công',
-          message: `Tài liệu “${existingDocument.title}” đã được công khai thành công trên cộng đồng.`,
-          documentId: id,
-        });
-      } else {
-        await this.notifications.create({
-          userId: ownerId,
-          type: 'DOCUMENT_PENDING_REVIEW',
-          title: 'Tài liệu đang chờ kiểm duyệt',
-          message: `Tài liệu “${existingDocument.title}” có từ khóa cần kiểm duyệt và đã được gửi đến quản trị viên.`,
-          documentId: id,
-        });
-      }
+      await this.notifications.create({
+        userId: ownerId,
+        type: 'DOCUMENT_PENDING_REVIEW',
+        title: 'Tài liệu đang chờ kiểm duyệt',
+        message: `Tài liệu “${existingDocument.title}” đã được gửi đến quản trị viên và chỉ xuất hiện trên cộng đồng sau khi được duyệt.`,
+        documentId: id,
+      });
     }
     return this.serialize(document, ownerId);
   }
 
+  // Cập nhật quyền hiển thị.
   updateVisibility(
     id: string,
     ownerId: string,
@@ -412,13 +416,16 @@ export class DocumentsService {
     return this.update(id, ownerId, { visibility });
   }
 
+  // Xóa hoặc giải phóng remove.
   async remove(id: string, ownerId: string): Promise<void> {
     const document = await this.findOne(id, ownerId);
+    // Xóa tài liệu trong database.
     await this.prisma.document.delete({
       where: { id },
     });
     await this.auditLogService.logDocumentDelete(ownerId, id);
     await Promise.resolve(
+      // Xóa object tương ứng khỏi kho lưu trữ Cloudflare R2.
       this.storage.deleteObject(ownerId, document.storagePath),
     ).catch((error: unknown) => {
       this.logger.warn(
@@ -427,6 +434,7 @@ export class DocumentsService {
     });
   }
 
+  // Kiểm tra điều kiện relations.
   private async validateRelations(
     ownerId: string,
     subjectId?: string,
@@ -487,6 +495,7 @@ export class DocumentsService {
     }
   }
 
+  // Chuyển đổi hoặc chuẩn hóa thẻ ids.
   private async resolveTagIds(
     existingIds: string[],
     names: string[],
@@ -498,6 +507,7 @@ export class DocumentsService {
     ];
     const resolved = await Promise.all(
       normalizedNames.map((name) =>
+        // Tạo mới hoặc cập nhật thẻ trong database.
         this.prisma.tag.upsert({
           where: { name },
           create: { name },
@@ -508,6 +518,7 @@ export class DocumentsService {
     return [...new Set([...existingIds, ...resolved.map((tag) => tag.id)])];
   }
 
+  // Kiểm tra điều kiện tệp.
   private validateFile(file: UploadedFile): void {
     if (!file.buffer.length || file.size <= 0) {
       throw new BadRequestException('Document file is empty');
@@ -529,6 +540,7 @@ export class DocumentsService {
     }
   }
 
+  // Chuyển đổi hoặc chuẩn hóa visible where.
   private buildVisibleWhere(
     ownerId: string,
     query: Partial<DocumentListQueryDto> & { id?: string } = {},
@@ -599,6 +611,7 @@ export class DocumentsService {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa serialize.
   private serialize(
     document: DocumentPayload,
     currentUserId: string,
@@ -615,6 +628,7 @@ export class DocumentsService {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa nguồn type.
   private toSourceType(mimeType: string, fileName: string): SourceType {
     const extension = extname(fileName).replace('.', '').toUpperCase();
     const mapped =

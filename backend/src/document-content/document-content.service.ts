@@ -31,11 +31,13 @@ const DOCUMENT_SOURCE_TYPE_BY_MIME_TYPE: Record<string, SourceType> = {
 
 @Injectable()
 export class DocumentContentService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly prisma: PrismaService,
     private readonly extractionQueue: ExtractionQueueService,
   ) {}
 
+  // Thực hiện chức năng yêu cầu extraction.
   async requestExtraction(
     documentId: string,
     user: AuthenticatedUser,
@@ -56,6 +58,7 @@ export class DocumentContentService {
     }
 
     const jobId = randomUUID();
+    // Tạo mới hoặc cập nhật nội dung trích xuất trong database.
     const content = await this.prisma.documentContent.upsert({
       where: { documentId },
       create: {
@@ -79,10 +82,12 @@ export class DocumentContentService {
       },
     });
 
+    // Cập nhật tài liệu trong database.
     await this.prisma.document.update({
       where: { id: documentId },
       data: { extractionStatus: ExtractionStatus.PENDING },
     });
+    // Xóa các đoạn nội dung tài liệu trong database.
     await this.prisma.documentChunk.deleteMany({
       where: { documentId },
     });
@@ -95,6 +100,7 @@ export class DocumentContentService {
     };
   }
 
+  // Lấy dữ liệu nội dung.
   async getContent(
     documentId: string,
     user: AuthenticatedUser,
@@ -117,6 +123,7 @@ export class DocumentContentService {
     };
   }
 
+  // Lấy dữ liệu extraction trạng thái.
   async getExtractionStatus(
     documentId: string,
     user: AuthenticatedUser,
@@ -141,6 +148,7 @@ export class DocumentContentService {
     };
   }
 
+  // Lấy dữ liệu authorized tài liệu.
   private async getAuthorizedDocument(
     documentId: string,
     user: AuthenticatedUser,
@@ -159,6 +167,7 @@ export class DocumentContentService {
     return document;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa nguồn type.
   private toSourceType(fileType: string): SourceType {
     const normalized = fileType.replace(/^\./, '').toUpperCase();
     const sourceType = DOCUMENT_SOURCE_TYPE_BY_MIME_TYPE[normalized];
@@ -172,6 +181,7 @@ export class DocumentContentService {
       : SourceType.MOCK;
   }
 
+  // Thực hiện chức năng clamp progress.
   private clampProgress(progress: number): number {
     if (progress < 0) {
       return 0;

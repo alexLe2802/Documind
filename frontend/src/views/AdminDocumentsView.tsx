@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,7 +11,7 @@ import {
   FileText,
   Search,
   X,
-} from 'lucide-react'
+} from "lucide-react";
 import {
   getAdminDocuments,
   approveDocument,
@@ -20,126 +20,172 @@ import {
   createAdminDocumentPreviewUrl,
   type DocumentQuery,
   type DocumentListResponse,
-} from '../api/admin.api'
-import type { AdminDocument } from '../api/admin.mock'
-import { useLanguage } from '../i18n/LanguageProvider'
-import { localize } from '../i18n/localize'
-import { formatFileSize } from '../api/documents.api'
+} from "../api/admin.api";
+import type { AdminDocument } from "../api/admin.mock";
+import { useLanguage } from "../i18n/LanguageProvider";
+import { localize } from "../i18n/localize";
+import { formatFileSize } from "../api/documents.api";
 
-const DEFAULT_QUERY: DocumentQuery = { page: 1, limit: 8, moderationStatus: 'PENDING' }
+const DEFAULT_QUERY: DocumentQuery = {
+  page: 1,
+  limit: 8,
+  moderationStatus: "PENDING",
+};
 
+// Hiển thị giao diện admin tài liệu view.
 export function AdminDocumentsView() {
-  const { locale, t } = useLanguage()
-  const text = (vi: string, en: string) => localize(locale, vi, en)
+  const { locale, t } = useLanguage();
+  // Thực hiện chức năng text.
+  const text = (vi: string, en: string) => localize(locale, vi, en);
 
-  const [keyword, setKeyword] = useState('')
-  const [status, setStatus] = useState('')
-  const [aiStatus, setAiStatus] = useState('')
-  const [moderationStatus, setModerationStatus] = useState('PENDING')
-  const [moderationFlag, setModerationFlag] = useState('')
-  const [page, setPage] = useState(1)
+  const [keyword, setKeyword] = useState("");
+  const [status, setStatus] = useState("");
+  const [aiStatus, setAiStatus] = useState("");
+  const [moderationStatus, setModerationStatus] = useState("PENDING");
+  const [moderationFlag, setModerationFlag] = useState("");
+  const [page, setPage] = useState(1);
 
-  const [data, setData] = useState<DocumentListResponse | null>(null)
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
+  const [data, setData] = useState<DocumentListResponse | null>(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   // Moderation state
-  const [selectedDoc, setSelectedDoc] = useState<AdminDocument | null>(null)
-  const [isModerationModalOpen, setIsModerationModalOpen] = useState(false)
-  const [moderationReason, setModerationReason] = useState('')
-  const [isSubmitingAction, setIsSubmitingAction] = useState(false)
+  const [selectedDoc, setSelectedDoc] = useState<AdminDocument | null>(null);
+  const [isModerationModalOpen, setIsModerationModalOpen] = useState(false);
+  const [moderationReason, setModerationReason] = useState("");
+  const [isSubmitingAction, setIsSubmitingAction] = useState(false);
 
   const loadDocuments = useCallback(
     async (query: DocumentQuery = DEFAULT_QUERY) => {
-      setError('')
-      setIsLoading(true)
+      setError("");
+      setIsLoading(true);
       try {
-        const response = await getAdminDocuments(query)
-        setData(response)
+        const response = await getAdminDocuments(query);
+        setData(response);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('common.error'))
+        setError(err instanceof Error ? err.message : t("common.error"));
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     },
-    [t]
-  )
+    [t],
+  );
 
   useEffect(() => {
-    void loadDocuments({ ...DEFAULT_QUERY, page, keyword, status, aiStatus, moderationStatus, moderationFlag })
+    void loadDocuments({
+      ...DEFAULT_QUERY,
+      page,
+      keyword,
+      status,
+      aiStatus,
+      moderationStatus,
+      moderationFlag,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadDocuments, page, status, aiStatus, moderationStatus, moderationFlag])
+  }, [loadDocuments, page, status, aiStatus, moderationStatus, moderationFlag]);
 
+  // Xử lý sự kiện search.
   async function handleSearch(event: FormEvent) {
-    event.preventDefault()
-    setPage(1)
-    await loadDocuments({ page: 1, limit: DEFAULT_QUERY.limit, keyword, status, aiStatus, moderationStatus, moderationFlag })
+    event.preventDefault();
+    setPage(1);
+    await loadDocuments({
+      page: 1,
+      limit: DEFAULT_QUERY.limit,
+      keyword,
+      status,
+      aiStatus,
+      moderationStatus,
+      moderationFlag,
+    });
   }
 
+  // Xử lý sự kiện action click.
   const handleActionClick = (doc: AdminDocument) => {
-    setSelectedDoc(doc)
-    setIsModerationModalOpen(true)
-    setModerationReason('')
-  }
+    setSelectedDoc(doc);
+    setIsModerationModalOpen(true);
+    setModerationReason("");
+  };
 
+  // Xử lý sự kiện confirm action.
   const handleConfirmAction = async () => {
-    if (!selectedDoc) return
-    setIsSubmitingAction(true)
-    setError('')
+    if (!selectedDoc) return;
+    setIsSubmitingAction(true);
+    setError("");
     try {
       if (!moderationReason.trim()) {
-        setError(text('Lý do từ chối là bắt buộc.', 'A rejection reason is required.'))
-        return
+        setError(
+          text("Lý do từ chối là bắt buộc.", "A rejection reason is required."),
+        );
+        return;
       }
-      await rejectDocument(selectedDoc.id, moderationReason.trim())
-      setSelectedDoc(null)
-      setIsModerationModalOpen(false)
+      await rejectDocument(selectedDoc.id, moderationReason.trim());
+      setSelectedDoc(null);
+      setIsModerationModalOpen(false);
       // Reload current page
-      await loadDocuments({ page, limit: DEFAULT_QUERY.limit, keyword, status, aiStatus, moderationStatus, moderationFlag })
+      await loadDocuments({
+        page,
+        limit: DEFAULT_QUERY.limit,
+        keyword,
+        status,
+        aiStatus,
+        moderationStatus,
+        moderationFlag,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'))
+      setError(err instanceof Error ? err.message : t("common.error"));
     } finally {
-      setIsSubmitingAction(false)
+      setIsSubmitingAction(false);
     }
-  }
+  };
 
+  // Xử lý sự kiện approve tài liệu.
   const handleApproveDocument = async (doc: AdminDocument) => {
-    setError('')
-    setIsLoading(true)
+    setError("");
+    setIsLoading(true);
     try {
-      await approveDocument(doc.id)
-      if (doc.status === 'HIDDEN') {
-        await unhideDocument(doc.id)
+      await approveDocument(doc.id);
+      if (doc.status === "HIDDEN") {
+        await unhideDocument(doc.id);
       }
-      await loadDocuments({ page, limit: DEFAULT_QUERY.limit, keyword, status, aiStatus, moderationStatus, moderationFlag })
+      await loadDocuments({
+        page,
+        limit: DEFAULT_QUERY.limit,
+        keyword,
+        status,
+        aiStatus,
+        moderationStatus,
+        moderationFlag,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'))
+      setError(err instanceof Error ? err.message : t("common.error"));
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
+  // Xử lý sự kiện xem trước tài liệu.
   const handlePreviewDocument = async (id: string) => {
     try {
-      const result = await createAdminDocumentPreviewUrl(id)
+      const result = await createAdminDocumentPreviewUrl(id);
       const useOfficeViewer = Boolean(
         result.fallbackToOfficeViewer ||
-          result.contentType?.includes('officedocument'),
-      )
+        result.contentType?.includes("officedocument"),
+      );
       const url = useOfficeViewer
         ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(result.url)}`
-        : result.url
-      window.open(url, '_blank', 'noopener,noreferrer')
+        : result.url;
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'))
+      setError(err instanceof Error ? err.message : t("common.error"));
     }
-  }
+  };
 
+  // Xử lý sự kiện page change.
   const handlePageChange = (newPage: number) => {
-    setPage(newPage)
-  }
+    setPage(newPage);
+  };
 
-  const items = data?.items ?? []
+  const items = data?.items ?? [];
   const meta = data?.meta ?? {
     page: 1,
     limit: 10,
@@ -147,18 +193,20 @@ export function AdminDocumentsView() {
     totalPages: 0,
     hasNext: false,
     hasPrevious: false,
-  }
+  };
 
   return (
     <main className="page" id="main-content">
       <div className="page-header page-header--editorial">
         <div>
-          <p className="eyebrow">{text('BẢNG ĐIỀU KHIỂN QUẢN TRỊ', 'ADMIN CONSOLE')}</p>
-          <h1>{text('Kiểm duyệt tài liệu', 'Document Moderation')}</h1>
+          <p className="eyebrow">
+            {text("BẢNG ĐIỀU KHIỂN QUẢN TRỊ", "ADMIN CONSOLE")}
+          </p>
+          <h1>{text("Kiểm duyệt tài liệu", "Document Moderation")}</h1>
           <p>
             {text(
-              'Xem xét tài liệu được đăng tải và ẩn các tài liệu vi phạm quy chế học tập khỏi cộng đồng.',
-              'Review uploaded documents and hide materials that violate academic integrity from the community.'
+              "Xem xét tài liệu được đăng tải và ẩn các tài liệu vi phạm quy chế học tập khỏi cộng đồng.",
+              "Review uploaded documents and hide materials that violate academic integrity from the community.",
             )}
           </p>
         </div>
@@ -171,31 +219,42 @@ export function AdminDocumentsView() {
           <Search size={18} />
           <input
             name="documentSearch"
-            aria-label={text('Tìm kiếm tiêu đề, tên tệp...', 'Search title, fileName...')}
+            aria-label={text(
+              "Tìm kiếm tiêu đề, tên tệp...",
+              "Search title, fileName...",
+            )}
             autoComplete="off"
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
-            placeholder={`${text('Tìm kiếm tiêu đề, tên tệp...', 'Search title, fileName...')}…`}
+            placeholder={`${text("Tìm kiếm tiêu đề, tên tệp...", "Search title, fileName...")}…`}
           />
         </label>
 
         <select
-          aria-label={text('Trạng thái kiểm duyệt', 'Moderation status')}
+          aria-label={text("Trạng thái kiểm duyệt", "Moderation status")}
           value={moderationStatus}
-          onChange={(event) => { setModerationStatus(event.target.value); setPage(1) }}
+          onChange={(event) => {
+            setModerationStatus(event.target.value);
+            setPage(1);
+          }}
         >
-          <option value="">{text('Mọi trạng thái duyệt', 'All moderation statuses')}</option>
+          <option value="">
+            {text("Mọi trạng thái duyệt", "All moderation statuses")}
+          </option>
           <option value="PENDING">PENDING</option>
           <option value="APPROVED">APPROVED</option>
           <option value="REJECTED">REJECTED</option>
         </select>
 
         <select
-          aria-label={text('Cờ kiểm duyệt', 'Moderation flag')}
+          aria-label={text("Cờ kiểm duyệt", "Moderation flag")}
           value={moderationFlag}
-          onChange={(event) => { setModerationFlag(event.target.value); setPage(1) }}
+          onChange={(event) => {
+            setModerationFlag(event.target.value);
+            setPage(1);
+          }}
         >
-          <option value="">{text('Mọi mức cảnh báo', 'All scan flags')}</option>
+          <option value="">{text("Mọi mức cảnh báo", "All scan flags")}</option>
           <option value="FLAGGED">FLAGGED</option>
           <option value="SCAN_FAILED">SCAN_FAILED</option>
           <option value="NORMAL">NORMAL</option>
@@ -203,37 +262,43 @@ export function AdminDocumentsView() {
 
         <select
           name="statusFilter"
-          aria-label={text('Trạng thái tài liệu', 'Status')}
+          aria-label={text("Trạng thái tài liệu", "Status")}
           value={status}
           onChange={(event) => {
-            setStatus(event.target.value)
-            setPage(1)
+            setStatus(event.target.value);
+            setPage(1);
           }}
         >
-          <option value="">{text('Tất cả trạng thái', 'All statuses')}</option>
-          <option value="ACTIVE">{text('Hoạt động', 'ACTIVE')}</option>
-          <option value="HIDDEN">{text('Bị ẩn', 'HIDDEN')}</option>
-          <option value="DELETED">{text('Đã xóa', 'DELETED')}</option>
+          <option value="">{text("Tất cả trạng thái", "All statuses")}</option>
+          <option value="ACTIVE">{text("Hoạt động", "ACTIVE")}</option>
+          <option value="HIDDEN">{text("Bị ẩn", "HIDDEN")}</option>
+          <option value="DELETED">{text("Đã xóa", "DELETED")}</option>
         </select>
 
         <select
           name="aiStatusFilter"
-          aria-label={text('Trạng thái Chỉ mục AI', 'AI status')}
+          aria-label={text("Trạng thái Chỉ mục AI", "AI status")}
           value={aiStatus}
           onChange={(event) => {
-            setAiStatus(event.target.value)
-            setPage(1)
+            setAiStatus(event.target.value);
+            setPage(1);
           }}
         >
-          <option value="">{text('Trạng thái AI', 'All AI statuses')}</option>
-          <option value="COMPLETED">{text('Sẵn sàng (COMPLETED)', 'COMPLETED')}</option>
-          <option value="PROCESSING">{text('Đang xử lý (PROCESSING)', 'PROCESSING')}</option>
-          <option value="PENDING">{text('Chờ xử lý (PENDING)', 'PENDING')}</option>
-          <option value="FAILED">{text('Thất bại (FAILED)', 'FAILED')}</option>
+          <option value="">{text("Trạng thái AI", "All AI statuses")}</option>
+          <option value="COMPLETED">
+            {text("Sẵn sàng (COMPLETED)", "COMPLETED")}
+          </option>
+          <option value="PROCESSING">
+            {text("Đang xử lý (PROCESSING)", "PROCESSING")}
+          </option>
+          <option value="PENDING">
+            {text("Chờ xử lý (PENDING)", "PENDING")}
+          </option>
+          <option value="FAILED">{text("Thất bại (FAILED)", "FAILED")}</option>
         </select>
 
         <button className="secondary-button" type="submit" disabled={isLoading}>
-          {isLoading ? t('common.searching') : t('common.search')}
+          {isLoading ? t("common.searching") : t("common.search")}
         </button>
       </form>
 
@@ -242,13 +307,20 @@ export function AdminDocumentsView() {
         {isLoading ? (
           <div className="loading-state">
             <span className="loading-line" />
-            <p>{text('Đang tải danh sách tài liệu...', 'Loading documents...')}</p>
+            <p>
+              {text("Đang tải danh sách tài liệu...", "Loading documents...")}
+            </p>
           </div>
         ) : null}
         {!isLoading && items.length === 0 ? (
           <div className="empty-state">
             <FileText size={28} />
-            <p>{text('Không tìm thấy tài liệu phù hợp.', 'No matching documents found.')}</p>
+            <p>
+              {text(
+                "Không tìm thấy tài liệu phù hợp.",
+                "No matching documents found.",
+              )}
+            </p>
           </div>
         ) : null}
 
@@ -258,90 +330,142 @@ export function AdminDocumentsView() {
               <table>
                 <thead>
                   <tr>
-                    <th>{text('Tài liệu', 'Document')}</th>
-                    <th>{text('Chủ đề / Phân loại', 'Subject / Category')}</th>
-                    <th>{text('Người sở hữu', 'Owner')}</th>
-                    <th>{text('Quét nội dung', 'Content scan')}</th>
-                    <th>{text('Kiểm duyệt', 'Moderation')}</th>
-                    <th>{text('Từ khóa', 'Keywords')}</th>
-                    <th>{text('Hành động', 'Actions')}</th>
+                    <th>{text("Tài liệu", "Document")}</th>
+                    <th>{text("Chủ đề / Phân loại", "Subject / Category")}</th>
+                    <th>{text("Người sở hữu", "Owner")}</th>
+                    <th>{text("Quét nội dung", "Content scan")}</th>
+                    <th>{text("Kiểm duyệt", "Moderation")}</th>
+                    <th>{text("Từ khóa", "Keywords")}</th>
+                    <th>{text("Hành động", "Actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((doc) => (
                     <tr key={doc.id}>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                          <span style={{ color: 'var(--muted)' }}>
-                            {doc.fileType === 'XLSX' ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.65rem",
+                          }}
+                        >
+                          <span style={{ color: "var(--muted)" }}>
+                            {doc.fileType === "XLSX" ? (
                               <FileSpreadsheet size={18} />
                             ) : (
                               <FileText size={18} />
                             )}
                           </span>
-                          <div style={{ display: 'grid', lineHeight: 1.3 }}>
-                            <strong style={{ fontSize: '0.86rem' }}>{doc.title}</strong>
-                            <small style={{ color: 'var(--subtle)', fontSize: '0.72rem' }}>
+                          <div style={{ display: "grid", lineHeight: 1.3 }}>
+                            <strong style={{ fontSize: "0.86rem" }}>
+                              {doc.title}
+                            </strong>
+                            <small
+                              style={{
+                                color: "var(--subtle)",
+                                fontSize: "0.72rem",
+                              }}
+                            >
                               {doc.fileName} ({formatFileSize(doc.fileSize)})
                             </small>
                           </div>
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: 'grid', lineHeight: 1.3 }}>
+                        <div style={{ display: "grid", lineHeight: 1.3 }}>
                           <strong>{doc.subject}</strong>
-                          <span style={{ color: 'var(--subtle)', fontSize: '0.74rem' }}>
+                          <span
+                            style={{
+                              color: "var(--subtle)",
+                              fontSize: "0.74rem",
+                            }}
+                          >
                             {doc.category}
                           </span>
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: 'grid', lineHeight: 1.3 }}>
+                        <div style={{ display: "grid", lineHeight: 1.3 }}>
                           <strong>{doc.owner.fullName}</strong>
-                          <span style={{ color: 'var(--subtle)', fontSize: '0.74rem' }}>
+                          <span
+                            style={{
+                              color: "var(--subtle)",
+                              fontSize: "0.74rem",
+                            }}
+                          >
                             {doc.owner.email}
                           </span>
                         </div>
                       </td>
                       <td>
-                        <span className={doc.moderationFlag === 'FLAGGED' ? 'status-pill hidden' : doc.moderationFlag === 'SCAN_FAILED' ? 'status-pill deleted' : 'status-pill success'}>
-                          {doc.moderationFlag === 'FLAGGED' ? <AlertTriangle size={13} /> : null}
-                          {doc.moderationFlag ?? 'NORMAL'}
+                        <span
+                          className={
+                            doc.moderationFlag === "FLAGGED"
+                              ? "status-pill hidden"
+                              : doc.moderationFlag === "SCAN_FAILED"
+                                ? "status-pill deleted"
+                                : "status-pill success"
+                          }
+                        >
+                          {doc.moderationFlag === "FLAGGED" ? (
+                            <AlertTriangle size={13} />
+                          ) : null}
+                          {doc.moderationFlag ?? "NORMAL"}
                         </span>
                       </td>
                       <td>
-                        <span className={doc.moderationStatus === 'APPROVED' ? 'status-pill success' : doc.moderationStatus === 'REJECTED' ? 'status-pill deleted' : 'status-pill ai-processing'}>
-                          {doc.moderationStatus ?? 'PENDING'}
+                        <span
+                          className={
+                            doc.moderationStatus === "APPROVED"
+                              ? "status-pill success"
+                              : doc.moderationStatus === "REJECTED"
+                                ? "status-pill deleted"
+                                : "status-pill ai-processing"
+                          }
+                        >
+                          {doc.moderationStatus ?? "PENDING"}
                         </span>
                       </td>
-                      <td>{doc.matchedKeywords?.length ? doc.matchedKeywords.join(', ') : '—'}</td>
+                      <td>
+                        {doc.matchedKeywords?.length
+                          ? doc.matchedKeywords.join(", ")
+                          : "—"}
+                      </td>
                       <td>
                         <div className="btn-action-row">
-                          <button type="button" className="btn-icon-action" title={text('Xem file', 'Preview file')} onClick={() => void handlePreviewDocument(doc.id)}>
+                          <button
+                            type="button"
+                            className="btn-icon-action"
+                            title={text("Xem file", "Preview file")}
+                            onClick={() => void handlePreviewDocument(doc.id)}
+                          >
                             <Eye size={15} />
                           </button>
-                          {(doc.moderationStatus === 'PENDING' ||
-                            doc.moderationStatus === 'REJECTED' ||
-                            (doc.moderationStatus === 'APPROVED' && doc.status === 'HIDDEN')) ? (
+                          {doc.moderationStatus === "PENDING" ||
+                          doc.moderationStatus === "REJECTED" ||
+                          (doc.moderationStatus === "APPROVED" &&
+                            doc.status === "HIDDEN") ? (
                             <button
                               type="button"
                               className="btn-icon-action"
                               title={
-                                doc.moderationStatus === 'REJECTED' || doc.status === 'HIDDEN'
-                                  ? text('Duyệt lại', 'Approve again')
-                                  : text('Duyệt', 'Approve')
+                                doc.moderationStatus === "REJECTED" ||
+                                doc.status === "HIDDEN"
+                                  ? text("Duyệt lại", "Approve again")
+                                  : text("Duyệt", "Approve")
                               }
                               onClick={() => void handleApproveDocument(doc)}
                             >
                               <CheckCircle2 size={15} />
                             </button>
                           ) : null}
-                          {(doc.moderationStatus === 'PENDING' ||
-                            doc.moderationStatus === 'APPROVED') ? (
+                          {doc.moderationStatus === "PENDING" ||
+                          doc.moderationStatus === "APPROVED" ? (
                             <button
                               type="button"
                               className="btn-icon-action btn-warn"
-                              title={text('Từ chối', 'Reject')}
+                              title={text("Từ chối", "Reject")}
                               onClick={() => handleActionClick(doc)}
                             >
                               <X size={15} />
@@ -359,8 +483,9 @@ export function AdminDocumentsView() {
             {meta.totalPages > 1 ? (
               <div className="pagination-wrap">
                 <span className="pagination-info">
-                  {text('Trang', 'Page')} {meta.page} {text('trên', 'of')} {meta.totalPages} (
-                  {meta.totalItems} {text('tài liệu', 'documents')})
+                  {text("Trang", "Page")} {meta.page} {text("trên", "of")}{" "}
+                  {meta.totalPages} ({meta.totalItems}{" "}
+                  {text("tài liệu", "documents")})
                 </span>
                 <div className="pagination-buttons">
                   <button
@@ -371,16 +496,18 @@ export function AdminDocumentsView() {
                   >
                     <ChevronLeft size={16} />
                   </button>
-                  {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map((pNum) => (
-                    <button
-                      key={pNum}
-                      type="button"
-                      className={`pagination-btn ${meta.page === pNum ? 'active' : ''}`}
-                      onClick={() => handlePageChange(pNum)}
-                    >
-                      {pNum}
-                    </button>
-                  ))}
+                  {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map(
+                    (pNum) => (
+                      <button
+                        key={pNum}
+                        type="button"
+                        className={`pagination-btn ${meta.page === pNum ? "active" : ""}`}
+                        onClick={() => handlePageChange(pNum)}
+                      >
+                        {pNum}
+                      </button>
+                    ),
+                  )}
                   <button
                     type="button"
                     className="pagination-btn"
@@ -401,13 +528,13 @@ export function AdminDocumentsView() {
         <div className="admin-modal-overlay">
           <div className="admin-modal">
             <header className="admin-modal-header">
-              <h3>{text('Từ chối tài liệu', 'Reject document')}</h3>
+              <h3>{text("Từ chối tài liệu", "Reject document")}</h3>
               <button
                 type="button"
                 className="admin-modal-close"
                 onClick={() => {
-                  setSelectedDoc(null)
-                  setIsModerationModalOpen(false)
+                  setSelectedDoc(null);
+                  setIsModerationModalOpen(false);
                 }}
               >
                 <X size={18} />
@@ -417,7 +544,7 @@ export function AdminDocumentsView() {
               <p>
                 {text(
                   `Tài liệu "${selectedDoc.title}" sẽ bị từ chối, ẩn khỏi cộng đồng và người tải lên sẽ thấy lý do bên dưới.`,
-                  `"${selectedDoc.title}" will be rejected, hidden from the community, and the uploader will see the reason below.`
+                  `"${selectedDoc.title}" will be rejected, hidden from the community, and the uploader will see the reason below.`,
                 )}
               </p>
 
@@ -432,35 +559,50 @@ export function AdminDocumentsView() {
                 </div>
               ) : null}
 
-              <div style={{ marginTop: '1rem' }}>
+              <div style={{ marginTop: "1rem" }}>
                 <label
                   style={{
-                    display: 'block',
-                    marginBottom: '0.45rem',
+                    display: "block",
+                    marginBottom: "0.45rem",
                     fontWeight: 700,
-                    color: 'var(--ink)',
-                    fontSize: '0.8rem',
+                    color: "var(--ink)",
+                    fontSize: "0.8rem",
                   }}
                 >
-                  {text('Lý do từ chối (bắt buộc)', 'Rejection reason (required)')}
+                  {text(
+                    "Lý do từ chối (bắt buộc)",
+                    "Rejection reason (required)",
+                  )}
                 </label>
                 <div className="moderation-reason-presets">
                   {[
-                    text('Nội dung không phù hợp', 'Inappropriate content'),
-                    text('Sai hoặc thiếu thông tin', 'Incorrect or incomplete information'),
-                    text('File lỗi/không đọc được', 'Unreadable or corrupted file'),
-                    text('Nội dung trùng lặp', 'Duplicate content'),
-                    text('Vi phạm bản quyền', 'Copyright violation'),
+                    text("Nội dung không phù hợp", "Inappropriate content"),
+                    text(
+                      "Sai hoặc thiếu thông tin",
+                      "Incorrect or incomplete information",
+                    ),
+                    text(
+                      "File lỗi/không đọc được",
+                      "Unreadable or corrupted file",
+                    ),
+                    text("Nội dung trùng lặp", "Duplicate content"),
+                    text("Vi phạm bản quyền", "Copyright violation"),
                   ].map((reason) => (
-                    <button type="button" key={reason} onClick={() => setModerationReason(reason)}>{reason}</button>
+                    <button
+                      type="button"
+                      key={reason}
+                      onClick={() => setModerationReason(reason)}
+                    >
+                      {reason}
+                    </button>
                   ))}
                 </div>
                 <textarea
                   value={moderationReason}
                   onChange={(event) => setModerationReason(event.target.value)}
                   placeholder={text(
-                    'Nhập lý do để người tải lên có thể chỉnh sửa...',
-                    'Enter a reason so the uploader can revise the document...'
+                    "Nhập lý do để người tải lên có thể chỉnh sửa...",
+                    "Enter a reason so the uploader can revise the document...",
                   )}
                 />
               </div>
@@ -470,31 +612,31 @@ export function AdminDocumentsView() {
                 type="button"
                 className="secondary-button"
                 onClick={() => {
-                  setSelectedDoc(null)
-                  setIsModerationModalOpen(false)
+                  setSelectedDoc(null);
+                  setIsModerationModalOpen(false);
                 }}
                 disabled={isSubmitingAction}
               >
-                {text('Hủy bỏ', 'Cancel')}
+                {text("Hủy bỏ", "Cancel")}
               </button>
               <button
                 type="button"
                 className="primary-button"
                 style={{
-                  background: 'var(--ink)',
-                  borderColor: 'var(--ink)',
+                  background: "var(--ink)",
+                  borderColor: "var(--ink)",
                 }}
                 onClick={() => void handleConfirmAction()}
                 disabled={isSubmitingAction}
               >
                 {isSubmitingAction
-                  ? text('Đang xử lý...', 'Processing...')
-                  : text('Từ chối tài liệu', 'Reject document')}
+                  ? text("Đang xử lý...", "Processing...")
+                  : text("Từ chối tài liệu", "Reject document")}
               </button>
             </footer>
           </div>
         </div>
       ) : null}
     </main>
-  )
+  );
 }

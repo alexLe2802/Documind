@@ -34,8 +34,10 @@ import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 @UseGuards(FirebaseAuthGuard, RolesGuard)
 @Roles(RoleName.ADMIN)
 export class AdminUsersController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly adminUsersService: AdminUsersService) {}
 
+  // Lấy danh sách dữ liệu phù hợp.
   @Get()
   @ApiOperation({ summary: 'List users for administration' })
   @ApiWrappedOkResponse(AdminUsersResponseDto, 'Paginated admin user list.')
@@ -43,6 +45,7 @@ export class AdminUsersController {
     return this.adminUsersService.findAll(query);
   }
 
+  // Cập nhật trạng thái.
   @Patch(':id/status')
   @ApiOperation({ summary: 'Change a user account status' })
   @ApiWrappedOkResponse(AdminUserResponseDto, 'Updated admin user.')

@@ -28,6 +28,7 @@ class ApiClient {
   final FirebaseAuth _auth;
   final Dio dio;
 
+  // Thực hiện chức năng unwrap.
   dynamic unwrap(dynamic response) {
     if (response is Map<String, dynamic> && response['success'] == true) {
       final data = response['data'];
@@ -39,6 +40,7 @@ class ApiClient {
     return response;
   }
 
+  // Lấy dữ liệu from.
   List<Map<String, dynamic>> listFrom(dynamic value) {
     dynamic raw = value;
     if (raw is Map) raw = raw['items'] ?? raw['data'] ?? raw['results'];
@@ -49,6 +51,7 @@ class ApiClient {
         .toList();
   }
 
+  // Lấy dữ liệu get.
   Future<dynamic> get(
     String path, {
     Map<String, dynamic>? query,
@@ -63,15 +66,19 @@ class ApiClient {
     )).data,
   );
 
+  // Thực hiện chức năng post.
   Future<dynamic> post(String path, {Object? data}) async =>
       unwrap((await dio.post<dynamic>(path, data: data)).data);
 
+  // Thực hiện chức năng patch.
   Future<dynamic> patch(String path, {Object? data}) async =>
       unwrap((await dio.patch<dynamic>(path, data: data)).data);
 
+  // Thực hiện chức năng put.
   Future<dynamic> put(String path, {Object? data}) async =>
       unwrap((await dio.put<dynamic>(path, data: data)).data);
 
+  // Xóa hoặc giải phóng delete.
   Future<dynamic> delete(String path, {Object? data}) async =>
       unwrap((await dio.delete<dynamic>(path, data: data)).data);
 }

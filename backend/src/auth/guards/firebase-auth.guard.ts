@@ -27,11 +27,13 @@ const AUTHENTICATED_USER_SELECT = {
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     @Inject(FIREBASE_AUTH) private readonly firebaseAuth: Auth,
     private readonly prisma: PrismaService,
   ) {}
 
+  // Kiểm tra điều kiện activate.
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
@@ -40,9 +42,7 @@ export class FirebaseAuthGuard implements CanActivate {
       return true;
     }
 
-    const bearerToken = this.extractBearerToken(
-      request.headers.authorization,
-    );
+    const bearerToken = this.extractBearerToken(request.headers.authorization);
     const sessionCookie = getAuthSessionCookie(request);
 
     if (!bearerToken && !sessionCookie) {
@@ -81,11 +81,13 @@ export class FirebaseAuthGuard implements CanActivate {
     }
   }
 
+  // Xử lý bearer token.
   private extractBearerToken(authorization?: string): string | undefined {
     const [scheme, token] = authorization?.split(' ') ?? [];
     return scheme === 'Bearer' && token ? token : undefined;
   }
 
+  // Kiểm tra điều kiện credential.
   private verifyCredential(
     bearerToken?: string,
     sessionCookie?: string,

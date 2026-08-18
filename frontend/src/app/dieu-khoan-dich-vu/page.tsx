@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ROUTES } from "../../lib/routes";
 
+// Hiển thị giao diện terms page.
 export default function TermsPage() {
   return (
     <main className="legal-page">

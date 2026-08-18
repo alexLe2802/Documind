@@ -3,6 +3,7 @@ import type { CookieOptions } from 'express';
 export const AUTH_SESSION_DURATION_MS = 5 * 24 * 60 * 60 * 1000;
 export const AUTH_SESSION_COOKIE_NAME = 'documind_session';
 
+// Lấy dữ liệu xác thực phiên cookie options.
 export function getAuthSessionCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
@@ -17,6 +18,7 @@ type RequestWithCookieHeader = {
   headers: { cookie?: string };
 };
 
+// Lấy dữ liệu xác thực phiên cookie.
 export function getAuthSessionCookie(
   request: RequestWithCookieHeader,
 ): string | undefined {

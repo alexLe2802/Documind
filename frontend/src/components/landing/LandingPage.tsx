@@ -97,13 +97,17 @@ const faqs = [
   { question: "landing.faq5Q", answer: "landing.faq5A" },
 ] as const;
 
+// Hiển thị giao diện landing page.
 export function LandingPage() {
   const { locale, t } = useLanguage();
   const { user, isLoading } = useAuth();
+  // Thực hiện chức năng text.
   const text = (vi: string, en: string) => localize(locale, vi, en);
   const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
-  const appRoute = user ? getAuthenticatedHomeRoute(user.role) : ROUTES.dashboard;
+  const appRoute = user
+    ? getAuthenticatedHomeRoute(user.role)
+    : ROUTES.dashboard;
   const isAuthenticated = !isLoading && user?.status === "ACTIVE";
   const appEntryRoute = isAuthenticated ? appRoute : ROUTES.login;
 
@@ -111,9 +115,11 @@ export function LandingPage() {
   const [activeSection, setActiveSection] = useState("");
 
   useEffect(() => {
+    // Xử lý sự kiện scroll.
     const handleScroll = () => {
       // 1. Calculate scroll progress
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const totalHeight =
+        document.documentElement.scrollHeight - window.innerHeight;
       if (totalHeight > 0) {
         setScrollProgress((window.scrollY / totalHeight) * 100);
       }
@@ -124,7 +130,7 @@ export function LandingPage() {
         setActiveSection("");
         return;
       }
-      
+
       let currentActive = "";
       for (const item of navItems) {
         const section = document.querySelector(item.href);
@@ -145,6 +151,7 @@ export function LandingPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Xóa hoặc giải phóng menu.
   function closeMenu() {
     setMenuOpen(false);
   }
@@ -242,7 +249,9 @@ export function LandingPage() {
                 </div>
                 <div className="hero-note">
                   <span className="hero-note-line" aria-hidden="true" />
-                  <span>PDF · DOCX · PPTX · XLSX · AUDIO · VIDEO · YOUTUBE · ETC</span>
+                  <span>
+                    PDF · DOCX · PPTX · XLSX · AUDIO · VIDEO · YOUTUBE · ETC
+                  </span>
                 </div>
               </div>
             </Reveal>
@@ -288,8 +297,7 @@ export function LandingPage() {
                             <strong>{t("landing.source")}</strong>
                             <span>{t("landing.citationHint")}</span>
                           </span>
-                        </span>
-                        {" "}
+                        </span>{" "}
                         <span className="citation" tabIndex={0}>
                           [2]
                           <span className="citation-tooltip" role="tooltip">
@@ -299,12 +307,16 @@ export function LandingPage() {
                         </span>
                       </p>
                       <div className="preview-sources-list">
-                        <div className="preview-sources-title">{t("landing.sources")}</div>
-                        <div className="preview-source-item">
-                          <span className="source-number">[1]</span> {t("landing.source1")}
+                        <div className="preview-sources-title">
+                          {t("landing.sources")}
                         </div>
                         <div className="preview-source-item">
-                          <span className="source-number">[2]</span> {t("landing.source2")}
+                          <span className="source-number">[1]</span>{" "}
+                          {t("landing.source1")}
+                        </div>
+                        <div className="preview-source-item">
+                          <span className="source-number">[2]</span>{" "}
+                          {t("landing.source2")}
                         </div>
                       </div>
                     </div>
@@ -515,10 +527,18 @@ export function LandingPage() {
           <div className="footer-links-col">
             <h4>{t("landing.footerProduct")}</h4>
             <ul>
-              <li><a href="#features">{t("nav.features")}</a></li>
-              <li><a href="#workflow">{t("nav.workflow")}</a></li>
-              <li><a href="#security">{t("nav.security")}</a></li>
-              <li><a href="#faq">{t("nav.faq")}</a></li>
+              <li>
+                <a href="#features">{t("nav.features")}</a>
+              </li>
+              <li>
+                <a href="#workflow">{t("nav.workflow")}</a>
+              </li>
+              <li>
+                <a href="#security">{t("nav.security")}</a>
+              </li>
+              <li>
+                <a href="#faq">{t("nav.faq")}</a>
+              </li>
             </ul>
           </div>
           <div className="footer-links-col">
@@ -532,12 +552,24 @@ export function LandingPage() {
                 </li>
               ) : (
                 <>
-                  <li><Link href={ROUTES.login}>{t("common.login")}</Link></li>
-                  <li><Link href={ROUTES.register}>{t("common.register")}</Link></li>
+                  <li>
+                    <Link href={ROUTES.login}>{t("common.login")}</Link>
+                  </li>
+                  <li>
+                    <Link href={ROUTES.register}>{t("common.register")}</Link>
+                  </li>
                 </>
               )}
-              <li><Link href={isAuthenticated ? ROUTES.library : ROUTES.login}>{t("nav.library")}</Link></li>
-              <li><Link href={isAuthenticated ? ROUTES.community : ROUTES.login}>{t("nav.community")}</Link></li>
+              <li>
+                <Link href={isAuthenticated ? ROUTES.library : ROUTES.login}>
+                  {t("nav.library")}
+                </Link>
+              </li>
+              <li>
+                <Link href={isAuthenticated ? ROUTES.community : ROUTES.login}>
+                  {t("nav.community")}
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

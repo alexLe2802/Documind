@@ -13,6 +13,7 @@ import { ROUTES, getAuthenticatedHomeRoute } from "../lib/routes";
 const GOOGLE_LOGIN_SUCCESS_MESSAGE = "Đã đăng nhập thành công bằng google";
 const FLASH_DURATION_MS = 5000;
 
+// Lấy dữ liệu lỗi code.
 function getErrorCode(error: unknown) {
   if (
     typeof error === "object" &&
@@ -26,6 +27,7 @@ function getErrorCode(error: unknown) {
   return undefined;
 }
 
+// Kiểm tra điều kiện google popup closed lỗi.
 function isGooglePopupClosedError(error: unknown) {
   const code = getErrorCode(error);
 
@@ -36,6 +38,7 @@ function isGooglePopupClosedError(error: unknown) {
   );
 }
 
+// Hiển thị giao diện đăng nhập view.
 export function LoginView() {
   const { user, isLoading, login, loginWithGoogle } = useAuth();
   const { t } = useLanguage();
@@ -70,6 +73,7 @@ export function LoginView() {
     );
   }
 
+  // Xử lý sự kiện submit.
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError("");
@@ -85,6 +89,7 @@ export function LoginView() {
     }
   }
 
+  // Xử lý sự kiện google đăng nhập.
   async function handleGoogleLogin() {
     setError("");
     setIsGoogleSubmitting(true);

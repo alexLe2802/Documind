@@ -46,27 +46,36 @@ describe("Library document actions", () => {
     renderActions(privateDocument, onPublish);
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Make Private notes public" }),
+      screen.getByRole("button", { name: "Submit Private notes for review" }),
     );
 
     expect(onPublish).toHaveBeenCalledOnce();
   });
 
-  it("does not show Publish after the document is public", () => {
-    renderActions({ ...privateDocument, visibility: "PUBLIC" });
+  it("shows Pending review while a public document awaits admin approval", () => {
+    renderActions({ ...privateDocument, visibility: "PUBLIC", moderationStatus: "PENDING" });
 
-    expect(
-      screen.queryByRole("button", { name: "Make Private notes public" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel review for Private notes" })).toHaveTextContent("Pending review");
   });
 
-  it("lets the owner remove a public document from Community", () => {
+  it("lets the owner cancel a pending publication request", () => {
     const onUnpublish = vi.fn();
-    renderActions({ ...privateDocument, visibility: "PUBLIC" }, vi.fn(), onUnpublish);
+    renderActions({ ...privateDocument, visibility: "PUBLIC", moderationStatus: "PENDING" }, vi.fn(), onUnpublish);
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Make Private notes private" }),
+      screen.getByRole("button", { name: "Cancel review for Private notes" }),
     );
+
+    expect(onUnpublish).toHaveBeenCalledOnce();
+  });
+
+  it("shows Public after admin approval and lets the owner unpublish", () => {
+    const onUnpublish = vi.fn();
+    renderActions({ ...privateDocument, visibility: "PUBLIC", moderationStatus: "APPROVED" }, vi.fn(), onUnpublish);
+
+    const button = screen.getByRole("button", { name: "Make Private notes private" });
+    expect(button).toHaveTextContent("Public");
+    fireEvent.click(button);
 
     expect(onUnpublish).toHaveBeenCalledOnce();
   });

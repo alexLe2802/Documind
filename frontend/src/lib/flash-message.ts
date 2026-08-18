@@ -7,6 +7,7 @@ export type FlashMessage = {
 const FLASH_MESSAGE_KEY = "ai-study-hub:flash-message";
 export const FLASH_MESSAGE_EVENT = "ai-study-hub:flash-message";
 
+// Cập nhật flash tin nhắn.
 export function setFlashMessage(message: FlashMessage) {
   if (typeof window === "undefined") return;
 
@@ -16,6 +17,7 @@ export function setFlashMessage(message: FlashMessage) {
   );
 }
 
+// Thực hiện chức năng consume flash tin nhắn.
 export function consumeFlashMessage(): FlashMessage | null {
   if (typeof window === "undefined") return null;
 

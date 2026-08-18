@@ -116,8 +116,10 @@ interface ChatbotLogMetadata {
 
 @Injectable()
 export class DashboardService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly prisma: PrismaService) {}
 
+  // Lấy dữ liệu summary.
   async getSummary(): Promise<DashboardSummaryResponse> {
     const [
       totalUsers,
@@ -158,6 +160,7 @@ export class DashboardService {
     };
   }
 
+  // Lấy dữ liệu người dùng stats.
   async getUserStats(): Promise<UserStatsResponse> {
     const [roles, statuses] = (await Promise.all([
       this.prisma.role.findMany({
@@ -191,6 +194,7 @@ export class DashboardService {
     };
   }
 
+  // Lấy dữ liệu tài liệu stats.
   async getDocumentStats(): Promise<DocumentStatsResponse> {
     const [statuses, visibilities] = (await Promise.all([
       this.prisma.document.groupBy({
@@ -220,6 +224,7 @@ export class DashboardService {
     };
   }
 
+  // Lấy dữ liệu statistics.
   async getStatistics(): Promise<DashboardStatisticsResponse> {
     const [userStats, documentStats, subjectStats, categoryStats] =
       await Promise.all([
@@ -244,6 +249,7 @@ export class DashboardService {
     };
   }
 
+  // Lấy dữ liệu tài liệu by môn học.
   async getDocumentsBySubject(
     query: DocumentsBySubjectQueryDto,
   ): Promise<DocumentsBySubjectResponse> {
@@ -278,6 +284,7 @@ export class DashboardService {
     };
   }
 
+  // Lấy dữ liệu tài liệu by danh mục.
   async getDocumentsByCategory(
     query: DocumentsByCategoryQueryDto,
   ): Promise<DocumentsByCategoryResponse> {
@@ -333,6 +340,7 @@ export class DashboardService {
     };
   }
 
+  // Lấy dữ liệu chatbot stats.
   async getChatbotStats(): Promise<ChatbotStatsResponseDto> {
     const logs = await this.prisma.auditLog.findMany({
       where: { action: AuditLogAction.CHATBOT_QUERY },
@@ -409,6 +417,7 @@ export class DashboardService {
     };
   }
 
+  // Lấy dữ liệu tải lên statistics.
   async getUploadStatistics(
     query: UploadStatisticsQueryDto,
   ): Promise<UploadStatisticsResponse> {
@@ -428,6 +437,7 @@ export class DashboardService {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa active tài liệu where.
   private buildActiveDocumentWhere(
     query: DateRangeQuery,
   ): Prisma.DocumentWhereInput {
@@ -459,6 +469,7 @@ export class DashboardService {
     return where;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa tải lên statistics query.
   private buildUploadStatisticsQuery(
     query: UploadStatisticsQueryDto,
   ): Prisma.Sql {
@@ -489,6 +500,7 @@ export class DashboardService {
     `;
   }
 
+  // Lấy dữ liệu tải lên date bucket.
   private getUploadDateBucket(
     groupBy: NonNullable<UploadStatisticsQueryDto['groupBy']>,
   ): Prisma.Sql {

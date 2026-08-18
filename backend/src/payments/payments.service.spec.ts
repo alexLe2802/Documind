@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -30,10 +29,16 @@ describe('PaymentsService', () => {
     paidAt: null,
     rawNotification: null,
     expiresAt: new Date('2026-06-22T00:30:00.000Z'),
+    durationDays: 30,
+    storageMb: 1024,
+    uploadCredits: 100,
+    aiCredits: 300,
+    unlimitedAiDays: 0,
     createdAt: new Date('2026-06-22T00:00:00.000Z'),
     updatedAt: new Date('2026-06-22T00:00:00.000Z'),
   };
   const transaction = {
+    $executeRaw: jest.fn(),
     paymentOrder: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -44,6 +49,10 @@ describe('PaymentsService', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
       upsert: jest.fn(),
+    },
+    entitlementTransaction: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
     },
     auditLog: {
       create: jest.fn(),
@@ -161,12 +170,15 @@ describe('PaymentsService', () => {
       data: { data: { order_status: 'PENDING' } },
     });
     transaction.paymentOrder.create.mockResolvedValue(paymentOrder);
+    transaction.$executeRaw.mockResolvedValue(1);
     transaction.paymentOrder.findUnique.mockResolvedValue(null);
     transaction.paymentOrder.findMany.mockResolvedValue([]);
     transaction.paymentOrder.updateMany.mockResolvedValue({ count: 1 });
     transaction.subscription.findUnique.mockResolvedValue(null);
     transaction.subscription.update.mockResolvedValue({});
     transaction.subscription.upsert.mockResolvedValue({});
+    transaction.entitlementTransaction.findUnique.mockResolvedValue(null);
+    transaction.entitlementTransaction.create.mockResolvedValue({});
     transaction.auditLog.create.mockResolvedValue({});
   });
 
@@ -299,7 +311,7 @@ describe('PaymentsService', () => {
     });
   });
 
-  it('charges the plan price difference when upgrading Student to Pro', async () => {
+  it('charges the full bundle price when buying Pro after Student', async () => {
     prisma.subscription.findUnique.mockResolvedValue({
       plan: SubscriptionPlan.STUDENT,
       expiresAt: activeSubscriptionExpiry,
@@ -316,17 +328,17 @@ describe('PaymentsService', () => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         data: expect.objectContaining({
           plan: SubscriptionPlan.PRO,
-          amount: 200000,
+          amount: 349000,
         }),
       }),
     );
     expect(checkout.fields).toMatchObject({
       payment_method: PaymentMethod.BANK_TRANSFER,
-      order_amount: 200000,
+      order_amount: 349000,
     });
   });
 
-  it('rejects downgrading from Pro to Student while Pro is active', async () => {
+  it('allows buying Student resources while Pro access is active', async () => {
     prisma.subscription.findUnique.mockResolvedValue({
       plan: SubscriptionPlan.PRO,
       expiresAt: activeSubscriptionExpiry,
@@ -337,8 +349,8 @@ describe('PaymentsService', () => {
         plan: SubscriptionPlan.STUDENT,
         paymentMethod: PaymentMethod.BANK_TRANSFER,
       }),
-    ).rejects.toBeInstanceOf(ConflictException);
-    expect(transaction.paymentOrder.create).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ fields: { order_amount: 149000 } });
+    expect(transaction.paymentOrder.create).toHaveBeenCalledTimes(1);
   });
 
   it('rejects IPN requests with an invalid API key', async () => {
@@ -422,26 +434,39 @@ describe('PaymentsService', () => {
     expect(transaction.auditLog.create).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps the current expiry when a Student subscription is upgraded to Pro', async () => {
+  it('extends access and accumulates resources for every paid bundle', async () => {
     prisma.paymentOrder.findUnique.mockResolvedValue({
       ...paymentOrder,
       plan: SubscriptionPlan.PRO,
-      amount: 200000,
+      amount: 349000,
+      storageMb: 5120,
+      uploadCredits: 500,
+      aiCredits: 0,
+      unlimitedAiDays: 30,
     });
     transaction.subscription.findUnique.mockResolvedValue({
+      id: 'subscription-id',
+      userId: user.id,
       plan: SubscriptionPlan.STUDENT,
+      paymentOrderId: 'previous-payment',
+      startsAt: new Date('2099-06-22T00:00:00.000Z'),
       expiresAt: activeSubscriptionExpiry,
+      storageLimitMb: 1124,
+      uploadLimit: 110,
+      aiChatLimit: 320,
+      aiChatsUsed: 10,
+      unlimitedAiUntil: null,
     });
 
     await service.processIpn('Apikey webhook-api-key', {
       ...ipn,
       order: {
         ...ipn.order,
-        order_amount: '200000',
+        order_amount: '349000',
       },
       transaction: {
         ...ipn.transaction,
-        transaction_amount: '200000',
+        transaction_amount: '349000',
       },
     });
 
@@ -451,16 +476,62 @@ describe('PaymentsService', () => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         update: expect.objectContaining({
           plan: SubscriptionPlan.PRO,
-          expiresAt: activeSubscriptionExpiry,
+          expiresAt: new Date('2099-08-21T00:00:00.000Z'),
+          storageLimitMb: 6244,
+          uploadLimit: 610,
+          aiChatLimit: 320,
+          unlimitedAiUntil: expect.any(Date),
         }),
         // Jest asymmetric matchers are typed as any.
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         create: expect.objectContaining({
           plan: SubscriptionPlan.PRO,
-          expiresAt: activeSubscriptionExpiry,
+          expiresAt: new Date('2099-08-21T00:00:00.000Z'),
         }),
       }),
     );
+  });
+
+  it('adds Student resources without replacing an active Pro entitlement', async () => {
+    const unlimitedUntil = new Date('2099-07-22T00:00:00.000Z');
+    transaction.subscription.findUnique.mockResolvedValue({
+      id: 'subscription-id',
+      userId: user.id,
+      plan: SubscriptionPlan.PRO,
+      paymentOrderId: 'pro-payment',
+      startsAt: new Date('2099-06-22T00:00:00.000Z'),
+      expiresAt: activeSubscriptionExpiry,
+      storageLimitMb: 5120,
+      uploadLimit: 500,
+      aiChatLimit: 20,
+      aiChatsUsed: 5,
+      unlimitedAiUntil: unlimitedUntil,
+    });
+
+    await service.processIpn('Apikey webhook-api-key', ipn);
+
+    expect(transaction.subscription.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          expiresAt: new Date('2099-08-21T00:00:00.000Z'),
+          storageLimitMb: 6144,
+          uploadLimit: 600,
+          aiChatLimit: 320,
+          unlimitedAiUntil: unlimitedUntil,
+          aiChatsUsed: 5,
+        }),
+      }),
+    );
+    expect(transaction.entitlementTransaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        paymentOrderId: paymentOrder.id,
+        packageCode: SubscriptionPlan.STUDENT,
+        durationDays: 30,
+        storageDeltaMb: 1024,
+        uploadDelta: 100,
+        aiCreditDelta: 300,
+      }),
+    });
   });
 
   it('expires an elapsed subscription and restores Free quotas', async () => {
@@ -576,7 +647,24 @@ describe('PaymentsService', () => {
       status: PaymentStatus.PAID,
     });
     transaction.subscription.findUnique.mockResolvedValue({
+      id: 'subscription-id',
+      userId: user.id,
+      plan: SubscriptionPlan.STUDENT,
       paymentOrderId: paymentOrder.id,
+      startsAt: new Date('2026-06-22T00:00:00.000Z'),
+      expiresAt: new Date('2026-07-22T00:00:00.000Z'),
+      storageLimitMb: 1124,
+      uploadLimit: 110,
+      aiChatLimit: 320,
+      aiChatsUsed: 0,
+      unlimitedAiUntil: null,
+    });
+    transaction.entitlementTransaction.findUnique.mockResolvedValue({
+      durationDays: 30,
+      storageDeltaMb: 1024,
+      uploadDelta: 100,
+      aiCreditDelta: 300,
+      unlimitedAiDays: 0,
     });
 
     const voidIpn = {

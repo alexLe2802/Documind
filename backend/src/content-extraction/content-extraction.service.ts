@@ -37,6 +37,7 @@ type DetectedFileType =
   | 'unknown';
 
 class ExtractionTimeoutError extends Error {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor() {
     super('Document extraction timed out');
     this.name = 'ExtractionTimeoutError';
@@ -48,6 +49,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
   private static readonly MAX_RETRIES = 3;
   private readonly logger = new Logger(ContentExtractionService.name);
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly pdfExtractor: PdfExtractorService,
     private readonly docxExtractor: DocxExtractorService,
@@ -68,10 +70,12 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     );
   }
 
+  // Xử lý sự kiện application bootstrap.
   async onApplicationBootstrap(): Promise<void> {
     await this.recoverQueuedExtractions();
   }
 
+  // Thực hiện chức năng recover queued extractions.
   async recoverQueuedExtractions(): Promise<void> {
     const staleBefore = new Date(
       Date.now() - this.getExtractionLeaseTimeoutMs(),
@@ -101,6 +105,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     for (const job of jobs) {
       if (job.extractionStatus === ExtractionStatus.FAILED) {
         const retryJobId = randomUUID();
+        // Cập nhật các nội dung trích xuất trong database.
         const claimed = await this.prisma.documentContent.updateMany({
           where: {
             documentId: job.documentId,
@@ -127,6 +132,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
 
       if (job.extractionStatus === ExtractionStatus.PROCESSING) {
         const retryJobId = randomUUID();
+        // Cập nhật các nội dung trích xuất trong database.
         const reclaimed = await this.prisma.documentContent.updateMany({
           where: {
             documentId: job.documentId,
@@ -155,6 +161,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     }
   }
 
+  // Thực hiện chức năng start extraction.
   async startExtraction(
     documentId: string,
     user: AuthenticatedUser,
@@ -171,6 +178,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     return job;
   }
 
+  // Lấy dữ liệu tài liệu nội dung.
   getDocumentContent(
     documentId: string,
     user: AuthenticatedUser,
@@ -178,6 +186,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     return this.documentContentService.getContent(documentId, user);
   }
 
+  // Lấy dữ liệu extraction trạng thái.
   getExtractionStatus(
     documentId: string,
     user: AuthenticatedUser,
@@ -185,12 +194,14 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     return this.documentContentService.getExtractionStatus(documentId, user);
   }
 
+  // Xử lý extraction.
   async processExtraction(
     documentId: string,
     jobId: string,
     file?: UploadedContentFile,
   ): Promise<void> {
     try {
+      // Cập nhật các nội dung trích xuất trong database.
       const processing = await this.prisma.documentContent.updateMany({
         where: {
           documentId,
@@ -226,6 +237,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
         return;
       }
 
+      // Cập nhật tài liệu trong database.
       await this.prisma.document.update({
         where: { id: documentId },
         data: { extractionStatus: ExtractionStatus.PROCESSING },
@@ -267,6 +279,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
       }
 
       const completedAt = new Date(result.extractedAt);
+      // Cập nhật các nội dung trích xuất trong database.
       const completed = await this.prisma.documentContent.updateMany({
         where: { documentId, jobId },
         data: {
@@ -300,6 +313,8 @@ export class ContentExtractionService implements OnApplicationBootstrap {
         }
       }
 
+      // The scanner only supplies risk metadata for the admin queue. It must
+      // never approve a public document; approval is an explicit admin action.
       const moderationResult = this.moderationScanner.scan(
         [
           document.title,
@@ -310,16 +325,14 @@ export class ContentExtractionService implements OnApplicationBootstrap {
           .filter(Boolean)
           .join('\n'),
       );
+      // Cập nhật tài liệu trong database.
       await this.prisma.document.update({
         where: { id: documentId },
         data: {
           extractionStatus: result.extractionStatus,
           ...(document.visibility === DocumentVisibility.PUBLIC
             ? {
-                moderationStatus:
-                  moderationResult.flag === 'NORMAL'
-                    ? ModerationStatus.APPROVED
-                    : ModerationStatus.PENDING,
+                moderationStatus: ModerationStatus.PENDING,
               }
             : {}),
           ...this.toModerationData(moderationResult),
@@ -349,6 +362,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     }
   }
 
+  // Xử lý from tệp.
   async extractFromFile(file: UploadedContentFile): Promise<ExtractionResult> {
     const fileType = this.detectFileType(file.originalname, file.mimetype);
 
@@ -405,18 +419,21 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     }
   }
 
+  // Lấy dữ liệu extraction lease timeout ms.
   private getExtractionLeaseTimeoutMs(): number {
     return (
       this.configService.get<number>('EXTRACTION_LEASE_TIMEOUT_MS') ?? 600_000
     );
   }
 
+  // Kiểm tra điều kiện tải lên.
   async validateUpload(file: UploadedContentFile): Promise<void> {
     if (this.detectFileType(file.originalname, file.mimetype) === 'pdf') {
       await this.pdfExtractor.validateOcrPageLimit(file.buffer);
     }
   }
 
+  // Thực hiện chức năng detect tệp type.
   private detectFileType(fileName: string, mimetype: string): DetectedFileType {
     const ext = fileName.split('.').pop()?.toLowerCase();
     const normalizedMime = mimetype.toLowerCase();
@@ -457,6 +474,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     return 'unknown';
   }
 
+  // Chuyển đổi hoặc chuẩn hóa completed result.
   private buildCompletedResult(
     file: UploadedContentFile,
     fileType: string,
@@ -475,6 +493,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     return result;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa failed result.
   private buildFailedResult(
     file: UploadedContentFile,
     fileType: string,
@@ -488,6 +507,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa result.
   private buildResult(
     file: UploadedContentFile,
     fileType: string,
@@ -507,6 +527,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     };
   }
 
+  // Lấy dữ liệu stored tài liệu tệp.
   private async loadStoredDocumentFile(document: {
     fileName: string;
     fileType: string;
@@ -521,6 +542,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     };
   }
 
+  // Thực hiện chức năng persist failure.
   private async persistFailure(
     documentId: string,
     jobId: string,
@@ -528,6 +550,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     errorMessage: string,
   ): Promise<void> {
     const safeErrorMessage = this.sanitizeErrorMessage(errorMessage);
+    // Cập nhật các nội dung trích xuất trong database.
     const failed = await this.prisma.documentContent.updateMany({
       where: { documentId, jobId },
       data: {
@@ -545,6 +568,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
       return;
     }
 
+    // Cập nhật tài liệu trong database.
     await this.prisma.document.update({
       where: { id: documentId },
       data: {
@@ -557,6 +581,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     });
   }
 
+  // Thực hiện chức năng sanitize lỗi tin nhắn.
   private sanitizeErrorMessage(errorMessage: string): string {
     const firstLine = errorMessage.split(/\r?\n/, 1)[0]?.trim();
     if (!firstLine) {
@@ -579,6 +604,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
       .slice(0, 500);
   }
 
+  // Thực hiện chức năng with extraction timeout.
   private async withExtractionTimeout<T>(promise: Promise<T>): Promise<T> {
     let timeout: NodeJS.Timeout | undefined;
     try {
@@ -596,6 +622,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     }
   }
 
+  // Lấy dữ liệu extraction timeout ms.
   private getExtractionTimeoutMs(): number {
     const configured = this.configService.get<number>('EXTRACTION_TIMEOUT_MS');
     return typeof configured === 'number' &&
@@ -605,6 +632,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
       : 240_000;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa moderation dữ liệu.
   private toModerationData(
     result: ReturnType<ModerationScannerService['scan']>,
   ): {
@@ -621,6 +649,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa text.
   private normalizeText(text: string): string {
     return text
       .split(String.fromCharCode(0))
@@ -631,6 +660,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
       .trim();
   }
 
+  // Thực hiện chức năng summarize.
   private summarize(text: string): string {
     if (!text) {
       return '';
@@ -638,6 +668,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     return text.slice(0, 500);
   }
 
+  // Thực hiện chức năng complete existing extraction.
   private async completeExistingExtraction(
     documentId: string,
     jobId: string,
@@ -657,6 +688,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
       );
     }
 
+    // Cập nhật các nội dung trích xuất trong database.
     const completed = await this.prisma.documentContent.updateMany({
       where: { documentId, jobId },
       data: {
@@ -673,12 +705,14 @@ export class ContentExtractionService implements OnApplicationBootstrap {
       return;
     }
 
+    // Cập nhật tài liệu trong database.
     await this.prisma.document.update({
       where: { id: documentId },
       data: { extractionStatus: ExtractionStatus.COMPLETED },
     });
   }
 
+  // Thực hiện chức năng replace vector chunks.
   private async replaceVectorChunks(
     documentId: string,
     text: string,
@@ -730,6 +764,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     }
   }
 
+  // Thực hiện chức năng split into semantic chunks.
   private splitIntoSemanticChunks(
     text: string,
     chunkSize = 1000,
@@ -762,6 +797,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     return chunks.filter((chunk) => chunk.length > 0);
   }
 
+  // Thực hiện chức năng split into line aware chunks.
   private splitIntoLineAwareChunks(text: string, chunkSize: number): string[] {
     const lines = text
       .split('\n')
@@ -834,6 +870,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     return chunks.filter((chunk) => chunk.length > 0);
   }
 
+  // Kiểm tra điều kiện keep line with hiện tại chunk.
   private shouldKeepLineWithCurrentChunk(
     line: string,
     currentLines: string[],
@@ -845,6 +882,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     );
   }
 
+  // Thực hiện chức năng seed chunk with context.
   private seedChunkWithContext(
     line: string,
     currentHeading: string,
@@ -867,6 +905,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     return seed;
   }
 
+  // Kiểm tra điều kiện chunk heading.
   private isChunkHeading(line: string): boolean {
     return (
       /^\d+(?:\.\d+)*\.?\s+\S/.test(line) ||
@@ -875,6 +914,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     );
   }
 
+  // Kiểm tra điều kiện table row.
   private isTableRow(line: string): boolean {
     return (
       line.includes(' | ') ||
@@ -883,6 +923,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     );
   }
 
+  // Xử lý embedding with retry.
   private async generateEmbeddingWithRetry(text: string): Promise<number[]> {
     try {
       return await this.geminiService.generateEmbedding(text);
@@ -891,6 +932,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     }
   }
 
+  // Thực hiện chức năng assess quality.
   private assessQuality(text: string): {
     qualityStatus: ExtractionResult['qualityStatus'];
     qualityDetails: string[];
@@ -918,6 +960,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     return { qualityStatus: 'READY', qualityDetails: [] };
   }
 
+  // Xử lý nguồn locator.
   private extractSourceLocator(chunk: string): string[] {
     return [
       ...new Set(
@@ -930,6 +973,7 @@ export class ContentExtractionService implements OnApplicationBootstrap {
     ];
   }
 
+  // Lấy dữ liệu legacy office extractor.
   private getLegacyOfficeExtractor(): LegacyOfficeExtractorService {
     if (!this.legacyOfficeExtractor) {
       throw new Error('Legacy Office extractor is unavailable');

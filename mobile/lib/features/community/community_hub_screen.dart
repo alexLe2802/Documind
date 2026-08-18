@@ -21,6 +21,7 @@ final savedDocumentsProvider =
 class CommunityHubScreen extends StatelessWidget {
   const CommunityHubScreen({super.key});
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => DefaultTabController(
     length: 3,
@@ -48,6 +49,7 @@ class CommunityHubScreen extends StatelessWidget {
 
 class CommunityScreen extends ConsumerStatefulWidget {
   const CommunityScreen({super.key});
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<CommunityScreen> createState() => _CommunityScreenState();
 }
@@ -56,12 +58,14 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   final search = TextEditingController();
   String category = '';
 
+  // Giải phóng tài nguyên khi đối tượng bị hủy.
   @override
   void dispose() {
     search.dispose();
     super.dispose();
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(communityDocumentsProvider);
@@ -118,12 +122,14 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
 class _CommunityCard extends ConsumerStatefulWidget {
   const _CommunityCard({required this.item});
   final Map<String, dynamic> item;
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<_CommunityCard> createState() => _CommunityCardState();
 }
 
 class _CommunityCardState extends ConsumerState<_CommunityCard> {
   bool busy = false;
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
@@ -181,6 +187,7 @@ class _CommunityCardState extends ConsumerState<_CommunityCard> {
     );
   }
 
+  // Thực hiện chức năng open xem trước.
   void _openPreview() {
     final item = widget.item;
     Navigator.push(
@@ -206,6 +213,7 @@ class _CommunityCardState extends ConsumerState<_CommunityCard> {
     );
   }
 
+  // Thực hiện chức năng toggle.
   Future<void> _toggle(bool save) async {
     setState(() => busy = true);
     try {
@@ -233,6 +241,7 @@ class _SavedScreenState extends ConsumerState<SavedScreen> {
   String subject = '', fileType = '', sort = 'newest';
   @override void dispose() { search.dispose(); super.dispose(); }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(savedDocumentsProvider);
@@ -299,10 +308,15 @@ class _LoadingList extends StatelessWidget { const _LoadingList(this.text); fina
 class _MessageList extends StatelessWidget { const _MessageList(this.text); final String text; @override Widget build(BuildContext context) => ListView(physics: const AlwaysScrollableScrollPhysics(), children: [const SizedBox(height: 140), const Icon(Icons.cloud_off, size: 44), const SizedBox(height: 10), Text(text, textAlign: TextAlign.center)]); }
 class _InlineEmpty extends StatelessWidget { const _InlineEmpty(this.text); final String text; @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 70, horizontal: 20), child: Column(children: [const Icon(Icons.bookmark_border, size: 48, color: Color(0xffd97706)), const SizedBox(height: 10), Text(text, textAlign: TextAlign.center)])); }
 
+// Thực hiện chức năng môn học name.
 String _subjectName(Map<String, dynamic> item) => item['subject'] is Map ? (item['subject']['name']?.toString() ?? '') : (item['subject']?.toString() ?? '');
+// Thực hiện chức năng danh mục name.
 String _categoryName(Map<String, dynamic> item) => item['category'] is Map ? (item['category']['name']?.toString() ?? '') : (item['category']?.toString() ?? '');
+// Thực hiện chức năng owner name.
 String _ownerName(Map<String, dynamic> item) { final owner = item['owner']; if (owner is Map) return owner['fullName']?.toString() ?? owner['email']?.toString() ?? 'Cộng đồng'; return owner?.toString() ?? 'Cộng đồng'; }
+// Thực hiện chức năng tệp type.
 String _fileType(Map<String, dynamic> item) { final name = item['fileName']?.toString() ?? ''; final ext = name.split('.').last.toUpperCase(); if (['PDF', 'DOCX', 'PPTX', 'XLSX'].contains(ext)) return ext; final mime = item['fileType']?.toString().toLowerCase() ?? ''; if (mime.contains('pdf')) return 'PDF'; if (mime.contains('word')) return 'DOCX'; if (mime.contains('presentation')) return 'PPTX'; if (mime.contains('sheet')) return 'XLSX'; return 'FILE'; }
+// Thực hiện chức năng thẻ.
 List<String> _tags(Map<String, dynamic> item) { final raw = item['tags']; if (raw is! List) return const []; return raw.map((entry) { if (entry is Map && entry['tag'] is Map) return entry['tag']['name']?.toString() ?? ''; if (entry is Map) return entry['name']?.toString() ?? ''; return entry.toString(); }).where((e) => e.isNotEmpty).toList(); }
 
 const _eyebrow = TextStyle(color: Color(0xffd97706), letterSpacing: 1.1, fontWeight: FontWeight.w800, fontSize: 12);

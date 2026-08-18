@@ -11,6 +11,7 @@ export interface SessionMessage {
 
 @Injectable()
 export class PromptBuilderService {
+  // Chuyển đổi hoặc chuẩn hóa ask library prompt.
   buildAskLibraryPrompt(question: string, sources: CitationDto[]): string {
     void question;
     void sources;
@@ -19,6 +20,7 @@ export class PromptBuilderService {
     );
   }
 
+  // Chuyển đổi hoặc chuẩn hóa system instruction.
   buildSystemInstruction(sources: CitationDto[], mode: ChatMode): string {
     void sources;
     const scope =
@@ -28,6 +30,7 @@ export class PromptBuilderService {
     return this.buildPolicy(scope);
   }
 
+  // Chuyển đổi hoặc chuẩn hóa grounded người dùng turn.
   buildGroundedUserTurn(question: string, sources: CitationDto[]): string {
     const payload = {
       userQuestion: question,
@@ -45,6 +48,7 @@ export class PromptBuilderService {
     ].join('\n\n');
   }
 
+  // Chuyển đổi hoặc chuẩn hóa contents.
   buildContents(
     history: SessionMessage[],
     groundedUserTurn?: string,
@@ -61,6 +65,7 @@ export class PromptBuilderService {
     return contents;
   }
 
+  // Chuyển đổi hoặc chuẩn hóa policy.
   private buildPolicy(scope: string): string {
     return [
       'You are DocuMind AI, a grounded study assistant.',

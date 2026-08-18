@@ -13,8 +13,10 @@ import { RoleName } from '../generated/prisma/client';
 @UseGuards(FirebaseAuthGuard, RolesGuard)
 @Roles(RoleName.ADMIN)
 export class AuditLogController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly auditLogService: AuditLogService) {}
 
+  // Lấy danh sách dữ liệu phù hợp.
   @Get()
   @ApiOperation({ summary: 'List admin audit logs' })
   async findAll(@Query() query: AuditLogQueryDto): Promise<AuditLogResponse> {

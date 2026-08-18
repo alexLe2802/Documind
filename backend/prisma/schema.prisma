@@ -19,30 +19,31 @@ model Role {
 }
 
 model User {
-  id              String             @id @default(uuid()) @db.Uuid
-  firebaseUid     String             @unique @map("firebase_uid")
-  email           String             @unique
-  fullName        String             @map("full_name")
-  avatarUrl       String?            @map("avatar_url")
-  authProvider    AuthProvider       @map("auth_provider")
-  roleId          String             @map("role_id") @db.Uuid
-  status          UserStatus         @default(ACTIVE)
-  createdAt       DateTime           @default(now()) @map("created_at")
-  updatedAt       DateTime           @updatedAt @map("updated_at")
-  termsAcceptedAt DateTime?          @map("terms_accepted_at")
-  auditLogs       AuditLog[]
-  chatSessions    ChatSession[]
-  documents       Document[]
-  downloadLogs    DownloadLog[]
-  subjects        Subject[]
-  categories      Category[]
-  payments        Payment[]
-  paymentOrders   PaymentOrder[]
-  savedDocuments  SavedDocument[]
-  subscription    Subscription?
-  subscriptions   UserSubscription[]
-  notifications   Notification[]
-  role            Role               @relation(fields: [roleId], references: [id])
+  id                      String                   @id @default(uuid()) @db.Uuid
+  firebaseUid             String                   @unique @map("firebase_uid")
+  email                   String                   @unique
+  fullName                String                   @map("full_name")
+  avatarUrl               String?                  @map("avatar_url")
+  authProvider            AuthProvider             @map("auth_provider")
+  roleId                  String                   @map("role_id") @db.Uuid
+  status                  UserStatus               @default(ACTIVE)
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  termsAcceptedAt         DateTime?                @map("terms_accepted_at")
+  auditLogs               AuditLog[]
+  chatSessions            ChatSession[]
+  documents               Document[]
+  downloadLogs            DownloadLog[]
+  subjects                Subject[]
+  categories              Category[]
+  payments                Payment[]
+  paymentOrders           PaymentOrder[]
+  entitlementTransactions EntitlementTransaction[]
+  savedDocuments          SavedDocument[]
+  subscription            Subscription?
+  subscriptions           UserSubscription[]
+  notifications           Notification[]
+  role                    Role                     @relation(fields: [roleId], references: [id])
 
   @@index([roleId])
   @@index([status])
@@ -66,23 +67,29 @@ model Notification {
 }
 
 model PaymentOrder {
-  id                 String           @id @default(uuid()) @db.Uuid
-  invoiceNumber      String           @unique @map("invoice_number")
-  userId             String           @map("user_id") @db.Uuid
-  plan               SubscriptionPlan
-  paymentMethod      PaymentMethod    @map("payment_method")
-  amount             Int
-  currency           String           @default("VND")
-  status             PaymentStatus    @default(PENDING)
-  sepayOrderId       String?          @map("sepay_order_id")
-  sepayTransactionId String?          @unique @map("sepay_transaction_id")
-  paidAt             DateTime?        @map("paid_at")
-  expiresAt          DateTime         @map("expires_at")
-  rawNotification    Json?            @map("raw_notification")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
-  subscription       Subscription?
-  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                     String                  @id @default(uuid()) @db.Uuid
+  invoiceNumber          String                  @unique @map("invoice_number")
+  userId                 String                  @map("user_id") @db.Uuid
+  plan                   SubscriptionPlan
+  paymentMethod          PaymentMethod           @map("payment_method")
+  amount                 Int
+  currency               String                  @default("VND")
+  status                 PaymentStatus           @default(PENDING)
+  sepayOrderId           String?                 @map("sepay_order_id")
+  sepayTransactionId     String?                 @unique @map("sepay_transaction_id")
+  paidAt                 DateTime?               @map("paid_at")
+  expiresAt              DateTime                @map("expires_at")
+  durationDays           Int                     @default(30) @map("duration_days")
+  storageMb              Int                     @default(0) @map("storage_mb")
+  uploadCredits          Int                     @default(0) @map("upload_credits")
+  aiCredits              Int                     @default(0) @map("ai_credits")
+  unlimitedAiDays        Int                     @default(0) @map("unlimited_ai_days")
+  rawNotification        Json?                   @map("raw_notification")
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+  subscription           Subscription?
+  entitlementTransaction EntitlementTransaction?
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([userId, status])
@@ -90,24 +97,44 @@ model PaymentOrder {
 }
 
 model Subscription {
-  id             String           @id @default(uuid()) @db.Uuid
-  userId         String           @unique @map("user_id") @db.Uuid
-  plan           SubscriptionPlan @default(FREE)
-  paymentOrderId String?          @unique @map("payment_order_id") @db.Uuid
-  startsAt       DateTime         @default(now()) @map("starts_at")
-  expiresAt      DateTime?        @map("expires_at")
-  storageLimitMb Int              @default(100) @map("storage_limit_mb")
-  uploadLimit    Int              @default(10) @map("upload_limit")
-  aiChatLimit    Int?             @default(20) @map("ai_chat_limit")
-  aiChatsUsed    Int              @default(0) @map("ai_chats_used")
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
-  paymentOrder   PaymentOrder?    @relation(fields: [paymentOrderId], references: [id], onDelete: SetNull)
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String           @id @default(uuid()) @db.Uuid
+  userId           String           @unique @map("user_id") @db.Uuid
+  plan             SubscriptionPlan @default(FREE)
+  paymentOrderId   String?          @unique @map("payment_order_id") @db.Uuid
+  startsAt         DateTime         @default(now()) @map("starts_at")
+  expiresAt        DateTime?        @map("expires_at")
+  storageLimitMb   Int              @default(100) @map("storage_limit_mb")
+  uploadLimit      Int              @default(10) @map("upload_limit")
+  aiChatLimit      Int?             @default(20) @map("ai_chat_limit")
+  aiChatsUsed      Int              @default(0) @map("ai_chats_used")
+  unlimitedAiUntil DateTime?        @map("unlimited_ai_until")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  paymentOrder     PaymentOrder?    @relation(fields: [paymentOrderId], references: [id], onDelete: SetNull)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([plan])
   @@index([expiresAt])
   @@map("subscriptions")
+}
+
+model EntitlementTransaction {
+  id              String           @id @default(uuid()) @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  paymentOrderId  String           @unique @map("payment_order_id") @db.Uuid
+  packageCode     SubscriptionPlan @map("package_code")
+  durationDays    Int              @map("duration_days")
+  storageDeltaMb  Int              @map("storage_delta_mb")
+  uploadDelta     Int              @map("upload_delta")
+  aiCreditDelta   Int              @map("ai_credit_delta")
+  unlimitedAiDays Int              @map("unlimited_ai_days")
+  accessExpiresAt DateTime         @map("access_expires_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  paymentOrder    PaymentOrder     @relation(fields: [paymentOrderId], references: [id], onDelete: Restrict)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("entitlement_transactions")
 }
 
 model Subject {

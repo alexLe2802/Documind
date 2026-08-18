@@ -11,8 +11,10 @@ import { SavedDocumentsService } from './saved-documents.service';
 @Controller('saved-documents')
 @UseGuards(FirebaseAuthGuard)
 export class SavedDocumentsController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly service: SavedDocumentsService) {}
 
+  // Lấy danh sách dữ liệu phù hợp.
   @Get()
   @ApiOperation({ summary: 'List saved documents for the current user' })
   findAll(

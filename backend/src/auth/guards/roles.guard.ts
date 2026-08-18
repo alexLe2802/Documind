@@ -12,8 +12,10 @@ import { isMockAuthEnabled } from '../mock-auth';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly reflector: Reflector) {}
 
+  // Kiểm tra điều kiện activate.
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<RoleName[]>(
       ROLES_KEY,

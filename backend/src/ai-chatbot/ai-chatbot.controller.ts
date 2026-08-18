@@ -70,8 +70,10 @@ const AI_CHAT_RESPONSE_EXAMPLE = {
 @UseGuards(FirebaseAuthGuard)
 @Controller('chat')
 export class AiChatbotController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly service: AiChatbotService) {}
 
+  // Thực hiện chức năng ask tài liệu.
   @Post('ask-document')
   @HttpCode(HttpStatus.OK)
   @ApiWrappedOkResponse(
@@ -87,6 +89,7 @@ export class AiChatbotController {
     return this.service.askDocument(dto, user);
   }
 
+  // Thực hiện chức năng ask library.
   @Post('ask-library')
   @HttpCode(HttpStatus.OK)
   @ApiWrappedOkResponse(
@@ -122,6 +125,7 @@ export class AiChatbotController {
     return this.service.askLibrary(dto, user);
   }
 
+  // Thực hiện chức năng stream library.
   @Post('ask-library/stream')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Stream an answer across the user library' })
@@ -133,6 +137,7 @@ export class AiChatbotController {
     await this.streamAnswer(response, () => this.service.askLibrary(dto, user));
   }
 
+  // Thực hiện chức năng stream tài liệu.
   @Post('ask-document/stream')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Stream an answer for one document' })
@@ -146,6 +151,7 @@ export class AiChatbotController {
     );
   }
 
+  // Lấy dữ liệu phiên.
   @Get('sessions')
   @ApiOkResponse({ type: ChatSessionListResponseDto })
   @ApiOperation({ summary: 'List recent chat sessions' })
@@ -159,6 +165,7 @@ export class AiChatbotController {
     return this.service.getSessions(query, user);
   }
 
+  // Lấy dữ liệu phiên.
   @Get('sessions/:id')
   @ApiOkResponse({ type: ChatSessionDetailDto })
   @ApiOperation({ summary: 'Get a chat session' })
@@ -174,6 +181,7 @@ export class AiChatbotController {
     return this.service.getSession(id, user);
   }
 
+  // Lấy dữ liệu tin nhắn.
   @Get('messages/:sessionId')
   @ApiOkResponse({ type: ChatMessageListResponseDto })
   @ApiOperation({ summary: 'List chat messages in a session' })
@@ -190,6 +198,7 @@ export class AiChatbotController {
     return this.service.getMessages(sessionId, query, user);
   }
 
+  // Thực hiện chức năng stream answer.
   private async streamAnswer(
     response: Response,
     createAnswer: () => Promise<AiChatResponseDto>,
@@ -230,7 +239,12 @@ export class AiChatbotController {
     }
   }
 
-  private writeEvent(response: Response, event: string, data: unknown): boolean {
+  // Thực hiện chức năng write event.
+  private writeEvent(
+    response: Response,
+    event: string,
+    data: unknown,
+  ): boolean {
     if (response.destroyed || response.writableEnded) {
       return false;
     }
@@ -243,6 +257,7 @@ export class AiChatbotController {
     }
   }
 
+  // Thực hiện chức năng end stream.
   private endStream(response: Response): void {
     if (response.destroyed || response.writableEnded) {
       return;

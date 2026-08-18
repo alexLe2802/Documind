@@ -59,9 +59,12 @@ export interface AuditLogResponse {
 
 @Injectable()
 export class AuditLogService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly prisma: PrismaService) {}
 
+  // Tạo hoặc lưu create.
   async create(data: CreateAuditLogInput): Promise<AuditLog> {
+    // Tạo nhật ký kiểm toán trong database.
     return this.prisma.auditLog.create({
       data: {
         action: data.action,
@@ -73,6 +76,7 @@ export class AuditLogService {
     });
   }
 
+  // Thực hiện chức năng log đăng nhập.
   logLogin(
     userId: string,
     metadata?: Prisma.InputJsonValue,
@@ -86,6 +90,7 @@ export class AuditLogService {
     });
   }
 
+  // Thực hiện chức năng log tài liệu tải lên.
   logDocumentUpload(
     userId: string,
     documentId: string,
@@ -100,6 +105,7 @@ export class AuditLogService {
     });
   }
 
+  // Thực hiện chức năng log tài liệu delete.
   logDocumentDelete(
     userId: string,
     documentId: string,
@@ -114,6 +120,7 @@ export class AuditLogService {
     });
   }
 
+  // Thực hiện chức năng log tài liệu hide.
   logDocumentHide(
     userId: string,
     documentId: string,
@@ -128,6 +135,7 @@ export class AuditLogService {
     });
   }
 
+  // Thực hiện chức năng log save public tài liệu.
   logSavePublicDocument(
     userId: string,
     documentId: string,
@@ -142,6 +150,7 @@ export class AuditLogService {
     });
   }
 
+  // Thực hiện chức năng log chatbot query.
   logChatbotQuery(
     userId: string | null,
     metadata: ChatbotQueryLogMetadata,
@@ -155,6 +164,7 @@ export class AuditLogService {
     });
   }
 
+  // Lấy danh sách dữ liệu phù hợp.
   async findAll(query: AuditLogQueryDto): Promise<AuditLogResponse> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;

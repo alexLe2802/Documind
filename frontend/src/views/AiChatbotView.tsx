@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Bot,
@@ -29,7 +35,11 @@ import {
   History,
   MessageSquarePlus,
 } from "lucide-react";
-import { askLibraryStream, fetchChatMessages, fetchChatSessions } from "../api/chat.api";
+import {
+  askLibraryStream,
+  fetchChatMessages,
+  fetchChatSessions,
+} from "../api/chat.api";
 import { createDownloadUrl, fetchLibraryDocuments } from "../api/documents.api";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { localize } from "../i18n/localize";
@@ -41,8 +51,10 @@ import remarkGfm from "remark-gfm";
 
 type ActiveMode = "SELECTED_SOURCES" | "MY_LIBRARY";
 
+// Hiển thị giao diện copy button.
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
+  // Xử lý sự kiện copy.
   const handleCopy = () => {
     navigator.clipboard.writeText(value);
     setCopied(true);
@@ -59,24 +71,40 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-function tokenizeText(text: string): { type: "text" | "citation"; content?: string; numbers?: number[] }[] {
-  const regex = /(\[\[cite:\s*\d+(?:\s*,\s*\d+)*\]\]|\[(?:Source\s+)?\d+(?:\s*,\s*\d+)*\](?!\())/gi;
+// Chuyển đổi hoặc chuẩn hóa tokenize text.
+function tokenizeText(
+  text: string,
+): { type: "text" | "citation"; content?: string; numbers?: number[] }[] {
+  const regex =
+    /(\[\[cite:\s*\d+(?:\s*,\s*\d+)*\]\]|\[(?:Source\s+)?\d+(?:\s*,\s*\d+)*\](?!\())/gi;
   const parts = text.split(regex);
-  const tokens: { type: "text" | "citation"; content?: string; numbers?: number[] }[] = [];
+  const tokens: {
+    type: "text" | "citation";
+    content?: string;
+    numbers?: number[];
+  }[] = [];
 
   for (const part of parts) {
     if (!part) continue;
 
-    const canonicalMatch = part.match(/^\[\[cite:\s*(\d+(?:\s*,\s*\d+)*)\]\]$/i);
+    const canonicalMatch = part.match(
+      /^\[\[cite:\s*(\d+(?:\s*,\s*\d+)*)\]\]$/i,
+    );
     if (canonicalMatch) {
-      const numbers = canonicalMatch[1].split(",").map(num => parseInt(num.trim(), 10)).filter(n => !isNaN(n));
+      const numbers = canonicalMatch[1]
+        .split(",")
+        .map((num) => parseInt(num.trim(), 10))
+        .filter((n) => !isNaN(n));
       tokens.push({ type: "citation", numbers });
       continue;
     }
 
     const legacyMatch = part.match(/^\[(?:Source\s+)?(\d+(?:\s*,\s*\d+)*)\]$/i);
     if (legacyMatch) {
-      const numbers = legacyMatch[1].split(",").map(num => parseInt(num.trim(), 10)).filter(n => !isNaN(n));
+      const numbers = legacyMatch[1]
+        .split(",")
+        .map((num) => parseInt(num.trim(), 10))
+        .filter((n) => !isNaN(n));
       tokens.push({ type: "citation", numbers });
       continue;
     }
@@ -87,10 +115,11 @@ function tokenizeText(text: string): { type: "text" | "citation"; content?: stri
   return tokens;
 }
 
+// Chuyển đổi hoặc chuẩn hóa text for citations.
 function parseTextForCitations(
   text: string,
   citations: Citation[] = [],
-  onCitationClick?: (citation: Citation) => void
+  onCitationClick?: (citation: Citation) => void,
 ): React.ReactNode {
   const tokens = tokenizeText(text);
   return tokens.flatMap((token, idx) => {
@@ -98,7 +127,9 @@ function parseTextForCitations(
       return (
         <span key={`cite-group-${idx}`} className="ws-inline-citation-group">
           {token.numbers.map((sourceNumber, numIdx) => {
-            const citation = citations.find((c) => c.sourceNumber === sourceNumber);
+            const citation = citations.find(
+              (c) => c.sourceNumber === sourceNumber,
+            );
             if (citation && onCitationClick) {
               return (
                 <button
@@ -112,7 +143,9 @@ function parseTextForCitations(
                 </button>
               );
             }
-            return <span key={`cite-text-${idx}-${numIdx}`}>[{sourceNumber}]</span>;
+            return (
+              <span key={`cite-text-${idx}-${numIdx}`}>[{sourceNumber}]</span>
+            );
           })}
         </span>
       );
@@ -121,11 +154,13 @@ function parseTextForCitations(
   });
 }
 
+// Hiển thị hoặc mở tin nhắn nội dung.
 function renderMessageContent(
   content: string,
   citations: Citation[] = [],
-  onCitationClick?: (citation: Citation) => void
+  onCitationClick?: (citation: Citation) => void,
 ) {
+  // Hiển thị hoặc mở children.
   const renderChildren = (children: React.ReactNode): React.ReactNode => {
     return React.Children.map(children, (child) => {
       if (typeof child === "string") {
@@ -139,22 +174,54 @@ function renderMessageContent(
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        p: ({ children }) => <p className="ws-chat-p">{renderChildren(children)}</p>,
+        p: ({ children }) => (
+          <p className="ws-chat-p">{renderChildren(children)}</p>
+        ),
         li: ({ children }) => <li>{renderChildren(children)}</li>,
-        h1: ({ children }) => <h1 className="text-2xl font-bold my-3">{renderChildren(children)}</h1>,
-        h2: ({ children }) => <h2 className="text-xl font-bold my-2">{renderChildren(children)}</h2>,
-        h3: ({ children }) => <h3 className="text-lg font-bold my-2">{renderChildren(children)}</h3>,
-        h4: ({ children }) => <h4 className="text-base font-bold my-1">{renderChildren(children)}</h4>,
+        h1: ({ children }) => (
+          <h1 className="text-2xl font-bold my-3">
+            {renderChildren(children)}
+          </h1>
+        ),
+        h2: ({ children }) => (
+          <h2 className="text-xl font-bold my-2">{renderChildren(children)}</h2>
+        ),
+        h3: ({ children }) => (
+          <h3 className="text-lg font-bold my-2">{renderChildren(children)}</h3>
+        ),
+        h4: ({ children }) => (
+          <h4 className="text-base font-bold my-1">
+            {renderChildren(children)}
+          </h4>
+        ),
         table: ({ children }) => (
           <div className="overflow-x-auto max-w-full my-4 rounded-lg border border-slate-200">
-            <table className="min-w-max w-full text-sm border-collapse">{children}</table>
+            <table className="min-w-max w-full text-sm border-collapse">
+              {children}
+            </table>
           </div>
         ),
-        thead: ({ children }) => <thead className="bg-slate-50 border-b border-slate-200">{children}</thead>,
+        thead: ({ children }) => (
+          <thead className="bg-slate-50 border-b border-slate-200">
+            {children}
+          </thead>
+        ),
         tbody: ({ children }) => <tbody>{children}</tbody>,
-        tr: ({ children }) => <tr className="border-b border-slate-100 last:border-0">{children}</tr>,
-        th: ({ children }) => <th className="px-4 py-2 text-left font-semibold text-slate-700">{renderChildren(children)}</th>,
-        td: ({ children }) => <td className="px-4 py-2 text-slate-600 break-words">{renderChildren(children)}</td>,
+        tr: ({ children }) => (
+          <tr className="border-b border-slate-100 last:border-0">
+            {children}
+          </tr>
+        ),
+        th: ({ children }) => (
+          <th className="px-4 py-2 text-left font-semibold text-slate-700">
+            {renderChildren(children)}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td className="px-4 py-2 text-slate-600 break-words">
+            {renderChildren(children)}
+          </td>
+        ),
         code: ({
           className,
           children,
@@ -172,7 +239,10 @@ function renderMessageContent(
           const isInline = !match;
           if (isInline) {
             return (
-              <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-sm font-mono" {...props}>
+              <code
+                className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-sm font-mono"
+                {...props}
+              >
                 {children}
               </code>
             );
@@ -189,7 +259,7 @@ function renderMessageContent(
               </pre>
             </div>
           );
-        }
+        },
       }}
     >
       {content}
@@ -197,6 +267,7 @@ function renderMessageContent(
   );
 }
 
+// Hiển thị giao diện ai chatbot view.
 export function AiChatbotView() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -207,18 +278,25 @@ export function AiChatbotView() {
   );
 
   // 1. Fetch Library Documents (Uploaded & Saved from Community)
-  const [documents, setDocuments] = useState<(LibraryDocument & { isCommunitySaved?: boolean })[]>([]);
+  const [documents, setDocuments] = useState<
+    (LibraryDocument & { isCommunitySaved?: boolean })[]
+  >([]);
 
   useEffect(() => {
     let active = true;
     Promise.all([
       fetchLibraryDocuments({ limit: 100 }),
-      fetchLibraryDocuments({ savedOnly: true, limit: 100 }).catch(() => ({ items: [] }))
+      fetchLibraryDocuments({ savedOnly: true, limit: 100 }).catch(() => ({
+        items: [],
+      })),
     ])
       .then(([uploadedResult, savedResult]) => {
         if (!active) return;
-        
-        const mergedMap = new Map<string, LibraryDocument & { isCommunitySaved?: boolean }>();
+
+        const mergedMap = new Map<
+          string,
+          LibraryDocument & { isCommunitySaved?: boolean }
+        >();
         uploadedResult.items.forEach((doc) => mergedMap.set(doc.id, doc));
         savedResult.items.forEach((doc) => {
           mergedMap.set(doc.id, {
@@ -226,13 +304,13 @@ export function AiChatbotView() {
             isCommunitySaved: true,
           });
         });
-        
+
         setDocuments(Array.from(mergedMap.values()));
       })
       .catch(() => {
         if (active) setDocuments([]);
       });
-      
+
     return () => {
       active = false;
     };
@@ -244,7 +322,9 @@ export function AiChatbotView() {
   const [currentDocumentId, setCurrentDocumentId] = useState<string>("");
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [fileTypeFilter, setFileTypeFilter] = useState<"ALL" | "PDF" | "DOCX" | "PPTX" | "XLSX">("ALL");
+  const [fileTypeFilter, setFileTypeFilter] = useState<
+    "ALL" | "PDF" | "DOCX" | "PPTX" | "XLSX"
+  >("ALL");
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
 
@@ -254,7 +334,9 @@ export function AiChatbotView() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sources, setSources] = useState<Citation[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [historySessions, setHistorySessions] = useState<ChatSessionSummary[]>([]);
+  const [historySessions, setHistorySessions] = useState<ChatSessionSummary[]>(
+    [],
+  );
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState(false);
   useEffect(() => {
@@ -269,7 +351,9 @@ export function AiChatbotView() {
         setMessages(result.items);
         const latestSourcedMessage = [...result.items]
           .reverse()
-          .find((message) => message.sender === "AI" && message.sources.length > 0);
+          .find(
+            (message) => message.sender === "AI" && message.sources.length > 0,
+          );
         setSources(latestSourcedMessage?.sources ?? []);
       })
       .catch(() => {
@@ -282,7 +366,8 @@ export function AiChatbotView() {
   const visibleSources = useMemo(
     () =>
       sources.filter(
-        (source) => source.relevanceScore === null || source.relevanceScore >= 0.62,
+        (source) =>
+          source.relevanceScore === null || source.relevanceScore >= 0.62,
       ),
     [sources],
   );
@@ -297,7 +382,9 @@ export function AiChatbotView() {
   const [referencesDrawerOpen, setReferencesDrawerOpen] = useState(false);
 
   // Citation Preview Drawer state
-  const [previewCitation, setPreviewCitation] = useState<Citation | undefined>();
+  const [previewCitation, setPreviewCitation] = useState<
+    Citation | undefined
+  >();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -353,6 +440,7 @@ export function AiChatbotView() {
           );
 
   useEffect(() => {
+    // Xóa hoặc giải phóng môn học dropdown.
     function closeSubjectDropdown(event: MouseEvent) {
       if (
         subjectDropdownRef.current &&
@@ -363,21 +451,25 @@ export function AiChatbotView() {
     }
 
     document.addEventListener("mousedown", closeSubjectDropdown);
-    return () => document.removeEventListener("mousedown", closeSubjectDropdown);
+    return () =>
+      document.removeEventListener("mousedown", closeSubjectDropdown);
   }, []);
 
   useEffect(() => {
+    // Xóa hoặc giải phóng lịch sử dropdown.
     function closeHistoryDropdown(event: MouseEvent) {
-      if (historyRef.current && !historyRef.current.contains(event.target as Node)) {
+      if (
+        historyRef.current &&
+        !historyRef.current.contains(event.target as Node)
+      ) {
         setHistoryOpen(false);
       }
     }
 
     document.addEventListener("mousedown", closeHistoryDropdown);
-    return () => document.removeEventListener("mousedown", closeHistoryDropdown);
+    return () =>
+      document.removeEventListener("mousedown", closeHistoryDropdown);
   }, []);
-
-
 
   // 4. Load sessionStorage on mount (hydration-safe)
   useEffect(() => {
@@ -405,17 +497,31 @@ export function AiChatbotView() {
       setActiveMode(savedMode as ActiveMode);
     }
 
-    const savedSelected = sessionStorage.getItem("documind.workspace.selectedDocumentIds");
+    const savedSelected = sessionStorage.getItem(
+      "documind.workspace.selectedDocumentIds",
+    );
     if (!requestedDocument && savedSelected) {
-      try { setSelectedDocumentIds(JSON.parse(savedSelected)); } catch { /* ignore */ }
+      try {
+        setSelectedDocumentIds(JSON.parse(savedSelected));
+      } catch {
+        /* ignore */
+      }
     }
 
-    const savedSubjects = sessionStorage.getItem("documind.workspace.selectedSubjectIds");
+    const savedSubjects = sessionStorage.getItem(
+      "documind.workspace.selectedSubjectIds",
+    );
     if (!requestedDocument && savedSubjects) {
-      try { setSelectedSubjectIds(JSON.parse(savedSubjects)); } catch { /* ignore */ }
+      try {
+        setSelectedSubjectIds(JSON.parse(savedSubjects));
+      } catch {
+        /* ignore */
+      }
     }
 
-    const savedCurrent = sessionStorage.getItem("documind.workspace.currentDocumentId");
+    const savedCurrent = sessionStorage.getItem(
+      "documind.workspace.currentDocumentId",
+    );
     if (requestedDocument) {
       setCurrentDocumentId(requestedDocument);
     } else if (savedCurrent) {
@@ -428,23 +534,45 @@ export function AiChatbotView() {
   }, [documents]);
 
   // 5. Persist state to sessionStorage
-  useEffect(() => { sessionStorage.setItem("documind.workspace.activeMode", activeMode); }, [activeMode]);
-  useEffect(() => { sessionStorage.setItem("documind.workspace.selectedDocumentIds", JSON.stringify(selectedDocumentIds)); }, [selectedDocumentIds]);
-  useEffect(() => { sessionStorage.setItem("documind.workspace.selectedSubjectIds", JSON.stringify(selectedSubjectIds)); }, [selectedSubjectIds]);
-  useEffect(() => { if (currentDocumentId) sessionStorage.setItem("documind.workspace.currentDocumentId", currentDocumentId); }, [currentDocumentId]);
+  useEffect(() => {
+    sessionStorage.setItem("documind.workspace.activeMode", activeMode);
+  }, [activeMode]);
+  useEffect(() => {
+    sessionStorage.setItem(
+      "documind.workspace.selectedDocumentIds",
+      JSON.stringify(selectedDocumentIds),
+    );
+  }, [selectedDocumentIds]);
+  useEffect(() => {
+    sessionStorage.setItem(
+      "documind.workspace.selectedSubjectIds",
+      JSON.stringify(selectedSubjectIds),
+    );
+  }, [selectedSubjectIds]);
+  useEffect(() => {
+    if (currentDocumentId)
+      sessionStorage.setItem(
+        "documind.workspace.currentDocumentId",
+        currentDocumentId,
+      );
+  }, [currentDocumentId]);
 
   // Auto-scroll
-  useEffect(() => { messageEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isLoading]);
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
 
   // Filtered document list
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
       const q = searchQuery.toLowerCase();
-      const matchesSearch = !q ||
+      const matchesSearch =
+        !q ||
         doc.title.toLowerCase().includes(q) ||
         (doc.subject || "").toLowerCase().includes(q) ||
         (doc.category || "").toLowerCase().includes(q);
-      const matchesType = fileTypeFilter === "ALL" || doc.fileType === fileTypeFilter;
+      const matchesType =
+        fileTypeFilter === "ALL" || doc.fileType === fileTypeFilter;
       const matchesSubject =
         selectedSubjectIds.length === 0 ||
         selectedSubjectIds.includes(doc.subjectId);
@@ -465,6 +593,7 @@ export function AiChatbotView() {
     }
   }, [currentDocumentId, filteredDocuments]);
 
+  // Cập nhật môn học.
   const toggleSubject = (subjectId: string) => {
     setSelectedSubjectIds((current) =>
       current.includes(subjectId)
@@ -473,15 +602,20 @@ export function AiChatbotView() {
     );
   };
 
+  // Xử lý sự kiện checkbox toggle.
   const handleCheckboxToggle = (docId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedDocumentIds((prev) =>
-      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId],
+      prev.includes(docId)
+        ? prev.filter((id) => id !== docId)
+        : [...prev, docId],
     );
   };
 
+  // Xóa hoặc giải phóng selection.
   const clearSelection = () => setSelectedDocumentIds([]);
 
+  // Xử lý sự kiện tài liệu row click.
   const handleDocumentRowClick = (docId: string) => {
     setCurrentDocumentId(docId);
     const doc = documents.find((d) => d.id === docId);
@@ -490,23 +624,42 @@ export function AiChatbotView() {
         sourceNumber: 0,
         documentId: doc.id,
         title: doc.title,
-        snippet: doc.description || text("Tài liệu chưa có mô tả chi tiết.", "No detailed description for this document."),
+        snippet:
+          doc.description ||
+          text(
+            "Tài liệu chưa có mô tả chi tiết.",
+            "No detailed description for this document.",
+          ),
         relevanceScore: null,
       });
     }
   };
 
+  // Hiển thị hoặc mở citation drawer.
   const openCitationDrawer = (citation: Citation) => {
     setPreviewCitation(citation);
     setDrawerOpen(true);
   };
 
+  // Xử lý sự kiện prompt card click.
   const handlePromptCardClick = (key: string) => {
     const map: Record<string, [string, string]> = {
-      summarize: ["Tóm tắt các điểm chính và thông tin quan trọng nhất trong tài liệu này.", "Summarize the main points and most important details in this document."],
-      quiz: ["Tạo một bộ câu hỏi trắc nghiệm gồm 5 câu để kiểm tra kiến thức về tài liệu này.", "Create a 5-question multiple choice quiz to test my knowledge of this document."],
-      compare: ["So sánh và đối chiếu các thông tin khác nhau giữa các tài liệu trong thư viện.", "Compare and contrast the different details across the library documents."],
-      concepts: ["Giải thích các khái niệm cốt lõi và các thuật ngữ chuyên ngành được sử dụng ở đây.", "Explain the core concepts and technical terms used here."],
+      summarize: [
+        "Tóm tắt các điểm chính và thông tin quan trọng nhất trong tài liệu này.",
+        "Summarize the main points and most important details in this document.",
+      ],
+      quiz: [
+        "Tạo một bộ câu hỏi trắc nghiệm gồm 5 câu để kiểm tra kiến thức về tài liệu này.",
+        "Create a 5-question multiple choice quiz to test my knowledge of this document.",
+      ],
+      compare: [
+        "So sánh và đối chiếu các thông tin khác nhau giữa các tài liệu trong thư viện.",
+        "Compare and contrast the different details across the library documents.",
+      ],
+      concepts: [
+        "Giải thích các khái niệm cốt lõi và các thuật ngữ chuyên ngành được sử dụng ở đây.",
+        "Explain the core concepts and technical terms used here.",
+      ],
     };
     const [vi, en] = map[key] || ["", ""];
     setQuestion(text(vi, en));
@@ -521,8 +674,13 @@ export function AiChatbotView() {
     setHistoryLoading(true);
     setHistoryError(false);
     try {
-      const response = await fetchChatSessions({ mode: "ASK_MY_LIBRARY", limit: 20 });
-      setHistorySessions(response.items.filter((session) => session.messageCount > 0));
+      const response = await fetchChatSessions({
+        mode: "ASK_MY_LIBRARY",
+        limit: 20,
+      });
+      setHistorySessions(
+        response.items.filter((session) => session.messageCount > 0),
+      );
     } catch {
       setHistoryError(true);
     } finally {
@@ -530,6 +688,7 @@ export function AiChatbotView() {
     }
   };
 
+  // Lấy dữ liệu phiên.
   const loadSession = async (session: ChatSessionSummary) => {
     setHistoryOpen(false);
     setIsLoading(true);
@@ -544,26 +703,32 @@ export function AiChatbotView() {
       }));
       setSessionId(session.id);
       setMessages(loadedMessages);
-      const lastSources = [...response.items].reverse().find((message) => message.sources?.length)?.sources ?? [];
+      const lastSources =
+        [...response.items].reverse().find((message) => message.sources?.length)
+          ?.sources ?? [];
       setSources(lastSources);
       // Continuing an old session keeps its own scope semantics; forget the
       // local fingerprint so the next question does not force a reset.
       lastScopeKeyRef.current[activeMode] = undefined;
     } catch {
-      setMessages((prev) => [...prev, {
-        id: crypto.randomUUID(),
-        sender: "AI",
-        content: text(
-          "Không tải được cuộc trò chuyện này. Vui lòng thử lại.",
-          "Could not load this conversation. Please try again.",
-        ),
-        sources: [],
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          sender: "AI",
+          content: text(
+            "Không tải được cuộc trò chuyện này. Vui lòng thử lại.",
+            "Could not load this conversation. Please try again.",
+          ),
+          sources: [],
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Thực hiện chức năng start new chat.
   const startNewChat = () => {
     setHistoryOpen(false);
     setSessionId(undefined);
@@ -583,22 +748,34 @@ export function AiChatbotView() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    setMessages((prev) => [...prev, { id: crypto.randomUUID(), sender: "USER", content: trimmed, sources: [], scope: activeMode }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        sender: "USER",
+        content: trimmed,
+        sources: [],
+        scope: activeMode,
+      },
+    ]);
     setQuestion("");
     setIsLoading(true);
 
     if (activeMode === "SELECTED_SOURCES" && selectedDocumentIds.length === 0) {
       setTimeout(() => {
-        setMessages((prev) => [...prev, {
-          id: crypto.randomUUID(),
-          sender: "AI",
-          content: text(
-            "Vui lòng chọn ít nhất một tài liệu nguồn ở danh sách bên trái để đặt câu hỏi.",
-            "Please select at least one source document from the left list to ask questions.",
-          ),
-          sources: [],
-          scope: activeMode
-        }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            sender: "AI",
+            content: text(
+              "Vui lòng chọn ít nhất một tài liệu nguồn ở danh sách bên trái để đặt câu hỏi.",
+              "Please select at least one source document from the left list to ask questions.",
+            ),
+            sources: [],
+            scope: activeMode,
+          },
+        ]);
         setIsLoading(false);
       }, 500);
       return;
@@ -612,7 +789,9 @@ export function AiChatbotView() {
         : `${[...selectedSubjectIds].sort().join(",")}|${fileTypeFilter}`;
     const lastScopeKey = lastScopeKeyRef.current[activeMode];
     const requestSessionId =
-      lastScopeKey !== undefined && lastScopeKey !== scopeKey ? undefined : sessionId;
+      lastScopeKey !== undefined && lastScopeKey !== scopeKey
+        ? undefined
+        : sessionId;
     if (requestSessionId === undefined && sessionId !== undefined) {
       setSessionId(undefined);
     }
@@ -622,71 +801,113 @@ export function AiChatbotView() {
     const pendingMessageId = crypto.randomUUID();
 
     try {
-      setMessages((prev) => [...prev.filter((message) => message.content), {
-        id: pendingMessageId,
-        sender: "AI",
-        content: "",
-        sources: [],
-        scope: activeMode,
-        status: "pending",
-      }]);
-      const response = await askLibraryStream({
-            question: trimmed,
-            sessionId: requestSessionId,
-            filters: activeMode === "SELECTED_SOURCES"
+      setMessages((prev) => [
+        ...prev.filter((message) => message.content),
+        {
+          id: pendingMessageId,
+          sender: "AI",
+          content: "",
+          sources: [],
+          scope: activeMode,
+          status: "pending",
+        },
+      ]);
+      const response = await askLibraryStream(
+        {
+          question: trimmed,
+          sessionId: requestSessionId,
+          filters:
+            activeMode === "SELECTED_SOURCES"
               ? { documentIds: selectedDocumentIds }
               : {
-                  subjectIds: selectedSubjectIds.length > 0 ? selectedSubjectIds : undefined,
-                  fileType: fileTypeFilter === "ALL" ? undefined : fileTypeFilter,
+                  subjectIds:
+                    selectedSubjectIds.length > 0
+                      ? selectedSubjectIds
+                      : undefined,
+                  fileType:
+                    fileTypeFilter === "ALL" ? undefined : fileTypeFilter,
                 },
-          }, {
-            onSources: (nextSources) => {
-              setMessages((prev) => prev.map((message) => message.id === pendingMessageId ? { ...message, sources: nextSources } : message));
-            },
-            onDelta: (delta) => {
-              hasEmittedToken = true;
-              setMessages((prev) => prev.map((message) => message.id === pendingMessageId ? { ...message, content: message.content + delta, status: "streaming" } : message));
-            },
+        },
+        {
+          onSources: (nextSources) => {
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === pendingMessageId
+                  ? { ...message, sources: nextSources }
+                  : message,
+              ),
+            );
           },
-          controller.signal
+          onDelta: (delta) => {
+            hasEmittedToken = true;
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === pendingMessageId
+                  ? {
+                      ...message,
+                      content: message.content + delta,
+                      status: "streaming",
+                    }
+                  : message,
+              ),
+            );
+          },
+        },
+        controller.signal,
       );
 
       setSessionId(response.sessionId);
       setSources(response.sources);
-      setMessages((prev) => prev.map((message) => message.id === pendingMessageId ? {
-        ...message,
-        content: response.answer,
-        sources: response.sources,
-        answerStatus: response.answerStatus,
-        errorCode: response.errorCode,
-        status: "completed",
-      } : message));
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === pendingMessageId
+            ? {
+                ...message,
+                content: response.answer,
+                sources: response.sources,
+                answerStatus: response.answerStatus,
+                errorCode: response.errorCode,
+                status: "completed",
+              }
+            : message,
+        ),
+      );
     } catch (err: unknown) {
-      const isAborted = (err instanceof Error && err.name === "AbortError") || controller.signal.aborted;
+      const isAborted =
+        (err instanceof Error && err.name === "AbortError") ||
+        controller.signal.aborted;
 
       if (hasEmittedToken) {
-        setMessages((prev) => prev.map((message) => message.id === pendingMessageId ? {
-          ...message,
-          status: "interrupted",
-          interruptionReason: isAborted ? "client_abort" : "stream_error",
-        } : message));
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === pendingMessageId
+              ? {
+                  ...message,
+                  status: "interrupted",
+                  interruptionReason: isAborted
+                    ? "client_abort"
+                    : "stream_error",
+                }
+              : message,
+          ),
+        );
       } else {
         setMessages((prev) => [
           ...prev.filter((message) => message.id !== pendingMessageId),
           {
             id: crypto.randomUUID(),
             sender: "AI",
-            content: isAborted 
+            content: isAborted
               ? text("Yêu cầu đã bị hủy.", "The request was cancelled.")
               : text(
                   "Không thể nhận phản hồi AI lúc này. Vui lòng thử lại.",
-                  "The AI response is unavailable right now. Please retry."
+                  "The AI response is unavailable right now. Please retry.",
                 ),
             sources: [],
             errorCode: "REQUEST_FAILED",
             scope: activeMode,
             status: "failed",
-          }
+          },
         ]);
       }
     } finally {
@@ -697,6 +918,7 @@ export function AiChatbotView() {
     }
   };
 
+  // Hiển thị hoặc mở relevance badge.
   const renderRelevanceBadge = (score: number | null) => {
     if (score === null) {
       return (
@@ -712,7 +934,7 @@ export function AiChatbotView() {
         </span>
       );
     }
-    if (score >= 0.70) {
+    if (score >= 0.7) {
       return (
         <span className="ws-relevance-badge ws-relevance-badge--medium">
           {text("Có liên quan", "Relevant")}
@@ -726,31 +948,62 @@ export function AiChatbotView() {
     );
   };
 
+  // Lấy dữ liệu tệp icon.
   const getFileIcon = (fileType?: string) => {
     switch (fileType?.toUpperCase()) {
-      case "PDF":   return <FileText size={16} className="ws-file-icon ws-file-icon--pdf" />;
-      case "DOCX":  return <FileCode size={16} className="ws-file-icon ws-file-icon--docx" />;
-      case "PPTX":  return <FileArchive size={16} className="ws-file-icon ws-file-icon--pptx" />;
-      case "XLSX":  return <FileSpreadsheet size={16} className="ws-file-icon ws-file-icon--xlsx" />;
-      default:      return <FileText size={16} className="ws-file-icon" />;
+      case "PDF":
+        return (
+          <FileText size={16} className="ws-file-icon ws-file-icon--pdf" />
+        );
+      case "DOCX":
+        return (
+          <FileCode size={16} className="ws-file-icon ws-file-icon--docx" />
+        );
+      case "PPTX":
+        return (
+          <FileArchive size={16} className="ws-file-icon ws-file-icon--pptx" />
+        );
+      case "XLSX":
+        return (
+          <FileSpreadsheet
+            size={16}
+            className="ws-file-icon ws-file-icon--xlsx"
+          />
+        );
+      default:
+        return <FileText size={16} className="ws-file-icon" />;
     }
   };
 
+  // Lấy dữ liệu placeholder text.
   const getPlaceholderText = () => {
     if (activeMode === "SELECTED_SOURCES") {
       if (selectedDocumentIds.length === 1) {
         const doc = documents.find((d) => d.id === selectedDocumentIds[0]);
-        return text(`Đặt câu hỏi về "${doc?.title || "tài liệu đã chọn"}"...`, `Ask about "${doc?.title || "selected document"}"...`);
+        return text(
+          `Đặt câu hỏi về "${doc?.title || "tài liệu đã chọn"}"...`,
+          `Ask about "${doc?.title || "selected document"}"...`,
+        );
       }
-      return text("Nhập câu hỏi dựa trên các nguồn đã chọn...", "Ask about selected sources...");
+      return text(
+        "Nhập câu hỏi dựa trên các nguồn đã chọn...",
+        "Ask about selected sources...",
+      );
     }
-    return text("Đặt câu hỏi trên toàn bộ thư viện...", "Ask across your entire library...");
+    return text(
+      "Đặt câu hỏi trên toàn bộ thư viện...",
+      "Ask across your entire library...",
+    );
   };
 
+  // Lấy dữ liệu answer issue copy.
   const getAnswerIssueCopy = (msg: ChatMessage) => {
     if (msg.errorCode === "REQUEST_FAILED") {
       return {
-        title: text("Không nhận được phản hồi AI", "AI response was not received"),
+        title: text(
+          "Không nhận được phản hồi AI",
+          "AI response was not received",
+        ),
         description: text(
           "Hệ thống không thay thế lỗi bằng câu trả lời mẫu. Hãy thử lại sau ít phút.",
           "The system did not replace the failure with a demo answer. Please retry shortly.",
@@ -758,7 +1011,10 @@ export function AiChatbotView() {
       };
     }
     if (msg.answerStatus === "FALLBACK_WITH_SOURCES") {
-      const title = text("AI chưa tạo được phần diễn giải", "AI could not generate the narrative answer");
+      const title = text(
+        "AI chưa tạo được phần diễn giải",
+        "AI could not generate the narrative answer",
+      );
       const descriptionByCode: Record<string, string> = {
         GEMINI_MISSING_API_KEY: text(
           "Thiếu cấu hình khóa Gemini. Hệ thống vẫn đã tìm nguồn liên quan để bạn đọc ngay.",
@@ -814,13 +1070,17 @@ export function AiChatbotView() {
       id="main-content"
       className={`ai-workspace${sourcesCollapsed ? " left-collapsed" : ""}${referencesCollapsed ? " right-collapsed" : ""}`}
     >
-
       {/* ─── LEFT SIDEBAR ─────────────────────────────────────────── */}
-      <aside className={`ws-sources-panel${sourcesCollapsed ? " ws-panel--collapsed" : ""}${sourcesDrawerOpen ? " ws-panel--open" : ""}`}>
+      <aside
+        className={`ws-sources-panel${sourcesCollapsed ? " ws-panel--collapsed" : ""}${sourcesDrawerOpen ? " ws-panel--open" : ""}`}
+      >
         <div className="ws-sources-header">
           <div className="ws-sources-title-row">
             <h2>{text("Tài liệu Nguồn", "Sources")}</h2>
-            <button onClick={() => router.push(ROUTES.upload)} className="ws-add-source-btn">
+            <button
+              onClick={() => router.push(ROUTES.upload)}
+              className="ws-add-source-btn"
+            >
               <Plus size={14} />
               <span>{text("Thêm", "Add")}</span>
             </button>
@@ -866,7 +1126,9 @@ export function AiChatbotView() {
                   onClick={() => setSelectedSubjectIds([])}
                 >
                   <span className="ws-subject-check">
-                    {selectedSubjectIds.length === 0 ? <Check size={13} /> : null}
+                    {selectedSubjectIds.length === 0 ? (
+                      <Check size={13} />
+                    ) : null}
                   </span>
                   <span>
                     <strong>{text("Tất cả môn học", "All subjects")}</strong>
@@ -941,7 +1203,9 @@ export function AiChatbotView() {
           {filteredDocuments.map((doc) => {
             const isSelected = selectedDocumentIds.includes(doc.id);
             // Only highlight the active card in SELECTED_SOURCES mode (when user explicitly views a doc)
-            const isCurrent = activeMode === "SELECTED_SOURCES" && doc.id === (currentDocumentId || documents[0]?.id);
+            const isCurrent =
+              activeMode === "SELECTED_SOURCES" &&
+              doc.id === (currentDocumentId || documents[0]?.id);
             return (
               <div
                 key={doc.id}
@@ -955,9 +1219,13 @@ export function AiChatbotView() {
                   onChange={() => {}}
                   onClick={(e) => handleCheckboxToggle(doc.id, e)}
                 />
-                <div className="ws-source-icon">{getFileIcon(doc.fileType)}</div>
+                <div className="ws-source-icon">
+                  {getFileIcon(doc.fileType)}
+                </div>
                 <div className="ws-source-details">
-                  <span className="ws-source-title" title={doc.title}>{doc.title}</span>
+                  <span className="ws-source-title" title={doc.title}>
+                    {doc.title}
+                  </span>
                   <div className="ws-source-meta">
                     <span>{doc.fileType}</span>
                     {doc.category && (
@@ -969,14 +1237,24 @@ export function AiChatbotView() {
                     {doc.isCommunitySaved && (
                       <>
                         <span className="ws-source-meta-dot">·</span>
-                        <span className="ws-community-badge" title={text("Đã lưu từ cộng đồng", "Saved from community")}>
+                        <span
+                          className="ws-community-badge"
+                          title={text(
+                            "Đã lưu từ cộng đồng",
+                            "Saved from community",
+                          )}
+                        >
                           {text("Cộng đồng", "Community")}
                         </span>
                       </>
                     )}
                     <span className="ws-source-meta-dot">·</span>
-                    <span className={`ws-source-status${doc.indexStatus === "READY" ? " ready" : " processing"}`}>
-                      {doc.indexStatus === "READY" ? text("Sẵn sàng", "Ready") : text("Đang xử lý", "Processing")}
+                    <span
+                      className={`ws-source-status${doc.indexStatus === "READY" ? " ready" : " processing"}`}
+                    >
+                      {doc.indexStatus === "READY"
+                        ? text("Sẵn sàng", "Ready")
+                        : text("Đang xử lý", "Processing")}
                     </span>
                   </div>
                   {/* Quick-action button: only shown in SELECTED_SOURCES mode for the currently focused card */}
@@ -998,7 +1276,9 @@ export function AiChatbotView() {
             );
           })}
           {filteredDocuments.length === 0 && (
-            <div className="ws-sources-empty">{text("Không tìm thấy tài liệu", "No documents found")}</div>
+            <div className="ws-sources-empty">
+              {text("Không tìm thấy tài liệu", "No documents found")}
+            </div>
           )}
         </div>
 
@@ -1032,7 +1312,11 @@ export function AiChatbotView() {
               className={`ws-toggle-btn ws-toggle-desktop${!sourcesCollapsed ? " active" : ""}`}
               title={text("Ẩn/Hiện Sidebar Trái", "Toggle Left Sidebar")}
             >
-              {sourcesCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+              {sourcesCollapsed ? (
+                <PanelLeftOpen size={18} />
+              ) : (
+                <PanelLeftClose size={18} />
+              )}
             </button>
           </div>
 
@@ -1044,15 +1328,30 @@ export function AiChatbotView() {
               onClick={() => setActiveMode("MY_LIBRARY")}
             >
               <strong>{text("Toàn bộ thư viện", "Entire Library")}</strong>
-              <small>{text("AI tự động tìm tài liệu liên quan", "AI finds relevant files automatically")}</small>
+              <small>
+                {text(
+                  "AI tự động tìm tài liệu liên quan",
+                  "AI finds relevant files automatically",
+                )}
+              </small>
             </button>
             <button
               type="button"
               className={`ws-mode-btn${activeMode === "SELECTED_SOURCES" ? " active" : ""}`}
               onClick={() => setActiveMode("SELECTED_SOURCES")}
             >
-              <strong>{text(`File đã chọn (${selectedDocumentIds.length})`, `Selected Files (${selectedDocumentIds.length})`)}</strong>
-              <small>{text("AI chỉ tìm kiếm trong file được chọn", "AI searches selected files only")}</small>
+              <strong>
+                {text(
+                  `File đã chọn (${selectedDocumentIds.length})`,
+                  `Selected Files (${selectedDocumentIds.length})`,
+                )}
+              </strong>
+              <small>
+                {text(
+                  "AI chỉ tìm kiếm trong file được chọn",
+                  "AI searches selected files only",
+                )}
+              </small>
             </button>
           </div>
 
@@ -1079,17 +1378,27 @@ export function AiChatbotView() {
               {historyOpen ? (
                 <div className="ws-history-dropdown">
                   <div className="ws-history-heading">
-                    <strong>{text("Lịch sử trò chuyện", "Chat history")}</strong>
+                    <strong>
+                      {text("Lịch sử trò chuyện", "Chat history")}
+                    </strong>
                   </div>
                   {historyLoading ? (
-                    <div className="ws-history-empty">{text("Đang tải...", "Loading...")}</div>
+                    <div className="ws-history-empty">
+                      {text("Đang tải...", "Loading...")}
+                    </div>
                   ) : historyError ? (
                     <div className="ws-history-empty">
-                      {text("Không tải được lịch sử.", "Could not load history.")}
+                      {text(
+                        "Không tải được lịch sử.",
+                        "Could not load history.",
+                      )}
                     </div>
                   ) : historySessions.length === 0 ? (
                     <div className="ws-history-empty">
-                      {text("Chưa có cuộc trò chuyện nào.", "No conversations yet.")}
+                      {text(
+                        "Chưa có cuộc trò chuyện nào.",
+                        "No conversations yet.",
+                      )}
                     </div>
                   ) : (
                     <div className="ws-history-list">
@@ -1100,13 +1409,22 @@ export function AiChatbotView() {
                           className={`ws-history-item${session.id === sessionId ? " active" : ""}`}
                           onClick={() => loadSession(session)}
                         >
-                          <strong>{session.title || text("Cuộc trò chuyện", "Conversation")}</strong>
+                          <strong>
+                            {session.title ||
+                              text("Cuộc trò chuyện", "Conversation")}
+                          </strong>
                           <small>
-                            {session.messageCount} {text("tin nhắn", "messages")}
+                            {session.messageCount}{" "}
+                            {text("tin nhắn", "messages")}
                             {" · "}
                             {new Date(session.updatedAt).toLocaleString(
                               locale === "vi" ? "vi-VN" : "en-US",
-                              { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" },
+                              {
+                                day: "2-digit",
+                                month: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
                             )}
                           </small>
                         </button>
@@ -1128,17 +1446,29 @@ export function AiChatbotView() {
               className={`ws-toggle-btn ws-toggle-desktop${!referencesCollapsed ? " active" : ""}`}
               title={text("Ẩn/Hiện Sidebar Phải", "Toggle Right Sidebar")}
             >
-              {referencesCollapsed ? <PanelRightOpen size={18} /> : <PanelRightClose size={18} />}
+              {referencesCollapsed ? (
+                <PanelRightOpen size={18} />
+              ) : (
+                <PanelRightClose size={18} />
+              )}
             </button>
           </div>
         </header>
 
         {/* Message stream */}
         <div className="ws-message-stream">
-          {activeMode === "SELECTED_SOURCES" && selectedDocumentIds.length === 0 ? (
+          {activeMode === "SELECTED_SOURCES" &&
+          selectedDocumentIds.length === 0 ? (
             <div className="ws-empty-state ws-empty-state--no-selection">
-              <div className="ws-empty-icon"><AlertTriangle size={26} /></div>
-              <h3>{text("Chưa chọn tài liệu nguồn", "No source documents selected")}</h3>
+              <div className="ws-empty-icon">
+                <AlertTriangle size={26} />
+              </div>
+              <h3>
+                {text(
+                  "Chưa chọn tài liệu nguồn",
+                  "No source documents selected",
+                )}
+              </h3>
               <p>
                 {text(
                   "Vui lòng đánh dấu chọn (checkbox) vào các tài liệu ở danh sách bên trái để đặt câu hỏi trên nhóm tài liệu đó.",
@@ -1155,13 +1485,16 @@ export function AiChatbotView() {
                     key={msg.id}
                     className={`ws-message${msg.sender === "USER" ? " user" : " ai"}`}
                     onClick={() => {
-                      if (msg.sender === "AI" && msg.sources.length > 0) setSources(msg.sources);
+                      if (msg.sender === "AI" && msg.sources.length > 0)
+                        setSources(msg.sources);
                     }}
                   >
                     <div className="ws-message-avatar">
                       {msg.sender === "USER" ? "U" : <Sparkles size={15} />}
                     </div>
-                    <div className={`ws-message-bubble${answerIssue ? " ws-message-bubble--notice" : ""}`}>
+                    <div
+                      className={`ws-message-bubble${answerIssue ? " ws-message-bubble--notice" : ""}`}
+                    >
                       {answerIssue && (
                         <div className="ws-answer-issue" role="status">
                           <AlertTriangle size={16} aria-hidden="true" />
@@ -1171,46 +1504,63 @@ export function AiChatbotView() {
                           </div>
                         </div>
                       )}
-                      {msg.sender === "AI" && msg.id !== "welcome" && msg.scope && (
-                        <div className="ws-message-scope-indicator">
-                          {msg.scope === "MY_LIBRARY" ? (
-                            <span className="ws-scope-tag">
-                              <Library size={12} />
-                              {text(
-                                "Dựa trên các tài liệu liên quan tìm thấy trong thư viện của bạn...",
-                                "Based on relevant literature in your library...",
-                              )}
-                            </span>
-                          ) : (
-                            <span className="ws-scope-tag">
-                              <FileText size={12} />
-                              {text(
-                                "Dựa trên các file bạn đã chọn...",
-                                "Based on the selected files...",
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      {msg.sender === "AI" &&
+                        msg.id !== "welcome" &&
+                        msg.scope && (
+                          <div className="ws-message-scope-indicator">
+                            {msg.scope === "MY_LIBRARY" ? (
+                              <span className="ws-scope-tag">
+                                <Library size={12} />
+                                {text(
+                                  "Dựa trên các tài liệu liên quan tìm thấy trong thư viện của bạn...",
+                                  "Based on relevant literature in your library...",
+                                )}
+                              </span>
+                            ) : (
+                              <span className="ws-scope-tag">
+                                <FileText size={12} />
+                                {text(
+                                  "Dựa trên các file bạn đã chọn...",
+                                  "Based on the selected files...",
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       {msg.content ? (
                         <div className="ws-message-text">
-                          {renderMessageContent(msg.content, msg.sources, openCitationDrawer)}
-                          {msg.status === 'interrupted' && (
+                          {renderMessageContent(
+                            msg.content,
+                            msg.sources,
+                            openCitationDrawer,
+                          )}
+                          {msg.status === "interrupted" && (
                             <div className="ws-message-interrupted mt-2 pt-2 border-t border-slate-200/30 text-amber-500 dark:text-amber-400 text-xs flex items-center gap-1.5 select-none font-medium">
                               <AlertTriangle size={14} />
                               <span>
                                 {text(
                                   "Câu trả lời đã bị ngắt trước khi hoàn tất.",
-                                  "Generation was interrupted before completion."
+                                  "Generation was interrupted before completion.",
                                 )}
                               </span>
                             </div>
                           )}
                         </div>
                       ) : isLoading ? (
-                        <div className="retrieval-skeleton" role="status" aria-live="polite">
-                          <span /><span /><span />
-                          <p>{text("Đang tìm câu trả lời...", "Finding an answer...")}</p>
+                        <div
+                          className="retrieval-skeleton"
+                          role="status"
+                          aria-live="polite"
+                        >
+                          <span />
+                          <span />
+                          <span />
+                          <p>
+                            {text(
+                              "Đang tìm câu trả lời...",
+                              "Finding an answer...",
+                            )}
+                          </p>
                         </div>
                       ) : null}
                       {msg.sources.length > 0 && (
@@ -1222,8 +1572,12 @@ export function AiChatbotView() {
                               className="ws-citation-tag"
                               onClick={() => openCitationDrawer(src)}
                             >
-                              <span className="ws-citation-num">[{src.sourceNumber}]</span>
-                              <span className="ws-citation-label">{src.title}</span>
+                              <span className="ws-citation-num">
+                                [{src.sourceNumber}]
+                              </span>
+                              <span className="ws-citation-label">
+                                {src.title}
+                              </span>
                             </button>
                           ))}
                         </div>
@@ -1236,8 +1590,15 @@ export function AiChatbotView() {
               {/* Empty / welcome state */}
               {messages.length <= 1 && !isLoading && (
                 <div className="ws-empty-state">
-                  <div className="ws-empty-icon"><Bot size={26} /></div>
-                  <h3>{text("Hỏi đáp học tập thông minh", "Smart Academic Companion")}</h3>
+                  <div className="ws-empty-icon">
+                    <Bot size={26} />
+                  </div>
+                  <h3>
+                    {text(
+                      "Hỏi đáp học tập thông minh",
+                      "Smart Academic Companion",
+                    )}
+                  </h3>
                   <p>
                     {text(
                       "Đặt câu hỏi dựa trên nội dung nguồn học tập của bạn. Trích dẫn và liên kết tài liệu sẽ được đính kèm trực tiếp trong câu trả lời.",
@@ -1245,16 +1606,45 @@ export function AiChatbotView() {
                     )}
                   </p>
                   <div className="ws-prompt-cards">
-                    {(["summarize", "concepts", "quiz", "compare"] as const).map((key) => {
-                      const labels: Record<string, [string, string, string, string]> = {
-                        summarize: ["Tóm tắt tài liệu", "Summarize Source", "Trích xuất thông tin cốt lõi nhất.", "Extract the core takeaways."],
-                        concepts: ["Giải thích thuật ngữ", "Explain Concepts", "Làm rõ thuật ngữ và định lý phức tạp.", "Clarify complex terms and theorems."],
-                        quiz: ["Tạo bài trắc nghiệm", "Generate Quiz", "Tạo bộ câu hỏi để tự đánh giá.", "Generate a self-assessment quiz."],
-                        compare: ["So sánh các nguồn", "Compare Sources", "Tìm điểm tương đồng giữa các bài đọc.", "Find common themes across readings."],
+                    {(
+                      ["summarize", "concepts", "quiz", "compare"] as const
+                    ).map((key) => {
+                      const labels: Record<
+                        string,
+                        [string, string, string, string]
+                      > = {
+                        summarize: [
+                          "Tóm tắt tài liệu",
+                          "Summarize Source",
+                          "Trích xuất thông tin cốt lõi nhất.",
+                          "Extract the core takeaways.",
+                        ],
+                        concepts: [
+                          "Giải thích thuật ngữ",
+                          "Explain Concepts",
+                          "Làm rõ thuật ngữ và định lý phức tạp.",
+                          "Clarify complex terms and theorems.",
+                        ],
+                        quiz: [
+                          "Tạo bài trắc nghiệm",
+                          "Generate Quiz",
+                          "Tạo bộ câu hỏi để tự đánh giá.",
+                          "Generate a self-assessment quiz.",
+                        ],
+                        compare: [
+                          "So sánh các nguồn",
+                          "Compare Sources",
+                          "Tìm điểm tương đồng giữa các bài đọc.",
+                          "Find common themes across readings.",
+                        ],
                       };
                       const [vi, en, viSub, enSub] = labels[key];
                       return (
-                        <div key={key} className="ws-prompt-card" onClick={() => handlePromptCardClick(key)}>
+                        <div
+                          key={key}
+                          className="ws-prompt-card"
+                          onClick={() => handlePromptCardClick(key)}
+                        >
                           <h4>{text(vi, en)}</h4>
                           <p>{text(viSub, enSub)}</p>
                         </div>
@@ -1271,35 +1661,48 @@ export function AiChatbotView() {
         {/* Bottom input */}
         <div className="ws-chat-footer">
           {/* Selected sources chips */}
-          {activeMode === "SELECTED_SOURCES" && selectedDocumentIds.length > 0 && (
-            <div className="ws-selected-chips-container">
-              <div className="ws-selected-chips-header">
-                <span>
-                  <strong>{selectedDocumentIds.length}</strong> {text("File đang dùng cho câu hỏi tiếp theo", "Files used for next question")}
-                </span>
-                <button type="button" onClick={clearSelection} className="ws-selected-clear-all">
-                  {text("Bỏ chọn tất cả", "Clear all")}
-                </button>
+          {activeMode === "SELECTED_SOURCES" &&
+            selectedDocumentIds.length > 0 && (
+              <div className="ws-selected-chips-container">
+                <div className="ws-selected-chips-header">
+                  <span>
+                    <strong>{selectedDocumentIds.length}</strong>{" "}
+                    {text(
+                      "File đang dùng cho câu hỏi tiếp theo",
+                      "Files used for next question",
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearSelection}
+                    className="ws-selected-clear-all"
+                  >
+                    {text("Bỏ chọn tất cả", "Clear all")}
+                  </button>
+                </div>
+                <div className="ws-selected-chips-list">
+                  {selectedDocumentIds.map((id) => {
+                    const doc = documents.find((d) => d.id === id);
+                    if (!doc) return null;
+                    return (
+                      <div key={id} className="ws-selected-chip">
+                        <span>{doc.title}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedDocumentIds((prev) =>
+                              prev.filter((item) => item !== id),
+                            )
+                          }
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="ws-selected-chips-list">
-                {selectedDocumentIds.map((id) => {
-                  const doc = documents.find((d) => d.id === id);
-                  if (!doc) return null;
-                  return (
-                    <div key={id} className="ws-selected-chip">
-                      <span>{doc.title}</span>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDocumentIds((prev) => prev.filter((item) => item !== id))}
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+            )}
           <div className="ws-input-container">
             <textarea
               ref={textareaRef}
@@ -1308,14 +1711,23 @@ export function AiChatbotView() {
               placeholder={getPlaceholderText()}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitQuestion(); } }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submitQuestion();
+                }
+              }}
               maxLength={4000}
             />
             <button
               onClick={isLoading ? handleStopGeneration : submitQuestion}
-              className={`ws-send-btn ${isLoading ? 'ws-stop-btn' : ''}`}
+              className={`ws-send-btn ${isLoading ? "ws-stop-btn" : ""}`}
               disabled={!isLoading && !question.trim()}
-              aria-label={isLoading ? text("Dừng tạo", "Stop generation") : text("Gửi câu hỏi", "Send question")}
+              aria-label={
+                isLoading
+                  ? text("Dừng tạo", "Stop generation")
+                  : text("Gửi câu hỏi", "Send question")
+              }
             >
               {isLoading ? <X size={18} /> : <ArrowUp size={18} />}
             </button>
@@ -1324,25 +1736,39 @@ export function AiChatbotView() {
             <Database size={12} />
             <span>
               {activeMode === "SELECTED_SOURCES"
-                ? text(`Câu hỏi tiếp theo dựa trên: ${selectedDocumentIds.length} file đang dùng`, `Next question based on: ${selectedDocumentIds.length} selected files`)
+                ? text(
+                    `Câu hỏi tiếp theo dựa trên: ${selectedDocumentIds.length} file đang dùng`,
+                    `Next question based on: ${selectedDocumentIds.length} selected files`,
+                  )
                 : selectedSubjectIds.length > 0
                   ? text(
                       `Câu hỏi tiếp theo dựa trên: các môn ${selectedSubjectNames.join(", ")}`,
                       `Next question based on: subjects ${selectedSubjectNames.join(", ")}`,
                     )
-                  : text("Câu hỏi tiếp theo dựa trên: Toàn bộ thư viện", "Next question based on: Entire library")}
+                  : text(
+                      "Câu hỏi tiếp theo dựa trên: Toàn bộ thư viện",
+                      "Next question based on: Entire library",
+                    )}
             </span>
           </div>
         </div>
       </section>
 
       {/* ─── RIGHT SIDEBAR ────────────────────────────────────────── */}
-      <aside className={`ws-references-panel${referencesCollapsed ? " ws-panel--collapsed" : ""}${referencesDrawerOpen ? " ws-panel--open" : ""}`}>
+      <aside
+        className={`ws-references-panel${referencesCollapsed ? " ws-panel--collapsed" : ""}${referencesDrawerOpen ? " ws-panel--open" : ""}`}
+      >
         <div className="ws-references-header">
           <div className="ws-references-title-group">
-            <h2>{activeMode === "MY_LIBRARY" ? text("Nguồn cho câu trả lời này", "Sources for this answer") : text("File trong phạm vi", "Files in scope")}</h2>
+            <h2>
+              {activeMode === "MY_LIBRARY"
+                ? text("Nguồn cho câu trả lời này", "Sources for this answer")
+                : text("File trong phạm vi", "Files in scope")}
+            </h2>
             <span className="ws-references-count">
-              {activeMode === "MY_LIBRARY" ? visibleSources.length : selectedDocumentIds.length}
+              {activeMode === "MY_LIBRARY"
+                ? visibleSources.length
+                : selectedDocumentIds.length}
             </span>
           </div>
         </div>
@@ -1352,46 +1778,88 @@ export function AiChatbotView() {
             <>
               {visibleSources.length > 0 ? (
                 <>
-                  <div style={{ padding: "16px 16px 0", fontSize: "0.85rem", fontWeight: 700, color: "var(--ink)" }}>
+                  <div
+                    style={{
+                      padding: "16px 16px 0",
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                      color: "var(--ink)",
+                    }}
+                  >
                     {text("Nguồn tìm thấy", "Sources found")}
                   </div>
                   <div className="ws-sidebar-selected-list">
                     {visibleSources.map((source, sourceIndex) => (
-                        <div key={`${source.documentId}-${source.sourceNumber}-${sourceIndex}`} className="ws-reference-card" onClick={() => openCitationDrawer(source)}>
-                          <div className="ws-reference-title-row">
-                            <span className="ws-reference-number">{source.sourceNumber}</span>
-                            <span className="ws-reference-title" title={source.title}>{source.title}</span>
-                          </div>
-                          <p className="ws-reference-snippet">{source.snippet}</p>
-                          <div className="ws-reference-footer">
-                            {renderRelevanceBadge(source.relevanceScore)}
-                            <button type="button" className="ws-open-doc-btn" onClick={(e) => { e.stopPropagation(); openCitationDrawer(source); }}>
-                              <span>{text("Xem đoạn trích", "View snippet")}</span>
-                              <ChevronRight size={12} />
-                            </button>
-                          </div>
+                      <div
+                        key={`${source.documentId}-${source.sourceNumber}-${sourceIndex}`}
+                        className="ws-reference-card"
+                        onClick={() => openCitationDrawer(source)}
+                      >
+                        <div className="ws-reference-title-row">
+                          <span className="ws-reference-number">
+                            {source.sourceNumber}
+                          </span>
+                          <span
+                            className="ws-reference-title"
+                            title={source.title}
+                          >
+                            {source.title}
+                          </span>
                         </div>
-                      ))}
+                        <p className="ws-reference-snippet">{source.snippet}</p>
+                        <div className="ws-reference-footer">
+                          {renderRelevanceBadge(source.relevanceScore)}
+                          <button
+                            type="button"
+                            className="ws-open-doc-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCitationDrawer(source);
+                            }}
+                          >
+                            <span>
+                              {text("Xem đoạn trích", "View snippet")}
+                            </span>
+                            <ChevronRight size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   <button
                     type="button"
                     className="ws-sidebar-use-sources-btn"
                     onClick={() => {
-                      const newIds = Array.from(new Set([...selectedDocumentIds, ...visibleSources.map(s => s.documentId)]));
+                      const newIds = Array.from(
+                        new Set([
+                          ...selectedDocumentIds,
+                          ...visibleSources.map((s) => s.documentId),
+                        ]),
+                      );
                       setSelectedDocumentIds(newIds);
                       setActiveMode("SELECTED_SOURCES");
                     }}
                   >
                     <Sparkles size={14} />
-                    <span>{text("Dùng các nguồn này cho câu hỏi tiếp theo", "Use these sources for next question")}</span>
+                    <span>
+                      {text(
+                        "Dùng các nguồn này cho câu hỏi tiếp theo",
+                        "Use these sources for next question",
+                      )}
+                    </span>
                   </button>
                 </>
               ) : (
                 <div className="ws-refs-empty">
                   <FileSearch size={32} />
-                  <strong>{text("Chưa có trích dẫn", "No references yet")}</strong>
+                  <strong>
+                    {text("Chưa có trích dẫn", "No references yet")}
+                  </strong>
                   <p>
-                    {text("Đặt câu hỏi để tìm kiếm trích dẫn từ toàn bộ thư viện của bạn.", "Ask a question to see citations from your entire library.")}
+                    {text(
+                      "Đặt câu hỏi để tìm kiếm trích dẫn từ toàn bộ thư viện của bạn.",
+                      "Ask a question to see citations from your entire library.",
+                    )}
                   </p>
                 </div>
               )}
@@ -1400,8 +1868,18 @@ export function AiChatbotView() {
             <>
               {selectedDocumentIds.length > 0 ? (
                 <>
-                  <div style={{ padding: "16px 16px 0", fontSize: "0.85rem", fontWeight: 700, color: "var(--ink)" }}>
-                    {text("File đang dùng cho câu hỏi tiếp theo", "Files used for next question")}
+                  <div
+                    style={{
+                      padding: "16px 16px 0",
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                      color: "var(--ink)",
+                    }}
+                  >
+                    {text(
+                      "File đang dùng cho câu hỏi tiếp theo",
+                      "Files used for next question",
+                    )}
                   </div>
                   <div className="ws-sidebar-selected-list">
                     {selectedDocumentIds.map((id) => {
@@ -1413,7 +1891,11 @@ export function AiChatbotView() {
                           <span title={doc.title}>{doc.title}</span>
                           <button
                             type="button"
-                            onClick={() => setSelectedDocumentIds((prev) => prev.filter((item) => item !== id))}
+                            onClick={() =>
+                              setSelectedDocumentIds((prev) =>
+                                prev.filter((item) => item !== id),
+                              )
+                            }
                             aria-label={text("Bỏ chọn", "Remove selection")}
                           >
                             <X size={14} />
@@ -1426,9 +1908,14 @@ export function AiChatbotView() {
               ) : (
                 <div className="ws-refs-empty">
                   <FileSearch size={32} />
-                  <strong>{text("Chưa chọn file nào", "No files selected")}</strong>
+                  <strong>
+                    {text("Chưa chọn file nào", "No files selected")}
+                  </strong>
                   <p>
-                    {text("Vui lòng đánh dấu chọn tài liệu từ danh sách bên trái để sử dụng.", "Please select documents from the list on the left to use them.")}
+                    {text(
+                      "Vui lòng đánh dấu chọn tài liệu từ danh sách bên trái để sử dụng.",
+                      "Please select documents from the list on the left to use them.",
+                    )}
                   </p>
                 </div>
               )}
@@ -1436,7 +1923,9 @@ export function AiChatbotView() {
                 type="button"
                 className="ws-sidebar-add-sources-btn"
                 onClick={() => {
-                  const searchInput = document.querySelector(".ws-search-input") as HTMLInputElement;
+                  const searchInput = document.querySelector(
+                    ".ws-search-input",
+                  ) as HTMLInputElement;
                   if (searchInput) {
                     searchInput.focus();
                   }
@@ -1451,11 +1940,18 @@ export function AiChatbotView() {
       </aside>
 
       {/* ─── CITATION PREVIEW DRAWER ──────────────────────────────── */}
-      <div className={`ws-drawer-overlay${drawerOpen ? " open" : ""}`} onClick={() => setDrawerOpen(false)}>
+      <div
+        className={`ws-drawer-overlay${drawerOpen ? " open" : ""}`}
+        onClick={() => setDrawerOpen(false)}
+      >
         <div className="ws-drawer" onClick={(e) => e.stopPropagation()}>
           <header className="ws-drawer-header">
             <h3>{text("Đoạn trích tham khảo", "Reference Passage")}</h3>
-            <button onClick={() => setDrawerOpen(false)} className="ws-drawer-close" aria-label={text("Đóng", "Close")}>
+            <button
+              onClick={() => setDrawerOpen(false)}
+              className="ws-drawer-close"
+              aria-label={text("Đóng", "Close")}
+            >
               <X size={18} />
             </button>
           </header>
@@ -1465,54 +1961,86 @@ export function AiChatbotView() {
               <>
                 <div className="ws-drawer-meta-grid">
                   <div className="ws-drawer-meta-item">
-                    <span className="ws-drawer-meta-label">{text("Tên tài liệu", "Document Title")}</span>
-                    <span className="ws-drawer-meta-value">{previewCitation.title}</span>
+                    <span className="ws-drawer-meta-label">
+                      {text("Tên tài liệu", "Document Title")}
+                    </span>
+                    <span className="ws-drawer-meta-value">
+                      {previewCitation.title}
+                    </span>
                   </div>
                   <div className="ws-drawer-meta-item">
-                    <span className="ws-drawer-meta-label">{text("Chỉ số nguồn", "Source ID")}</span>
-                    <span className="ws-drawer-meta-value">#{previewCitation.sourceNumber}</span>
+                    <span className="ws-drawer-meta-label">
+                      {text("Chỉ số nguồn", "Source ID")}
+                    </span>
+                    <span className="ws-drawer-meta-value">
+                      #{previewCitation.sourceNumber}
+                    </span>
                   </div>
                   {previewCitation.sourceLocator?.length ? (
                     <div className="ws-drawer-meta-item">
-                      <span className="ws-drawer-meta-label">{text("Vị trí nguồn", "Source location")}</span>
-                      <span className="ws-drawer-meta-value">{previewCitation.sourceLocator.join(" · ")}</span>
+                      <span className="ws-drawer-meta-label">
+                        {text("Vị trí nguồn", "Source location")}
+                      </span>
+                      <span className="ws-drawer-meta-value">
+                        {previewCitation.sourceLocator.join(" · ")}
+                      </span>
                     </div>
                   ) : null}
                 </div>
 
                 <div className="ws-drawer-snippet-section">
-                  <span className="ws-drawer-snippet-title">{text("Đoạn trích tham khảo", "Reference Passage")}</span>
-                  <div className="ws-drawer-snippet-box">{previewCitation.quote || previewCitation.snippet}</div>
+                  <span className="ws-drawer-snippet-title">
+                    {text("Đoạn trích tham khảo", "Reference Passage")}
+                  </span>
+                  <div className="ws-drawer-snippet-box">
+                    {previewCitation.quote || previewCitation.snippet}
+                  </div>
                 </div>
 
-                {!previewCitation.sourceLocator?.length && <div className="ws-drawer-notice">
-                  <Info size={14} style={{ flexShrink: 0, color: "var(--ws-subtle)" }} />
-                  <span>{text("Lưu ý: Nhảy trang chính xác hiện tại chưa được hỗ trợ bởi dữ liệu trích xuất.", "Note: Page-level jumping is not yet supported by document extract metadata.")}</span>
-                </div>}
+                {!previewCitation.sourceLocator?.length && (
+                  <div className="ws-drawer-notice">
+                    <Info
+                      size={14}
+                      style={{ flexShrink: 0, color: "var(--ws-subtle)" }}
+                    />
+                    <span>
+                      {text(
+                        "Lưu ý: Nhảy trang chính xác hiện tại chưa được hỗ trợ bởi dữ liệu trích xuất.",
+                        "Note: Page-level jumping is not yet supported by document extract metadata.",
+                      )}
+                    </span>
+                  </div>
+                )}
               </>
             )}
           </div>
 
-          <div className="ws-drawer-footer" style={{ display: "flex", gap: "10px" }}>
-            {previewCitation && documents.some((d) => d.id === previewCitation.documentId) && (
-              <button
-                type="button"
-                className="ws-drawer-footer-btn ws-drawer-footer-btn--primary"
-                onClick={() => {
-                  setSelectedDocumentIds([previewCitation.documentId]);
-                  setActiveMode("SELECTED_SOURCES");
-                  setDrawerOpen(false);
-                }}
-              >
-                <Sparkles size={16} />
-                <span>{text("Hỏi tài liệu này", "Ask this file")}</span>
-              </button>
-            )}
+          <div
+            className="ws-drawer-footer"
+            style={{ display: "flex", gap: "10px" }}
+          >
+            {previewCitation &&
+              documents.some((d) => d.id === previewCitation.documentId) && (
+                <button
+                  type="button"
+                  className="ws-drawer-footer-btn ws-drawer-footer-btn--primary"
+                  onClick={() => {
+                    setSelectedDocumentIds([previewCitation.documentId]);
+                    setActiveMode("SELECTED_SOURCES");
+                    setDrawerOpen(false);
+                  }}
+                >
+                  <Sparkles size={16} />
+                  <span>{text("Hỏi tài liệu này", "Ask this file")}</span>
+                </button>
+              )}
             <button
               className="ws-drawer-footer-btn"
               onClick={async () => {
                 if (previewCitation) {
-                  const doc = documents.find((d) => d.id === previewCitation.documentId);
+                  const doc = documents.find(
+                    (d) => d.id === previewCitation.documentId,
+                  );
                   if (doc) {
                     const result = await createDownloadUrl(doc.id);
                     window.open(result.url, "_blank", "noopener,noreferrer");
@@ -1521,7 +2049,9 @@ export function AiChatbotView() {
               }}
             >
               <ArrowDownToLine size={16} />
-              <span>{text("Tải tài liệu đầy đủ", "Download Full Document")}</span>
+              <span>
+                {text("Tải tài liệu đầy đủ", "Download Full Document")}
+              </span>
             </button>
           </div>
         </div>

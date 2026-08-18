@@ -20,10 +20,12 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly apiKey?: string;
 
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly config: ConfigService) {
     this.apiKey = this.config.get<string>('RESEND_API_KEY')?.trim();
   }
 
+  // Thực hiện nghiệp vụ send.
   async send(input: SendMailInput): Promise<void> {
     if (!this.apiKey) {
       throw new ServiceUnavailableException('Email delivery is not configured');

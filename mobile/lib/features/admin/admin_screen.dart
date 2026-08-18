@@ -10,6 +10,7 @@ final adminSummaryProvider = FutureProvider<Map<String, dynamic>>(
 
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => const DefaultTabController(
     length: 3,
@@ -32,6 +33,7 @@ class AdminScreen extends StatelessWidget {
 
 class _Summary extends ConsumerWidget {
   const _Summary();
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context, WidgetRef ref) => RefreshIndicator(
     onRefresh: () async {
@@ -78,6 +80,7 @@ class _Summary extends ConsumerWidget {
 
 class _Users extends ConsumerStatefulWidget {
   const _Users();
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<_Users> createState() => _UsersState();
 }
@@ -86,12 +89,14 @@ class _UsersState extends ConsumerState<_Users> {
   final search = TextEditingController();
   String keyword = '';
 
+  // Giải phóng tài nguyên khi đối tượng bị hủy.
   @override
   void dispose() {
     search.dispose();
     super.dispose();
   }
 
+  // Lấy dữ liệu load.
   Future<List<Map<String, dynamic>>> load() async {
     final api = ref.read(apiClientProvider);
     return api.listFrom(
@@ -106,6 +111,7 @@ class _UsersState extends ConsumerState<_Users> {
     );
   }
 
+  // Hiển thị hoặc mở người dùng actions.
   Future<void> showUserActions(Map<String, dynamic> user) async {
     if (user['role'] == 'ADMIN') return;
     final current = user['status']?.toString();
@@ -153,6 +159,7 @@ class _UsersState extends ConsumerState<_Users> {
     }
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Column(
     children: [
@@ -218,6 +225,7 @@ class _UsersState extends ConsumerState<_Users> {
 
 class _Documents extends ConsumerStatefulWidget {
   const _Documents();
+  // Tạo state quản lý vòng đời của widget.
   @override
   ConsumerState<_Documents> createState() => _DocumentsState();
 }
@@ -226,12 +234,14 @@ class _DocumentsState extends ConsumerState<_Documents> {
   final search = TextEditingController();
   String keyword = '', status = '';
 
+  // Giải phóng tài nguyên khi đối tượng bị hủy.
   @override
   void dispose() {
     search.dispose();
     super.dispose();
   }
 
+  // Lấy dữ liệu load.
   Future<List<Map<String, dynamic>>> load() async {
     final api = ref.read(apiClientProvider);
     return api.listFrom(
@@ -247,6 +257,7 @@ class _DocumentsState extends ConsumerState<_Documents> {
     );
   }
 
+  // Thực hiện nghiệp vụ moderate.
   Future<void> moderate(Map<String, dynamic> document, String action) async {
     try {
       final api = ref.read(apiClientProvider).dio;
@@ -272,6 +283,7 @@ class _DocumentsState extends ConsumerState<_Documents> {
     }
   }
 
+  // Hiển thị hoặc mở tài liệu actions.
   Future<void> showDocumentActions(Map<String, dynamic> document) async {
     final moderation = document['moderationStatus']?.toString();
     final action = await showModalBottomSheet<String>(
@@ -309,6 +321,7 @@ class _DocumentsState extends ConsumerState<_Documents> {
     if (action != null && mounted) await moderate(document, action);
   }
 
+  // Thực hiện chức năng ask rejection reason.
   Future<String?> _askRejectionReason() async {
     return showDialog<String>(
       context: context,
@@ -316,6 +329,7 @@ class _DocumentsState extends ConsumerState<_Documents> {
     );
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => Column(
     children: [
@@ -433,6 +447,7 @@ class _DocumentsState extends ConsumerState<_Documents> {
 class _RejectDocumentDialog extends StatefulWidget {
   const _RejectDocumentDialog();
 
+  // Tạo state quản lý vòng đời của widget.
   @override
   State<_RejectDocumentDialog> createState() => _RejectDocumentDialogState();
 }
@@ -440,12 +455,14 @@ class _RejectDocumentDialog extends StatefulWidget {
 class _RejectDocumentDialogState extends State<_RejectDocumentDialog> {
   final controller = TextEditingController();
 
+  // Giải phóng tài nguyên khi đối tượng bị hủy.
   @override
   void dispose() {
     controller.dispose();
     super.dispose();
   }
 
+  // Thực hiện chức năng submit.
   void submit() {
     final reason = controller.text.trim();
     if (reason.isEmpty) return;
@@ -453,6 +470,7 @@ class _RejectDocumentDialogState extends State<_RejectDocumentDialog> {
     Navigator.of(context).pop(reason);
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('Reject document'),
@@ -484,6 +502,7 @@ class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status});
   final String status;
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) {
     final normalized = status.toUpperCase();

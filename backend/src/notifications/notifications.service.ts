@@ -22,8 +22,10 @@ export type UserNotification = {
 
 @Injectable()
 export class NotificationsService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly prisma: PrismaService) {}
 
+  // Tạo hoặc lưu create.
   async create(input: {
     userId: string;
     type: NotificationType;
@@ -37,7 +39,11 @@ export class NotificationsService {
     `);
   }
 
-  async list(userId: string, limit = 20): Promise<{
+  // Lấy dữ liệu list.
+  async list(
+    userId: string,
+    limit = 20,
+  ): Promise<{
     items: UserNotification[];
     unreadCount: number;
   }> {
@@ -60,6 +66,7 @@ export class NotificationsService {
     return { items, unreadCount: Number(countRows[0]?.count ?? 0) };
   }
 
+  // Thực hiện chức năng mark read.
   async markRead(userId: string, id: string): Promise<void> {
     await this.prisma.$executeRaw(Prisma.sql`
       UPDATE "notifications"
@@ -68,6 +75,7 @@ export class NotificationsService {
     `);
   }
 
+  // Thực hiện chức năng mark danh sách read.
   async markAllRead(userId: string): Promise<void> {
     await this.prisma.$executeRaw(Prisma.sql`
       UPDATE "notifications"

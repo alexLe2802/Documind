@@ -1,7 +1,7 @@
-import type { Locale } from '../i18n/translations'
-import type { LibraryDocument } from '../types/document'
+import type { Locale } from "../i18n/translations";
+import type { LibraryDocument } from "../types/document";
 
-const MAX_SUGGESTIONS = 4
+const MAX_SUGGESTIONS = 4;
 
 const templates: Record<Locale, Array<(title: string) => string>> = {
   vi: [
@@ -16,17 +16,20 @@ const templates: Record<Locale, Array<(title: string) => string>> = {
     (title) => `Explain the important concepts in “${title}”`,
     (title) => `Create a study plan based on “${title}”`,
   ],
-}
+};
 
+// Chuyển đổi hoặc chuẩn hóa dashboard suggestions.
 export function buildDashboardSuggestions(
   documents: LibraryDocument[],
   locale: Locale,
 ): string[] {
-  const readyDocuments = documents.filter((document) => document.indexStatus === 'READY')
-  if (readyDocuments.length === 0) return []
+  const readyDocuments = documents.filter(
+    (document) => document.indexStatus === "READY",
+  );
+  if (readyDocuments.length === 0) return [];
 
   return Array.from({ length: MAX_SUGGESTIONS }, (_, index) => {
-    const document = readyDocuments[index % readyDocuments.length]
-    return templates[locale][index](document.title)
-  })
+    const document = readyDocuments[index % readyDocuments.length];
+    return templates[locale][index](document.title);
+  });
 }

@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'app.dart';
 import 'core/firebase_options.dart';
 
+// Thực hiện chức năng main.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Object? startupError;
@@ -36,6 +37,7 @@ class _SplashBootstrap extends StatefulWidget {
   const _SplashBootstrap({required this.versionLabel});
 
   final String versionLabel;
+  // Tạo state quản lý vòng đời của widget.
   @override
   State<_SplashBootstrap> createState() => _SplashBootstrapState();
 }
@@ -43,6 +45,7 @@ class _SplashBootstrap extends StatefulWidget {
 class _SplashBootstrapState extends State<_SplashBootstrap> {
   double progress = 0;
   bool done = false;
+  // Khởi tạo state và tài nguyên ban đầu.
   @override
   void initState() {
     super.initState();
@@ -59,6 +62,7 @@ class _SplashBootstrapState extends State<_SplashBootstrap> {
     });
   }
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => done
       ? const DocuMindApp()
@@ -125,6 +129,7 @@ class FirebaseSetupRequiredApp extends StatelessWidget {
 
   final Object error;
 
+  // Xây dựng giao diện hoặc dữ liệu trả về.
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,

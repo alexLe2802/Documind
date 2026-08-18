@@ -84,6 +84,7 @@ const PLAN_FEATURES: Record<
 
 const DEFAULT_PLAN_FEATURES = PLAN_FEATURES.FREE;
 
+// Hiển thị giao diện quyền lợi view.
 export function SubscriptionView() {
   const { locale } = useLanguage();
   const text = useCallback(
@@ -180,6 +181,7 @@ export function SubscriptionView() {
 
     let active = true;
     let attempts = 0;
+    // Kiểm tra điều kiện trạng thái.
     const checkStatus = async () => {
       attempts += 1;
       try {
@@ -232,17 +234,15 @@ export function SubscriptionView() {
     [plans, selectedPlan],
   );
   const selectedCheckoutAmount = useMemo(
-    () =>
-      selectedPlanDetails
-        ? getEstimatedCheckoutAmount(selectedPlanDetails, currentPlan, plans)
-        : 0,
-    [currentPlan, plans, selectedPlanDetails],
+    () => selectedPlanDetails?.amount ?? 0,
+    [selectedPlanDetails],
   );
   const checkoutSecondsRemaining = getRemainingSeconds(
     checkoutSession?.expiresAt,
     nowMs,
   );
 
+  // Xử lý sự kiện đơn thanh toán.
   async function handleCheckout() {
     if (!selectedPlan) return;
     setError("");
@@ -268,6 +268,7 @@ export function SubscriptionView() {
     }
   }
 
+  // Xử lý sự kiện resume thanh toán.
   async function handleResumePayment(payment: PaymentOrder) {
     if (payment.plan === "FREE") return;
     setError("");
@@ -332,7 +333,7 @@ export function SubscriptionView() {
           <div>
             <span>
               <Sparkles size={18} />
-              {text("Gói hiện tại", "Current plan")}
+              {text("Quyền lợi hiện tại", "Current entitlements")}
             </span>
             <strong>{currentPlanDetails?.name ?? currentPlan}</strong>
           </div>
@@ -379,13 +380,9 @@ export function SubscriptionView() {
             <PlanCard
               key={plan.code}
               plan={plan}
-              currentPlan={currentPlan}
               isCurrent={currentPlan === plan.code}
               onSelect={() => {
-                if (
-                  plan.code !== "FREE" &&
-                  !(currentPlan === "PRO" && plan.code === "STUDENT")
-                ) {
+                if (plan.code !== "FREE") {
                   setSelectedPlan(plan.code);
                 }
               }}
@@ -493,12 +490,10 @@ export function SubscriptionView() {
             </header>
             <div className="payment-order-summary">
               <span>
-                {currentPlan === "STUDENT" && selectedPlan === "PRO"
-                  ? text(
-                      "Thanh toan phan chenh lech",
-                      "Pay the missing difference",
-                    )
-                  : text("Thanh toán hàng tháng", "Monthly payment")}
+                {text(
+                  `Cộng thêm tài nguyên và ${selectedPlanDetails.durationDays} ngày sử dụng`,
+                  `Add resources and ${selectedPlanDetails.durationDays} access days`,
+                )}
               </span>
               <strong>
                 {formatPrice(
@@ -609,16 +604,15 @@ export function SubscriptionView() {
   );
 }
 
+// Hiển thị giao diện gói dịch vụ card.
 function PlanCard({
   plan,
-  currentPlan,
   isCurrent,
   onSelect,
   locale,
   text,
 }: {
   plan: SubscriptionPlan;
-  currentPlan: SubscriptionPlanCode;
   isCurrent: boolean;
   onSelect: () => void;
   locale: string;
@@ -627,7 +621,6 @@ function PlanCard({
   const features = PLAN_FEATURES[plan.code] ?? DEFAULT_PLAN_FEATURES;
   const isFeatured = plan.code === "STUDENT";
   const isFreeUnavailable = plan.code === "FREE" && !isCurrent;
-  const hideAction = currentPlan === "PRO" && plan.code === "STUDENT";
   return (
     <article
       className={[
@@ -698,23 +691,16 @@ function PlanCard({
           <FeatureValue value={features.reporting} text={text} />
         </li>
       </ul>
-      {hideAction ? null : (
-        <button
-          type="button"
-          disabled={isCurrent || isFreeUnavailable}
-          onClick={onSelect}
-        >
-          {isCurrent
-            ? text("Gói hiện tại", "Current plan")
-            : plan.code === "FREE"
-              ? text("Tự động khi hết hạn", "Automatic after expiry")
-              : text(`Chọn gói ${plan.name}`, `Choose ${plan.name}`)}
-        </button>
-      )}
+      <button type="button" disabled={isFreeUnavailable || plan.code === "FREE"} onClick={onSelect}>
+        {plan.code === "FREE"
+          ? text("Quyền lợi mặc định", "Default entitlements")
+          : text(`Mua thêm ${plan.name}`, `Buy ${plan.name} resources`)}
+      </button>
     </article>
   );
 }
 
+// Hiển thị giao diện feature value.
 function FeatureValue({
   value,
   text,
@@ -753,19 +739,7 @@ function FeatureValue({
   return <strong>{value}</strong>;
 }
 
-function getEstimatedCheckoutAmount(
-  selectedPlan: SubscriptionPlan,
-  currentPlan: SubscriptionPlanCode,
-  plans: SubscriptionPlan[],
-) {
-  if (currentPlan === "STUDENT" && selectedPlan.code === "PRO") {
-    const studentPlan = plans.find((plan) => plan.code === "STUDENT");
-    return Math.max(0, selectedPlan.amount - (studentPlan?.amount ?? 0));
-  }
-
-  return selectedPlan.amount;
-}
-
+// Chuyển đổi hoặc chuẩn hóa price.
 function formatPrice(amount: number, currency: string, locale: string) {
   return new Intl.NumberFormat(locale === "vi" ? "vi-VN" : "en-US", {
     style: "currency",
@@ -774,6 +748,7 @@ function formatPrice(amount: number, currency: string, locale: string) {
   }).format(amount);
 }
 
+// Lấy dữ liệu remaining seconds.
 function getRemainingSeconds(expiresAt: string | undefined, nowMs: number) {
   if (!expiresAt) return 0;
   const expiresAtMs = new Date(expiresAt).getTime();
@@ -781,6 +756,7 @@ function getRemainingSeconds(expiresAt: string | undefined, nowMs: number) {
   return Math.max(0, Math.ceil((expiresAtMs - nowMs) / 1000));
 }
 
+// Chuyển đổi hoặc chuẩn hóa countdown.
 function formatCountdown(totalSeconds: number) {
   const safeSeconds = Math.max(0, totalSeconds);
   const minutes = Math.floor(safeSeconds / 60);
@@ -788,6 +764,7 @@ function formatCountdown(totalSeconds: number) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+// Lấy dữ liệu quota usage percent.
 function getQuotaUsagePercent(subscription?: CurrentSubscription) {
   if (!subscription || subscription.aiChatLimit === null) return 0;
   if (subscription.aiChatLimit === 0) return 0;
@@ -797,6 +774,7 @@ function getQuotaUsagePercent(subscription?: CurrentSubscription) {
   );
 }
 
+// Chuyển đổi hoặc chuẩn hóa storage.
 function formatStorage(megabytes: number) {
   if (megabytes >= 1024) {
     return `${(megabytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 2 })} GB`;

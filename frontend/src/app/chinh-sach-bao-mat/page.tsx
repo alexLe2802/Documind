@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ROUTES } from "../../lib/routes";
 
+// Hiển thị giao diện privacy page.
 export default function PrivacyPage() {
   return (
     <main className="legal-page">

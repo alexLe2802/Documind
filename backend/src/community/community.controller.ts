@@ -20,8 +20,10 @@ import { CommunityDocumentQueryDto } from './dto/community-document-query.dto';
 @ApiTags('community')
 @Controller('community')
 export class CommunityController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly service: CommunityService) {}
 
+  // Lấy dữ liệu tài liệu.
   @Get('documents')
   @UseGuards(OptionalFirebaseAuthGuard)
   @ApiOperation({ summary: 'List public community documents' })
@@ -32,6 +34,7 @@ export class CommunityController {
     return this.service.findDocuments(query, user?.id);
   }
 
+  // Tạo hoặc lưu xem trước url.
   @Get('documents/:id/preview')
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
@@ -42,6 +45,7 @@ export class CommunityController {
     return this.service.createPreviewUrl(id);
   }
 
+  // Lấy dữ liệu chi tiết tài liệu.
   @Get('documents/:id')
   @UseGuards(OptionalFirebaseAuthGuard)
   @ApiOperation({ summary: 'Get a public community document detail' })
@@ -52,6 +56,7 @@ export class CommunityController {
     return this.service.findOneDocument(id, user?.id);
   }
 
+  // Tạo hoặc lưu tài liệu.
   @Post('documents/:id/save')
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
@@ -63,6 +68,7 @@ export class CommunityController {
     return this.service.saveDocument(id, user.id);
   }
 
+  // Thực hiện chức năng unsave tài liệu.
   @Delete('documents/:id/save')
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()

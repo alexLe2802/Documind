@@ -44,11 +44,13 @@ import { DocumentsService } from './documents.service';
 @Controller('documents')
 @UseGuards(FirebaseAuthGuard)
 export class DocumentsController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly service: DocumentsService,
     private readonly extractionService: ContentExtractionService,
   ) {}
 
+  // Tạo hoặc lưu tải lên.
   @Post(['', 'upload'])
   @UseInterceptors(
     FileInterceptor('file', {
@@ -108,6 +110,7 @@ export class DocumentsController {
     return document;
   }
 
+  // Lấy danh sách dữ liệu phù hợp.
   @Get()
   @ApiOperation({ summary: 'List UI-ready documents for the current user' })
   findAll(
@@ -117,6 +120,7 @@ export class DocumentsController {
     return this.service.findAll(user.id, query);
   }
 
+  // Tạo hoặc lưu tải xuống url.
   @Get(':id/download-url')
   @ApiOperation({ summary: 'Create a short-lived download URL' })
   createDownloadUrl(
@@ -126,6 +130,7 @@ export class DocumentsController {
     return this.service.createDownloadUrl(id, user.id);
   }
 
+  // Thực hiện chức năng tải xuống.
   @Get(':id/download')
   @ApiOperation({ summary: 'Create a short-lived download URL and track it' })
   async download(
@@ -135,6 +140,7 @@ export class DocumentsController {
     return this.service.createDownloadUrl(id, user.id);
   }
 
+  // Tạo hoặc lưu xem trước url.
   @Get([':id/preview', ':id/preview-url'])
   @ApiOperation({ summary: 'Create a short-lived preview URL' })
   createPreviewUrl(
@@ -144,6 +150,7 @@ export class DocumentsController {
     return this.service.createPreviewUrl(id, user.id);
   }
 
+  // Lấy một bản ghi dữ liệu phù hợp.
   @Get(':id')
   @ApiOperation({ summary: 'Get one UI-ready document by id' })
   findOne(
@@ -153,6 +160,7 @@ export class DocumentsController {
     return this.service.findOne(id, user.id);
   }
 
+  // Cập nhật update.
   @Put(':id')
   @ApiOperation({ summary: 'Update document metadata' })
   update(
@@ -163,6 +171,7 @@ export class DocumentsController {
     return this.service.update(id, user.id, dto);
   }
 
+  // Cập nhật quyền hiển thị.
   @Put(':id/visibility')
   @ApiOperation({ summary: 'Update document visibility' })
   updateVisibility(
@@ -173,6 +182,7 @@ export class DocumentsController {
     return this.service.updateVisibility(id, user.id, dto.visibility);
   }
 
+  // Xóa hoặc giải phóng remove.
   @Delete(':id')
   @HttpCode(204)
   @ApiOperation({ summary: 'Permanently delete an owned document' })

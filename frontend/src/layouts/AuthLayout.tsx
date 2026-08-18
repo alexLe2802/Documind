@@ -1,13 +1,19 @@
-'use client'
+"use client";
 
-import type { ReactNode } from 'react'
-import { FileSearch, MessageSquareText, ShieldCheck, Sparkles } from 'lucide-react'
-import { Brand } from '../components/ui/Brand'
-import { LanguageSwitcher } from '../components/ui/LanguageSwitcher'
-import { useLanguage } from '../i18n/LanguageProvider'
+import type { ReactNode } from "react";
+import {
+  FileSearch,
+  MessageSquareText,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { Brand } from "../components/ui/Brand";
+import { LanguageSwitcher } from "../components/ui/LanguageSwitcher";
+import { useLanguage } from "../i18n/LanguageProvider";
 
+// Hiển thị giao diện xác thực layout.
 export function AuthLayout({ children }: { children: ReactNode }) {
-  const { t } = useLanguage()
+  const { t } = useLanguage();
 
   return (
     <main className="auth-shell" id="main-content">
@@ -17,9 +23,9 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           <LanguageSwitcher />
         </div>
         <div className="auth-brand-copy">
-          <p className="eyebrow">{t('auth.sideEyebrow')}</p>
-          <h1>{t('auth.sideTitle')}</h1>
-          <p>{t('auth.sideBody')}</p>
+          <p className="eyebrow">{t("auth.sideEyebrow")}</p>
+          <h1>{t("auth.sideTitle")}</h1>
+          <p>{t("auth.sideBody")}</p>
         </div>
         <div className="auth-preview" aria-label="DocuMind AI document preview">
           <div className="auth-preview-header">
@@ -29,8 +35,8 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           <div className="preview-content">
             <FileSearch size={22} />
             <div>
-              <strong>{t('auth.previewFile')}</strong>
-              <p>{t('auth.previewBody')}</p>
+              <strong>{t("auth.previewFile")}</strong>
+              <p>{t("auth.previewBody")}</p>
             </div>
           </div>
           <div className="preview-answer">
@@ -47,5 +53,5 @@ export function AuthLayout({ children }: { children: ReactNode }) {
       </section>
       <section className="auth-form-column">{children}</section>
     </main>
-  )
+  );
 }

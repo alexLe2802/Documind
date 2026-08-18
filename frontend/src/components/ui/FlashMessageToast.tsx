@@ -10,6 +10,7 @@ import {
 
 const DEFAULT_FLASH_DURATION_MS = 5000;
 
+// Hiển thị giao diện flash tin nhắn toast.
 export function FlashMessageToast() {
   const [flashMessage, setFlashMessage] = useState<FlashMessage | null>(null);
 
@@ -30,11 +31,10 @@ export function FlashMessageToast() {
       timeoutId = showFlashMessage(nextFlashMessage);
     }
 
+    // Xử lý sự kiện flash tin nhắn.
     function handleFlashMessage(event: Event) {
       if (timeoutId) window.clearTimeout(timeoutId);
-      timeoutId = showFlashMessage(
-        (event as CustomEvent<FlashMessage>).detail,
-      );
+      timeoutId = showFlashMessage((event as CustomEvent<FlashMessage>).detail);
     }
 
     window.addEventListener(FLASH_MESSAGE_EVENT, handleFlashMessage);

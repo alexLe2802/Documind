@@ -32,6 +32,7 @@ export class ExtractionFileValidationPipe implements PipeTransform<
   UploadedContentFile | undefined,
   UploadedContentFile
 > {
+  // Chuyển đổi hoặc chuẩn hóa transform.
   transform(file: UploadedContentFile | undefined): UploadedContentFile {
     if (!file) {
       throw new BadRequestException('File is required');
@@ -86,20 +87,24 @@ export class ExtractionFileValidationPipe implements PipeTransform<
     return file;
   }
 
+  // Lấy dữ liệu extension.
   private getExtension(fileName: string): string {
     const trimmedName = fileName.trim();
     const extension = trimmedName.split('.').pop()?.toLowerCase() ?? '';
     return trimmedName.includes('.') ? extension : '';
   }
 
+  // Kiểm tra điều kiện pdf signature.
   private hasPdfSignature(buffer: Buffer): boolean {
     return buffer.subarray(0, 4).toString('ascii') === '%PDF';
   }
 
+  // Kiểm tra điều kiện zip signature.
   private hasZipSignature(buffer: Buffer): boolean {
     return buffer.length >= 2 && buffer[0] === 0x50 && buffer[1] === 0x4b;
   }
 
+  // Kiểm tra điều kiện ole signature.
   private hasOleSignature(buffer: Buffer): boolean {
     return (
       buffer.length >= 8 &&
@@ -109,6 +114,7 @@ export class ExtractionFileValidationPipe implements PipeTransform<
     );
   }
 
+  // Kiểm tra điều kiện required zip entries.
   private hasRequiredZipEntries(
     buffer: Buffer,
     requiredEntries: ReadonlySet<string>,
@@ -121,6 +127,7 @@ export class ExtractionFileValidationPipe implements PipeTransform<
     return [...requiredEntries].every((entry) => entries.has(entry));
   }
 
+  // Lấy dữ liệu zip entries.
   private listZipEntries(buffer: Buffer): Set<string> | null {
     const endOfCentralDirectoryOffset = this.findEndOfCentralDirectory(buffer);
     if (endOfCentralDirectoryOffset === null) {
@@ -170,6 +177,7 @@ export class ExtractionFileValidationPipe implements PipeTransform<
     return entries;
   }
 
+  // Lấy dữ liệu end of central directory.
   private findEndOfCentralDirectory(buffer: Buffer): number | null {
     if (buffer.length < 22) {
       return null;

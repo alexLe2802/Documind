@@ -18,6 +18,7 @@ export class OfficePreviewService {
   // below the client timeout while allowing real PPTX/XLSX files to finish.
   private readonly conversionTimeoutMs = 25_000;
 
+  // Chuyển đổi hoặc chuẩn hóa to pdf.
   async convertToPdf(input: {
     buffer: Buffer;
     fileName: string;
@@ -55,32 +56,38 @@ export class OfficePreviewService {
     }
   }
 
+  // Xử lý libre office.
   private runLibreOffice(outDir: string, inputPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const child = spawn(this.officeBinary, [
-        `-env:UserInstallation=${pathToFileURL(join(outDir, '.libreoffice-profile')).href}`,
-        '--headless',
-        '--nologo',
-        '--nodefault',
-        '--nolockcheck',
-        '--nofirststartwizard',
-        '--convert-to',
-        this.pdfConversionTarget(inputPath),
-        '--outdir',
-        outDir,
-        inputPath,
-      ], {
-        cwd: outDir,
-        env: {
-          ...process.env,
-          HOME: outDir,
-          TMPDIR: outDir,
+      const child = spawn(
+        this.officeBinary,
+        [
+          `-env:UserInstallation=${pathToFileURL(join(outDir, '.libreoffice-profile')).href}`,
+          '--headless',
+          '--nologo',
+          '--nodefault',
+          '--nolockcheck',
+          '--nofirststartwizard',
+          '--convert-to',
+          this.pdfConversionTarget(inputPath),
+          '--outdir',
+          outDir,
+          inputPath,
+        ],
+        {
+          cwd: outDir,
+          env: {
+            ...process.env,
+            HOME: outDir,
+            TMPDIR: outDir,
+          },
         },
-      });
+      );
 
       let stdout = '';
       let stderr = '';
       let settled = false;
+      // Thực hiện chức năng finish.
       const finish = (callback: () => void): void => {
         if (settled) return;
         settled = true;
@@ -134,6 +141,7 @@ export class OfficePreviewService {
     });
   }
 
+  // Thực hiện chức năng safe xem trước tệp name.
   private safePreviewFileName(fileName: string): string {
     const extension = extname(fileName).toLowerCase();
     const stem = basename(fileName, extension).replace(
@@ -143,6 +151,7 @@ export class OfficePreviewService {
     return `${stem || 'document'}${extension}`;
   }
 
+  // Thực hiện chức năng pdf conversion target.
   private pdfConversionTarget(inputPath: string): string {
     switch (extname(inputPath).toLowerCase()) {
       case '.pptx':

@@ -24,6 +24,7 @@ import {
 
 const ANONYMOUS_USER_ID_FILTER = '00000000-0000-0000-0000-000000000000';
 
+// Chuyển đổi hoặc chuẩn hóa cộng đồng tài liệu include.
 const buildCommunityDocumentInclude = (currentUserId?: string) =>
   ({
     owner: {
@@ -90,12 +91,14 @@ export interface SavedCommunityDocumentResponse {
 
 @Injectable()
 export class CommunityService {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
     private readonly storage: StorageService,
   ) {}
 
+  // Lấy dữ liệu chi tiết tài liệu.
   async findOneDocument(
     id: string,
     currentUserId?: string,
@@ -117,6 +120,7 @@ export class CommunityService {
     return this.serialize(document, currentUserId);
   }
 
+  // Tạo hoặc lưu xem trước url.
   async createPreviewUrl(id: string): Promise<ObjectUrlResponse> {
     const document = await this.prisma.document.findFirst({
       where: {
@@ -136,11 +140,13 @@ export class CommunityService {
       throw new NotFoundException('Community document not found');
     }
 
+    // Tạo URL tạm thời để truy cập object an toàn từ Cloudflare R2.
     const previewUrl = await this.storage.createObjectPreviewUrl(
       document.storagePath,
       document.fileType,
     );
 
+    // Cập nhật tài liệu trong database.
     await this.prisma.document.update({
       where: { id: document.id },
       data: { viewCount: { increment: 1 } },
@@ -149,6 +155,7 @@ export class CommunityService {
     return previewUrl;
   }
 
+  // Lấy dữ liệu tài liệu.
   async findDocuments(
     query: CommunityDocumentQueryDto,
     currentUserId?: string,
@@ -186,6 +193,7 @@ export class CommunityService {
       },
     };
   }
+  // Tạo hoặc lưu tài liệu.
   async saveDocument(
     documentId: string,
     userId: string,
@@ -217,6 +225,7 @@ export class CommunityService {
     }
 
     try {
+      // Thực hiện các thay đổi liên quan trong cùng một database transaction.
       const savedDocument = await this.prisma.$transaction(async (tx) => {
         const created = await tx.savedDocument.create({
           data: { userId, documentId },
@@ -243,6 +252,7 @@ export class CommunityService {
     }
   }
 
+  // Thực hiện chức năng unsave tài liệu.
   async unsaveDocument(documentId: string, userId: string): Promise<void> {
     const document = await this.prisma.document.findFirst({
       where: {
@@ -263,6 +273,7 @@ export class CommunityService {
       return;
     }
 
+    // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (tx) => {
       await tx.savedDocument.delete({
         where: { id: savedDocument.id },
@@ -281,6 +292,7 @@ export class CommunityService {
     });
   }
 
+  // Chuyển đổi hoặc chuẩn hóa where.
   private buildWhere(
     query: CommunityDocumentQueryDto,
   ): Prisma.DocumentWhereInput {
@@ -337,6 +349,7 @@ export class CommunityService {
     return { AND: filters };
   }
 
+  // Chuyển đổi hoặc chuẩn hóa order by.
   private buildOrderBy(
     query: CommunityDocumentQueryDto,
   ): Prisma.DocumentOrderByWithRelationInput[] {
@@ -349,6 +362,7 @@ export class CommunityService {
     return [primarySort, { id: 'desc' }];
   }
 
+  // Chuyển đổi hoặc chuẩn hóa serialize.
   private serialize(
     document: CommunityDocumentPayload,
     currentUserId?: string,
@@ -365,6 +379,7 @@ export class CommunityService {
     };
   }
 
+  // Lấy dữ liệu đã lưu tài liệu.
   private findSavedDocument(
     userId: string,
     documentId: string,
@@ -379,6 +394,7 @@ export class CommunityService {
     });
   }
 
+  // Chuyển đổi hoặc chuẩn hóa đã lưu tài liệu.
   private serializeSavedDocument(
     savedDocument: SavedDocument,
   ): SavedCommunityDocumentResponse {
@@ -389,6 +405,7 @@ export class CommunityService {
     };
   }
 
+  // Kiểm tra điều kiện unique constraint lỗi.
   private isUniqueConstraintError(error: unknown): boolean {
     return (
       typeof error === 'object' &&

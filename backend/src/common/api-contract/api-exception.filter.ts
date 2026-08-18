@@ -23,6 +23,7 @@ interface RequestWithId extends Request {
 export class ApiExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(ApiExceptionFilter.name);
 
+  // Thực hiện chức năng catch.
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
     const request = context.getRequest<RequestWithId>();
@@ -71,6 +72,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     response.status(status).json(body);
   }
 
+  // Lấy dữ liệu payload.
   private getPayload(exception: unknown): ErrorPayload {
     if (!(exception instanceof HttpException)) {
       return {};
@@ -80,6 +82,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     return typeof response === 'string' ? { message: response } : response;
   }
 
+  // Thực hiện chức năng tin nhắn.
   private message(
     message: string | string[] | undefined,
     status: number,
@@ -95,6 +98,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       : HttpStatus[status].replaceAll('_', ' ').toLowerCase();
   }
 
+  // Thực hiện chức năng validation details.
   private validationDetails(message: string | string[] | undefined): {
     details?: { message: string }[];
   } {
@@ -103,6 +107,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       : {};
   }
 
+  // Thực hiện chức năng default code.
   private defaultCode(status: number): string {
     return HttpStatus[status] ?? 'INTERNAL_SERVER_ERROR';
   }

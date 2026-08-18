@@ -25,20 +25,24 @@ import { ChatbotStatsResponseDto } from './dto/chatbot-stats-response.dto';
 @UseGuards(FirebaseAuthGuard, RolesGuard)
 @Roles(RoleName.ADMIN)
 export class DashboardController {
+  // Khởi tạo đối tượng và nhận các dependency cần thiết.
   constructor(private readonly dashboardService: DashboardService) {}
 
+  // Lấy dữ liệu summary.
   @Get('summary')
   @ApiOperation({ summary: 'Get admin dashboard summary totals' })
   async getSummary(): Promise<DashboardSummaryResponse> {
     return this.dashboardService.getSummary();
   }
 
+  // Lấy dữ liệu người dùng stats.
   @Get('user-stats')
   @ApiOperation({ summary: 'Get admin user statistics by role and status' })
   async getUserStats(): Promise<UserStatsResponse> {
     return this.dashboardService.getUserStats();
   }
 
+  // Lấy dữ liệu tài liệu stats.
   @Get('document-stats')
   @ApiOperation({
     summary: 'Get admin document statistics by status and visibility',
@@ -47,12 +51,14 @@ export class DashboardController {
     return this.dashboardService.getDocumentStats();
   }
 
+  // Lấy dữ liệu statistics.
   @Get('statistics')
   @ApiOperation({ summary: 'Get combined admin dashboard statistics' })
   async getStatistics(): Promise<DashboardStatisticsResponse> {
     return this.dashboardService.getStatistics();
   }
 
+  // Lấy dữ liệu tài liệu by môn học.
   @Get('documents-by-subject')
   @ApiOperation({ summary: 'Get active document counts by subject' })
   async getDocumentsBySubject(
@@ -61,6 +67,7 @@ export class DashboardController {
     return this.dashboardService.getDocumentsBySubject(query);
   }
 
+  // Lấy dữ liệu tài liệu by danh mục.
   @Get('documents-by-category')
   @ApiOperation({ summary: 'Get active document counts by category' })
   async getDocumentsByCategory(
@@ -69,6 +76,7 @@ export class DashboardController {
     return this.dashboardService.getDocumentsByCategory(query);
   }
 
+  // Lấy dữ liệu tải lên statistics.
   @Get('upload-statistics')
   @ApiOperation({ summary: 'Get active document upload statistics' })
   async getUploadStatistics(
@@ -77,6 +85,7 @@ export class DashboardController {
     return await this.dashboardService.getUploadStatistics(query);
   }
 
+  // Lấy dữ liệu chatbot stats.
   @Get('chatbot-stats')
   @ApiOperation({
     summary: 'Get chatbot analytics and performance statistics',
