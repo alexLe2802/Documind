@@ -480,6 +480,7 @@ describe('PaymentsService', () => {
           storageLimitMb: 6244,
           uploadLimit: 610,
           aiChatLimit: 320,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           unlimitedAiUntil: expect.any(Date),
         }),
         // Jest asymmetric matchers are typed as any.
@@ -512,6 +513,7 @@ describe('PaymentsService', () => {
 
     expect(transaction.subscription.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         update: expect.objectContaining({
           expiresAt: new Date('2099-08-21T00:00:00.000Z'),
           storageLimitMb: 6144,
@@ -523,6 +525,7 @@ describe('PaymentsService', () => {
       }),
     );
     expect(transaction.entitlementTransaction.create).toHaveBeenCalledWith({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       data: expect.objectContaining({
         paymentOrderId: paymentOrder.id,
         packageCode: SubscriptionPlan.STUDENT,

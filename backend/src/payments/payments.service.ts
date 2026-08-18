@@ -436,7 +436,7 @@ export class PaymentsService {
     return payments.map((payment) => this.toPaymentResponse(payment));
   }
 
-  // Cập nhật thanh toán trạng thái.
+  // Cập nhật trạng thái thanh toán.
   async updatePaymentStatus(
     userId: string,
     invoiceNumber: string,
@@ -460,7 +460,7 @@ export class PaymentsService {
 
     // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
-      // Đánh dấu hóa đơn PAID và lưu mã giao dịch từ webhook SePay.
+      // Đánh dấu hóa đơn theo trạng thái FAILED hoặc CANCELLED do người dùng yêu cầu.
       await transaction.paymentOrder.updateMany({
         where: { id: payment.id, status: PaymentStatus.PENDING },
         data: { status },
@@ -519,7 +519,7 @@ export class PaymentsService {
         throw new ConflictException('SePay transaction already processed');
       }
 
-      // Cập nhật các hóa đơn thanh toán trong database.
+      // Đánh dấu hóa đơn PAID và lưu mã giao dịch từ webhook SePay.
       const updateResult = await transaction.paymentOrder.updateMany({
         where: {
           id: payment.id,
@@ -646,6 +646,7 @@ export class PaymentsService {
     },
     paidAt: Date,
   ): Promise<Date> {
+    // Khóa giao dịch theo user để hai hóa đơn thanh toán đồng thời không ghi đè quota.
     await transaction.$executeRaw(
       Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${payment.userId}))`,
     );
@@ -672,7 +673,7 @@ export class PaymentsService {
     const baseUploads = isActive ? current?.uploadLimit ?? 0 : PLAN_QUOTAS.FREE.uploadLimit;
     const baseAiCredits = isActive ? current?.aiChatLimit ?? 0 : PLAN_QUOTAS.FREE.aiChatLimit ?? 0;
 
-    // Tạo mới hoặc cập nhật ví tài nguyên trong database.
+    // Cộng ngày sử dụng, dung lượng và quota vào ví tài nguyên hiện tại.
     await transaction.subscription.upsert({
       where: { userId: payment.userId },
       update: {
@@ -699,7 +700,7 @@ export class PaymentsService {
         aiChatsUsed: 0,
       },
     });
-    // Tạo sổ cái quyền lợi trong database.
+    // Lưu sổ cái để mỗi hóa đơn chỉ được cộng tài nguyên đúng một lần.
     await transaction.entitlementTransaction.create({
       data: {
         userId: payment.userId,
@@ -817,7 +818,7 @@ export class PaymentsService {
     // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
       for (const payment of expiredPayments) {
-        // Cập nhật các hóa đơn thanh toán trong database.
+        // Đánh dấu các hóa đơn PENDING đã quá hạn thành EXPIRED.
         const result = await transaction.paymentOrder.updateMany({
           where: { id: payment.id, status: PaymentStatus.PENDING },
           data: { status: PaymentStatus.EXPIRED },
@@ -844,7 +845,7 @@ export class PaymentsService {
 
     // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
-      // Đánh dấu hóa đơn PAID sau khi đối soát SePay trả trạng thái CAPTURED.
+      // Đánh dấu hóa đơn PAID đã hoàn tiền để không tiếp tục sử dụng quyền lợi.
       const result = await transaction.paymentOrder.updateMany({
         where: { id: payment.id, status: PaymentStatus.PAID },
         data: {
@@ -868,7 +869,7 @@ export class PaymentsService {
         const reducedUnlimited = activeSubscription.unlimitedAiUntil
           ? this.addDays(activeSubscription.unlimitedAiUntil, -entitlement.unlimitedAiDays)
           : null;
-        // Cập nhật ví tài nguyên trong database.
+        // Trừ đúng phần tài nguyên của hóa đơn được hoàn khỏi ví hiện tại.
         await transaction.subscription.update({
           where: { userId: payment.userId },
           data: accessExpired
@@ -929,7 +930,7 @@ export class PaymentsService {
     action: string,
     metadata: Prisma.InputJsonObject,
   ): Promise<unknown> {
-    // Tạo nhật ký kiểm toán trong database.
+    // Lưu nhật ký kiểm toán cho thay đổi thanh toán và tài nguyên.
     return transaction.auditLog.create({
       data: {
         userId,
@@ -1058,7 +1059,7 @@ export class PaymentsService {
 
     // Thực hiện các thay đổi liên quan trong cùng một database transaction.
     await this.prisma.$transaction(async (transaction) => {
-      // Cập nhật các hóa đơn thanh toán trong database.
+      // Đánh dấu hóa đơn PAID sau khi đối soát SePay trả trạng thái CAPTURED.
       const updateResult = await transaction.paymentOrder.updateMany({
         where: {
           id: payment.id,

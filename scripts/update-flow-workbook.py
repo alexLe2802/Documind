@@ -4,6 +4,7 @@ import sys
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
+from openpyxl import load_workbook as load_excel_workbook
 
 NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -156,6 +157,10 @@ def save_workbook(files, destination):
     with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as archive:
         for name, payload in files.items():
             archive.writestr(name, payload)
+    normalized = destination.with_suffix(".normalized.xlsx")
+    workbook = load_excel_workbook(destination)
+    workbook.save(normalized)
+    normalized.replace(destination)
 
 
 # Điều phối việc đọc, cập nhật và ghi workbook từ tham số dòng lệnh.
