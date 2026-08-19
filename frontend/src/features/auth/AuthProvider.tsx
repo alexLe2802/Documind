@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useState<GoogleRegistrationProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Tải lại thông tin người dùng hiện tại từ backend và cập nhật state.
   const refreshUser = useCallback(async () => {
     try {
       const currentUser = await authApi.getCurrentUser();
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshUser]);
 
+  // Xử lý đăng nhập bằng email/mật khẩu, cập nhật user state sau khi thành công.
   const handleLogin = useCallback(async (payload: LoginPayload) => {
     const currentUser = await authApi.login(payload);
     setUser(currentUser);
@@ -81,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return currentUser;
   }, []);
 
+  // Xử lý đăng ký tài khoản mới, xóa phiên Google tạm thời sau khi đăng ký.
   const handleRegister = useCallback(async (payload: RegisterPayload) => {
     await authApi.register(payload);
     clearPendingGoogleRegistration();
@@ -90,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  // Đăng nhập bằng Google popup; nếu tài khoản chưa đăng ký sẽ chuyển sang luồng đăng ký.
   const handleGoogleLogin =
     useCallback(async (): Promise<GoogleLoginResult> => {
       const firebaseAuth = getFirebaseAuth();
@@ -131,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, []);
 
+  // Xử lý đăng xuất: xóa token, đăng xuất Firebase và reset state người dùng.
   const handleLogout = useCallback(async () => {
     clearStoredAuthToken();
     clearPendingGoogleRegistration();
@@ -143,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Cập nhật thông tin hồ sơ người dùng và đồng bộ lại state toàn cục.
   const handleUpdateProfile = useCallback(
     async (payload: UpdateProfilePayload) => {
       const profile = await profileApi.updateProfile(payload);
@@ -160,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user],
   );
 
+  // Tổng hợp tất cả state và hàm xác thực thành context để truyền xuống cây component.
   const value = useMemo(
     () => ({
       user,

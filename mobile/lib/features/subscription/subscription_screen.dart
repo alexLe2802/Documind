@@ -100,7 +100,7 @@ class _SubscriptionContent extends ConsumerWidget {
           name: currentPlan?['name']?.toString(),
         ),
         const SizedBox(height: 26),
-        const _SectionTitle('CHỌN GÓI PHÙ HỢP'),
+        const _SectionTitle('MUA THÊM TÀI NGUYÊN'),
         const SizedBox(height: 10),
         ...plans.map(
           (plan) => Padding(
@@ -108,8 +108,7 @@ class _SubscriptionContent extends ConsumerWidget {
             child: _PlanCard(
               plan: plan,
               currentCode: currentCode,
-              onSelect: () =>
-                  _showCheckout(context, ref, plan, plans, currentCode),
+              onSelect: () => _showCheckout(context, ref, plan),
             ),
           ),
         ),
@@ -144,18 +143,12 @@ class _SubscriptionContent extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     Map<String, dynamic> plan,
-    List<Map<String, dynamic>> plans,
-    String currentCode,
   ) async {
     final result = await showModalBottomSheet<_CheckoutChoice>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _CheckoutSheet(
-        plan: plan,
-        amount: _checkoutAmount(plan, plans, currentCode),
-        isUpgrade: currentCode == 'STUDENT' && plan['code'] == 'PRO',
-      ),
+      builder: (_) => _CheckoutSheet(plan: plan, amount: _num(plan['amount'])),
     );
     if (result == null || !context.mounted) return;
     await _startCheckout(context, ref, plan['code'].toString(), result.method);
@@ -218,7 +211,7 @@ class _SubscriptionContent extends ConsumerWidget {
           SnackBar(
             content: Text(
               paid
-                  ? 'Thanh toán thành công. Gói đã được kích hoạt.'
+                  ? 'Thanh toán thành công. Tài nguyên và thời hạn đã được cộng thêm.'
                   : 'SePay đang xác nhận giao dịch. Vui lòng kiểm tra lại sau.',
             ),
           ),
@@ -279,7 +272,10 @@ class _CurrentPlanCard extends StatelessWidget {
                 size: 19,
               ),
               SizedBox(width: 8),
-              Text('Gói hiện tại', style: TextStyle(color: Color(0xffcbd5e1))),
+              Text(
+                'Ví tài nguyên hiện tại',
+                style: TextStyle(color: Color(0xffcbd5e1)),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -370,10 +366,7 @@ class _PlanCard extends StatelessWidget {
     final code = plan['code']?.toString() ?? 'FREE';
     final values = _features[code] ?? _features['FREE']!;
     final current = currentCode == code;
-    final selectable =
-        code != 'FREE' &&
-        !current &&
-        !(currentCode == 'PRO' && code == 'STUDENT');
+    final selectable = code != 'FREE';
     final featured = code == 'STUDENT';
     return Container(
       padding: const EdgeInsets.all(18),
@@ -410,7 +403,10 @@ class _PlanCard extends StatelessWidget {
             style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
           ),
           if (_num(plan['amount']) > 0)
-            const Text('/ tháng', style: TextStyle(color: Color(0xff64748b))),
+            Text(
+              '/ ${plan['durationDays'] ?? 30} ngày cộng thêm',
+              style: const TextStyle(color: Color(0xff64748b)),
+            ),
           const SizedBox(height: 7),
           Text(
             values['best']!,
@@ -438,31 +434,30 @@ class _PlanCard extends StatelessWidget {
             value: values['offline']!,
           ),
           const SizedBox(height: 14),
-          if (!(currentCode == 'PRO' && code == 'STUDENT'))
-            SizedBox(
-              width: double.infinity,
-              child: featured
-                  ? FilledButton(
-                      onPressed: selectable ? onSelect : null,
-                      child: Text(
-                        current
-                            ? 'Gói hiện tại'
-                            : code == 'FREE'
-                            ? 'Tự động khi hết hạn'
-                            : 'Chọn gói ${plan['name']}',
-                      ),
-                    )
-                  : OutlinedButton(
-                      onPressed: selectable ? onSelect : null,
-                      child: Text(
-                        current
-                            ? 'Gói hiện tại'
-                            : code == 'FREE'
-                            ? 'Tự động khi hết hạn'
-                            : 'Chọn gói ${plan['name']}',
-                      ),
+          SizedBox(
+            width: double.infinity,
+            child: featured
+                ? FilledButton(
+                    onPressed: selectable ? onSelect : null,
+                    child: Text(
+                      code == 'FREE'
+                          ? 'Quyền lợi mặc định'
+                          : current
+                          ? 'Mua thêm ${plan['name']}'
+                          : 'Mua ${plan['name']}',
                     ),
-            ),
+                  )
+                : OutlinedButton(
+                    onPressed: selectable ? onSelect : null,
+                    child: Text(
+                      code == 'FREE'
+                          ? 'Quyền lợi mặc định'
+                          : current
+                          ? 'Mua thêm ${plan['name']}'
+                          : 'Mua ${plan['name']}',
+                    ),
+                  ),
+          ),
         ],
       ),
     );
@@ -508,14 +503,9 @@ class _Feature extends StatelessWidget {
 }
 
 class _CheckoutSheet extends StatefulWidget {
-  const _CheckoutSheet({
-    required this.plan,
-    required this.amount,
-    required this.isUpgrade,
-  });
+  const _CheckoutSheet({required this.plan, required this.amount});
   final Map<String, dynamic> plan;
   final num amount;
-  final bool isUpgrade;
   // Tạo state quản lý vòng đời của widget.
   @override
   State<_CheckoutSheet> createState() => _CheckoutSheetState();
@@ -566,9 +556,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
           children: [
             Expanded(
               child: Text(
-                widget.isUpgrade
-                    ? 'Thanh toán phần chênh lệch'
-                    : 'Thanh toán hàng tháng',
+                'Cộng thêm tài nguyên và ${widget.plan['durationDays'] ?? 30} ngày sử dụng',
               ),
             ),
             Text(
@@ -933,25 +921,6 @@ String _checkoutHtml(Map<String, dynamic> checkout) {
 // Thực hiện chức năng num.
 num _num(dynamic value) =>
     value is num ? value : num.tryParse(value?.toString() ?? '') ?? 0;
-// Thực hiện chức năng đơn thanh toán amount.
-num _checkoutAmount(
-  Map<String, dynamic> selected,
-  List<Map<String, dynamic>> plans,
-  String current,
-) {
-  if (current == 'STUDENT' && selected['code'] == 'PRO') {
-    final student = plans.firstWhere(
-      (p) => p['code'] == 'STUDENT',
-      orElse: () => const {},
-    );
-    return (_num(selected['amount']) - _num(student['amount'])).clamp(
-      0,
-      double.infinity,
-    );
-  }
-  return _num(selected['amount']);
-}
-
 // Thực hiện chức năng price.
 String _price(dynamic amount, String currency) {
   final digits = _num(amount).round().toString().replaceAllMapped(
