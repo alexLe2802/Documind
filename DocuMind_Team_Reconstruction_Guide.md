@@ -177,19 +177,19 @@ Phạm vi: `backend/src/subscription/**`, `backend/src/payments/**`,
 Không thay đổi `.github/**`. Deployment thật chỉ thực hiện khi giảng viên/team leader
 phê duyệt và không đưa secret vào PR.
 
-### 6.2 Đăng Khôi — MF-02 Upload và xử lý tài liệu — 22 commit
+### 6.2 Minh Huân — MF-02 Upload và xử lý tài liệu — 22 commit
 
 #### Ngày 1 — Contract và upload UI (4)
 
 1. `docs(mf-02): map document upload and processing lifecycle`
-2. `reconstruct(mf-02): restore document metadata DTO validation`
-3. `reconstruct(mf-02): restore upload form subject category and tag fields`
+2. `reconstruct(mf-02): document metadata DTO validation`
+3. `reconstruct(mf-02): upload form subject category and tag fields`
 4. `test(mf-02): cover upload API client request construction`
 
 #### Ngày 2 — Storage và file validation (4)
 
-5. `reconstruct(mf-02): restore R2 storage provider contract`
-6. `reconstruct(mf-02): restore signed upload and object access service`
+5. `reconstruct(mf-02): create R2 storage provider contract`
+6. `reconstruct(mf-02): signed upload and object access service`
 7. `reconstruct(mf-02): validate document extensions sizes and archive entries`
 8. `test(mf-02): cover rejected and accepted document formats`
 
@@ -220,7 +220,7 @@ Phạm vi chính: `backend/src/storage/**`, `backend/src/content-extraction/**`,
 `backend/src/documents/**`, `frontend/src/views/UploadDocumentView.tsx`,
 `LibraryView.tsx` và `mobile/lib/features/documents/**`.
 
-### 6.3 Huân Minh — MF-03 Hỏi đáp AI/RAG — 20 commit
+### 6.3 Đăng Khôi — MF-03 Hỏi đáp AI/RAG — 20 commit
 
 #### Ngày 1 — Chat contract và UI (4)
 
