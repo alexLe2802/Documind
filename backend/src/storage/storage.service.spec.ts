@@ -238,7 +238,7 @@ describe('StorageService', () => {
 
     const command = presigner.mock.calls[0][1];
     expect(command.input.ResponseContentDisposition).toBe(
-      'attachment; filename="report-final.pdf"',
+      'attachment; filename="report-final.pdf"; filename*=UTF-8\'\''report%20%22final%22.pdf',
     );
   });
 
@@ -258,7 +258,7 @@ describe('StorageService', () => {
 
     const command = presigner.mock.calls[0][1];
     expect(command.input.ResponseContentDisposition).toBe(
-      'attachment; filename="report-final.pdf"',
+      'attachment; filename="report-final.pdf"; filename*=UTF-8\'\''report%20%22final%22.pdf',
     );
     expect(command.input.ResponseContentType).toBe('application/pdf');
   });
