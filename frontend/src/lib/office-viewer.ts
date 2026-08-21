@@ -1,5 +1,3 @@
-import { extname } from "path";
-
 type DocumentMeta = {
   fileType?: string | null;
   fileName?: string | null;

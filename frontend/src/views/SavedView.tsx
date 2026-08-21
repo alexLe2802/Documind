@@ -26,10 +26,6 @@ import { localize } from "../i18n/localize";
 import { ROUTES } from "../lib/routes";
 import {
   filterAndSortSavedDocuments,
-  getFavoriteSavedDocumentIds,
-  normalizeSavedDocumentList,
-  sortSavedDocuments,
-  toggleFavoriteSavedDocumentId,
   type SavedDocumentSort,
 } from "../lib/saved-documents";
 import { getFullPreviewUrl, getPreviewFrameUrl } from "../lib/office-viewer";
