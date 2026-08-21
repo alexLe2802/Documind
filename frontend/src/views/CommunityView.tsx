@@ -23,6 +23,7 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { localizeCommunityDocument } from "../i18n/document-display";
 import { localize } from "../i18n/localize";
 import { ApiError } from "../lib/http";
+import { getFullPreviewUrl, getPreviewFrameUrl } from "../lib/office-viewer";
 import { ROUTES } from "../lib/routes";
 import type { CommunityDocument } from "../types/community";
 import Link from "next/link";
@@ -66,14 +67,7 @@ export function CommunityView() {
       .then((result) => {
         if (!active) return;
         setOriginalUrl(result.url);
-        const office =
-          result.fallbackToOfficeViewer ||
-          result.contentType?.includes("officedocument");
-        setPreviewUrl(
-          office
-            ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(result.url)}`
-            : result.url,
-        );
+        setPreviewUrl(getPreviewFrameUrl(result, previewDocument));
       })
       .catch((error: unknown) => {
         if (active)
@@ -485,10 +479,14 @@ export function CommunityView() {
                     type="button"
                     className="secondary-button"
                     disabled={!originalUrl}
-                    onClick={() =>
-                      originalUrl &&
-                      window.open(originalUrl, "_blank", "noopener,noreferrer")
-                    }
+                    onClick={() => {
+                      if (!originalUrl) return;
+                      const fullUrl = getFullPreviewUrl(
+                        { url: originalUrl },
+                        previewDocument,
+                      );
+                      window.open(fullUrl, "_blank", "noopener,noreferrer");
+                    }}
                   >
                     <Eye size={16} />
                     {text("Xem bản gốc", "View original")}

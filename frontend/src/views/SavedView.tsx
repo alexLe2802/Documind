@@ -26,8 +26,13 @@ import { localize } from "../i18n/localize";
 import { ROUTES } from "../lib/routes";
 import {
   filterAndSortSavedDocuments,
+  getFavoriteSavedDocumentIds,
+  normalizeSavedDocumentList,
+  sortSavedDocuments,
+  toggleFavoriteSavedDocumentId,
   type SavedDocumentSort,
 } from "../lib/saved-documents";
+import { getFullPreviewUrl, getPreviewFrameUrl } from "../lib/office-viewer";
 import type { LibraryDocument } from "../types/document";
 
 // Hiển thị giao diện tài liệu icon.
@@ -37,39 +42,6 @@ function DocumentIcon({ type }: { type: string }) {
   ) : (
     <FileText size={20} />
   );
-}
-
-// Kiểm tra điều kiện use office viewer.
-function shouldUseOfficeViewer(result: {
-  contentType?: string;
-  fallbackToOfficeViewer?: boolean;
-}) {
-  return Boolean(
-    result.fallbackToOfficeViewer ||
-    result.contentType?.includes("officedocument"),
-  );
-}
-
-// Lấy dữ liệu xem trước frame url.
-function getPreviewFrameUrl(result: {
-  url: string;
-  contentType?: string;
-  fallbackToOfficeViewer?: boolean;
-}) {
-  return shouldUseOfficeViewer(result)
-    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(result.url)}`
-    : result.url;
-}
-
-// Lấy dữ liệu full xem trước url.
-function getFullPreviewUrl(result: {
-  url: string;
-  contentType?: string;
-  fallbackToOfficeViewer?: boolean;
-}) {
-  return shouldUseOfficeViewer(result)
-    ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(result.url)}`
-    : result.url;
 }
 
 // Hiển thị giao diện đã lưu view.
@@ -191,7 +163,7 @@ export function SavedView() {
 
     createPreviewUrl(previewDocument.id)
       .then((result) => {
-        if (active) setPreviewUrl(getPreviewFrameUrl(result));
+        if (active) setPreviewUrl(getPreviewFrameUrl(result, previewDocument));
       })
       .catch((error: unknown) => {
         if (active) {
@@ -224,7 +196,10 @@ export function SavedView() {
         mode === "preview"
           ? await createPreviewUrl(document.id)
           : await createDownloadUrl(document.id);
-      const url = mode === "preview" ? getFullPreviewUrl(result) : result.url;
+      const url =
+        mode === "preview"
+          ? getFullPreviewUrl(result, document)
+          : result.url;
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
       setErrorMessage(

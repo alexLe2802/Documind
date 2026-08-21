@@ -130,6 +130,7 @@ describe('CommunityService', () => {
         id: 'doc-id',
         storagePath: 'users/owner-id/lecture.pdf',
         fileType: 'application/pdf',
+        fileName: 'lecture.pdf',
       });
       storage.createObjectPreviewUrl.mockResolvedValue({
         url: 'https://signed.example/preview',
@@ -142,6 +143,8 @@ describe('CommunityService', () => {
         url: 'https://signed.example/preview',
         strategy: 'presigned',
         expiresAt: '2026-06-24T10:00:00.000Z',
+        contentType: 'application/pdf',
+        fallbackToOfficeViewer: false,
       });
 
       expect(prisma.document.findFirst).toHaveBeenCalledWith({
@@ -155,6 +158,7 @@ describe('CommunityService', () => {
           id: true,
           storagePath: true,
           fileType: true,
+          fileName: true,
         },
       });
       expect(storage.createObjectPreviewUrl).toHaveBeenCalledWith(

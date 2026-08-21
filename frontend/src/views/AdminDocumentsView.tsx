@@ -25,6 +25,7 @@ import type { AdminDocument } from "../api/admin.mock";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { localize } from "../i18n/localize";
 import { formatFileSize } from "../api/documents.api";
+import { getFullPreviewUrl } from "../lib/office-viewer";
 
 const DEFAULT_QUERY: DocumentQuery = {
   page: 1,
@@ -164,16 +165,10 @@ export function AdminDocumentsView() {
   };
 
   // Xử lý sự kiện xem trước tài liệu.
-  const handlePreviewDocument = async (id: string) => {
+  const handlePreviewDocument = async (id: string, doc?: AdminDocument) => {
     try {
       const result = await createAdminDocumentPreviewUrl(id);
-      const useOfficeViewer = Boolean(
-        result.fallbackToOfficeViewer ||
-        result.contentType?.includes("officedocument"),
-      );
-      const url = useOfficeViewer
-        ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(result.url)}`
-        : result.url;
+      const url = getFullPreviewUrl(result, doc);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("common.error"));
@@ -438,7 +433,7 @@ export function AdminDocumentsView() {
                             type="button"
                             className="btn-icon-action"
                             title={text("Xem file", "Preview file")}
-                            onClick={() => void handlePreviewDocument(doc.id)}
+                            onClick={() => void handlePreviewDocument(doc.id, doc)}
                           >
                             <Eye size={15} />
                           </button>
