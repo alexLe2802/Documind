@@ -125,6 +125,19 @@ export function RegisterView() {
     event.preventDefault();
     setError("");
 
+    // Kiểm tra tên hiển thị không chứa ký tự đặc biệt.
+    const INVALID_NAME_CHARS = /[.,@#$%^&*_+=!'"<>?/\\|;:{}[\]()~`]/;
+    if (!fullName.trim()) {
+      setError("Vui lòng nhập họ và tên.");
+      return;
+    }
+    if (INVALID_NAME_CHARS.test(fullName)) {
+      setError(
+        "Tên hiển thị không được chứa các ký tự đặc biệt như: . , @ # $ % ^ & * _ + = ! \" ' < > ? / \\ | ; : { } [ ] ( ). Vui lòng đặt tên lại.",
+      );
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Mật khẩu xác nhận không khớp.");
       return;

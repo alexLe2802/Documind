@@ -170,10 +170,11 @@ export class StorageService {
       };
     }
 
+    // Truyền tên gốc – createPresignedUrl sẽ dùng RFC 5987 để encode Unicode.
     return this.createPresignedUrl(
       objectKeyOrOwnerId,
       'attachment',
-      this.sanitizeFileName(keyOrFileName),
+      keyOrFileName,
     );
   }
 
@@ -212,7 +213,8 @@ export class StorageService {
     const result = await this.createPresignedUrl(
       objectKey,
       'attachment',
-      this.sanitizeFileName(originalFileName),
+      // Truyền tên gốc – createPresignedUrl sẽ dùng RFC 5987 để encode Unicode.
+      originalFileName,
       contentType,
     );
     return {
@@ -376,8 +378,9 @@ export class StorageService {
     contentType?: string,
   ): Promise<PresignedObjectUrl> {
     const expiresIn = this.getPresignedUrlTtl();
+    // Sử dụng RFC 5987 (filename*=UTF-8'') để hỗ trợ tên file Unicode (tiếng Việt, v.v.).
     const responseContentDisposition = fileName
-      ? `${disposition}; filename="${fileName}"`
+      ? `${disposition}; filename="${this.sanitizeFileName(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
       : disposition;
 
     try {
