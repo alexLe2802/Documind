@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  BarChart3,
   Check,
   Cloud,
   CreditCard,
@@ -44,7 +43,6 @@ const PLAN_FEATURES: Record<
     uploads: number;
     chats: string;
     offline: "NO" | "LIMITED" | "YES";
-    reporting: "N/A" | "BASIC" | "MANAGED";
   }
 > = {
   FREE: {
@@ -56,7 +54,6 @@ const PLAN_FEATURES: Record<
     uploads: 10,
     chats: "20",
     offline: "NO",
-    reporting: "N/A",
   },
   STUDENT: {
     bestFor: [
@@ -67,7 +64,6 @@ const PLAN_FEATURES: Record<
     uploads: 100,
     chats: "300",
     offline: "LIMITED",
-    reporting: "BASIC",
   },
   PRO: {
     bestFor: [
@@ -78,7 +74,6 @@ const PLAN_FEATURES: Record<
     uploads: 500,
     chats: "UNLIMITED",
     offline: "YES",
-    reporting: "MANAGED",
   },
 };
 
@@ -683,13 +678,6 @@ function PlanCard({
           </span>
           <FeatureValue value={features.offline} text={text} />
         </li>
-        <li>
-          <span>
-            <BarChart3 size={17} />
-            {text("Báo cáo thanh toán", "Payment reporting")}
-          </span>
-          <FeatureValue value={features.reporting} text={text} />
-        </li>
       </ul>
       <button type="button" disabled={isFreeUnavailable || plan.code === "FREE"} onClick={onSelect}>
         {plan.code === "FREE"
@@ -725,16 +713,6 @@ function FeatureValue({
   if (value === "LIMITED")
     return (
       <strong className="feature-limited">{text("Giới hạn", "Limited")}</strong>
-    );
-  if (value === "BASIC")
-    return (
-      <strong className="feature-highlight">{text("Cơ bản", "Basic")}</strong>
-    );
-  if (value === "MANAGED")
-    return (
-      <strong>
-        {text("Quản lý qua bảng thanh toán", "Managed via payments table")}
-      </strong>
     );
   return <strong>{value}</strong>;
 }
