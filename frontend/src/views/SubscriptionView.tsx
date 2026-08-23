@@ -125,9 +125,9 @@ export function SubscriptionView() {
             loadError instanceof Error
               ? loadError.message
               : text(
-                  "Không thể tải thông tin thanh toán.",
-                  "Could not load payment information.",
-                ),
+                "Không thể tải thông tin thanh toán.",
+                "Could not load payment information.",
+              ),
           );
         }
       })
@@ -208,9 +208,9 @@ export function SubscriptionView() {
             statusError instanceof Error
               ? statusError.message
               : text(
-                  "Không thể kiểm tra giao dịch.",
-                  "Could not check the payment.",
-                ),
+                "Không thể kiểm tra giao dịch.",
+                "Could not check the payment.",
+              ),
           );
         }
       }
@@ -255,9 +255,9 @@ export function SubscriptionView() {
         checkoutError instanceof Error
           ? checkoutError.message
           : text(
-              "Không thể khởi tạo thanh toán.",
-              "Could not initialize payment.",
-            ),
+            "Không thể khởi tạo thanh toán.",
+            "Could not initialize payment.",
+          ),
       );
       setIsCheckingOut(false);
     }
@@ -284,9 +284,9 @@ export function SubscriptionView() {
         checkoutError instanceof Error
           ? checkoutError.message
           : text(
-              "Khong the mo lai phien thanh toan.",
-              "Could not reopen the payment session.",
-            ),
+            "Khong the mo lai phien thanh toan.",
+            "Could not reopen the payment session.",
+          ),
       );
       setIsCheckingOut(false);
     }
@@ -355,9 +355,9 @@ export function SubscriptionView() {
           <small>
             {currentSubscription
               ? text(
-                  `Còn ${currentSubscription.aiChatsRemaining ?? "∞"} lượt chat AI · ${currentSubscription.uploadsRemaining} tài liệu · ${formatStorage(currentSubscription.storageRemainingMb)} dung lượng`,
-                  `${currentSubscription.aiChatsRemaining ?? "∞"} AI chats · ${currentSubscription.uploadsRemaining} documents · ${formatStorage(currentSubscription.storageRemainingMb)} storage remaining`,
-                )
+                `Còn ${currentSubscription.aiChatsRemaining ?? "∞"} lượt chat AI · ${currentSubscription.uploadsRemaining} tài liệu · ${formatStorage(currentSubscription.storageRemainingMb)} dung lượng`,
+                `${currentSubscription.aiChatsRemaining ?? "∞"} AI chats · ${currentSubscription.uploadsRemaining} documents · ${formatStorage(currentSubscription.storageRemainingMb)} storage remaining`,
+              )
               : text("Đang tải hạn mức...", "Loading limits...")}
           </small>
           {currentSubscription ? (

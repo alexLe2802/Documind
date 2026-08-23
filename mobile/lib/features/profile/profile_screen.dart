@@ -1,5 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -24,25 +23,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> pickAvatar() async {
     final image = await ImagePicker().pickImage(
       source: ImageSource.gallery,
-      imageQuality: 82,
+      imageQuality: 85,
       maxWidth: 1200,
     );
     if (image == null) return;
     setState(() => saving = true);
     try {
-      final userId = FirebaseAuth.instance.currentUser!.uid;
-      final refStorage = FirebaseStorage.instance.ref(
-        'avatars/$userId/${DateTime.now().millisecondsSinceEpoch}-avatar.jpg',
+      final bytes = await image.readAsBytes();
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(
+          bytes,
+          filename: image.name.isNotEmpty ? image.name : 'avatar.jpg',
+        ),
+      });
+
+      await ref.read(apiClientProvider).post(
+        '/users/avatar',
+        data: formData,
       );
-      await refStorage.putData(
-        await image.readAsBytes(),
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      final url = await refStorage.getDownloadURL();
-      await ref
-          .read(apiClientProvider)
-          .patch('/users/profile', data: {'avatarUrl': url});
       ref.invalidate(currentProfileProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã cập nhật ảnh đại diện')),
+        );
+      }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(

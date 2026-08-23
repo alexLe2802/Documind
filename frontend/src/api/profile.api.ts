@@ -13,3 +13,14 @@ export function updateProfile(payload: UpdateProfilePayload) {
     body: payload,
   });
 }
+
+// Tải lên avatar.
+export function uploadAvatar(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiRequest<UserProfile>("/users/avatar", {
+    method: "POST",
+    body: formData,
+  });
+}
+

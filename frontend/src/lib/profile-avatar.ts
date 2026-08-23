@@ -1,5 +1,4 @@
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { getFirebaseStorage } from "./firebase";
+import { uploadAvatar } from "../api/profile.api";
 
 export const AVATAR_MAX_SIZE = 5 * 1024 * 1024;
 export const AVATAR_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
@@ -13,23 +12,9 @@ export function validateAvatarFile(file: File): "type" | "size" | null {
   return null;
 }
 
-// Tạo hoặc lưu tải lên hồ sơ avatar.
-export async function uploadProfileAvatar(userId: string, file: File) {
-  const safeName = file.name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(-120);
-  const objectRef = ref(
-    getFirebaseStorage(),
-    `avatars/${userId}/${Date.now()}-${safeName || "avatar"}`,
-  );
-
-  await uploadBytes(objectRef, file, {
-    contentType: file.type,
-    cacheControl: "public,max-age=31536000,immutable",
-  });
-
-  return getDownloadURL(objectRef);
+// Tạo hoặc lưu tải lên hồ sơ avatar qua Cloudflare R2 (Backend).
+export async function uploadProfileAvatar(_userId: string, file: File) {
+  const profile = await uploadAvatar(file);
+  return profile.avatarUrl || "";
 }
+
