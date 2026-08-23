@@ -13,9 +13,12 @@ Future<void> main() async {
   String versionLabel = '';
   try {
     final packageInfo = await PackageInfo.fromPlatform();
-    versionLabel =
-        'Version ${packageInfo.version} (${packageInfo.buildNumber})';
-  } catch (_) {}
+    versionLabel = packageInfo.version.isNotEmpty
+        ? 'v${packageInfo.version}'
+        : 'v1.0.4';
+  } catch (_) {
+    versionLabel = 'v1.0.4';
+  }
   try {
     await Firebase.initializeApp(
       options: DocuMindFirebaseOptions.currentPlatform,

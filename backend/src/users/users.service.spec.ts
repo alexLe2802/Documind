@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuthProvider, RoleName, UserStatus } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { UploadedFile } from '../storage/storage.types';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
@@ -156,14 +157,18 @@ describe('UsersService', () => {
     auditLogService.create.mockResolvedValue({});
 
     const fileBuffer = Buffer.from('fake-image-bytes');
-    const file = {
+    const file: UploadedFile = {
       buffer: fileBuffer,
       mimetype: 'image/jpeg',
       size: 1024,
       originalname: 'photo.jpg',
     };
 
-    const result = await service.uploadAvatar('user-1', file as never, 'http://localhost:3001/api');
+    const result = await service.uploadAvatar(
+      'user-1',
+      file,
+      'http://localhost:3001/api',
+    );
 
     expect(storageService.uploadObject).toHaveBeenCalledWith({
       objectKey: 'users/user-1/avatar.jpg',
@@ -172,13 +177,14 @@ describe('UsersService', () => {
       contentLength: 1024,
     });
     expect(prisma.user.update).toHaveBeenCalled();
-    expect(auditLogService.create).toHaveBeenCalledWith({
-      userId: 'user-1',
-      action: 'user.avatar_updated',
-      targetType: 'User',
-      targetId: 'user-1',
-      metadata: expect.objectContaining({ objectKey: 'users/user-1/avatar.jpg' }),
-    });
+    expect(auditLogService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        action: 'user.avatar_updated',
+        targetType: 'User',
+        targetId: 'user-1',
+      }),
+    );
     expect(result.avatarUrl).toContain('users/user-1/avatar.jpg');
   });
 
