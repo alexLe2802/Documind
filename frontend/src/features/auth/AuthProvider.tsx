@@ -7,7 +7,11 @@ import * as authApi from "../../api/auth.api";
 import * as profileApi from "../../api/profile.api";
 import { clearStoredAuthToken } from "../../lib/auth-token";
 import { ApiError } from "../../lib/http";
-import { getFirebaseAuth, getGoogleAuthProvider } from "../../lib/firebase";
+import {
+  getFirebaseAuth,
+  getGoogleAuthProvider,
+  prepareFirebaseAuth,
+} from "../../lib/firebase";
 import {
   clearPendingGoogleRegistration,
   storePendingGoogleRegistration,
@@ -107,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Đăng nhập bằng Google popup; nếu tài khoản chưa đăng ký sẽ chuyển sang luồng đăng ký.
   const handleGoogleLogin =
     useCallback(async (): Promise<GoogleLoginResult> => {
-      const firebaseAuth = getFirebaseAuth();
+      const firebaseAuth = await prepareFirebaseAuth();
       const googleAuthProvider = getGoogleAuthProvider();
       const credential = await signInWithPopup(
         firebaseAuth,

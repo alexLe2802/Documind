@@ -12,6 +12,7 @@ vi.mock('firebase/auth', () => ({
 vi.mock('../../lib/firebase', () => ({
   getFirebaseAuth: () => ({ currentUser: null }),
   getGoogleAuthProvider: vi.fn(),
+  prepareFirebaseAuth: vi.fn().mockResolvedValue({ currentUser: null }),
 }))
 
 vi.mock('../../api/auth.api', () => ({

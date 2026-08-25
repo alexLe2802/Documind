@@ -22,6 +22,7 @@ const firebaseStorageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
 
 let firebaseApp: FirebaseApp | undefined;
 let firebaseAuth: Auth | undefined;
+let firebasePersistenceReady: Promise<void> | undefined;
 let firebaseStorage: FirebaseStorage | undefined;
 let googleAuthProvider: GoogleAuthProvider | undefined;
 
@@ -64,9 +65,19 @@ export function getFirebaseAuth(): Auth {
     firebaseAuth = getAuth(getFirebaseApp());
     // The backend owns the durable session in an HttpOnly cookie. Firebase is
     // kept in memory only for the short login/registration exchange.
-    void setPersistence(firebaseAuth, inMemoryPersistence);
+    firebasePersistenceReady = setPersistence(
+      firebaseAuth,
+      inMemoryPersistence,
+    );
   }
   return firebaseAuth;
+}
+
+// Chờ Firebase hoàn tất cấu hình persistence trước khi bắt đầu đăng nhập.
+export async function prepareFirebaseAuth(): Promise<Auth> {
+  const auth = getFirebaseAuth();
+  await firebasePersistenceReady;
+  return auth;
 }
 
 // Lấy dữ liệu firebase storage.
@@ -79,9 +90,6 @@ export function getFirebaseStorage(): FirebaseStorage {
 export function getGoogleAuthProvider(): GoogleAuthProvider {
   if (!googleAuthProvider) {
     googleAuthProvider = new GoogleAuthProvider();
-    googleAuthProvider.setCustomParameters({
-      prompt: "select_account",
-    });
   }
 
   return googleAuthProvider;
