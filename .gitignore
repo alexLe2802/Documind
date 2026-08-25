@@ -33,3 +33,8 @@ skills-lock.json
 .DS_Store
 Thumbs.db
 backend/backups/
+
+# Keep packaged mobile releases in version control.
+!/app-release/
+!/app-release/*.apk
+!/app-release/*.ipa

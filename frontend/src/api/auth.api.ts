@@ -78,15 +78,13 @@ export async function login(payload: LoginPayload) {
       payload.email,
       payload.password,
     );
-    // Reload user from Firebase server to get latest emailVerified state (not cached)
-    await credential.user.reload();
-    const refreshedUser = firebaseAuth.currentUser;
-    if (!refreshedUser?.emailVerified) {
+    if (!credential.user.emailVerified) {
       await signOut(firebaseAuth);
       throw new Error("Vui lòng xác thực email trước khi đăng nhập.");
     }
-    // Get fresh token after reload to ensure it reflects current emailVerified
-    const idToken = await refreshedUser.getIdToken(true);
+    // A successful sign-in already returns a newly issued token. Avoid an
+    // additional forced refresh before exchanging it for the backend session.
+    const idToken = await credential.user.getIdToken();
 
     const currentUser = await loginWithFirebaseToken({ idToken });
     return currentUser;
@@ -106,8 +104,8 @@ export function loginWithFirebaseToken(payload: GoogleLoginPayload) {
 }
 
 // Lấy dữ liệu hiện tại người dùng.
-export function getCurrentUser() {
-  return apiRequest<AuthMeResponse>("/auth/me").then(
+export function getCurrentUser(signal?: AbortSignal) {
+  return apiRequest<AuthMeResponse>("/auth/me", { signal }).then(
     (response) => response.user,
   );
 }
