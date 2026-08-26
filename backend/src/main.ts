@@ -32,9 +32,9 @@ async function bootstrap(): Promise<void> {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('DocuMind API')
     .setDescription(
-      'Executable API reference for DocuMind contract v0.3. Protected endpoints require a Firebase ID token.',
+      'Executable API reference for DocuMind contract v0.4. Protected endpoints require a Firebase ID token.',
     )
-    .setVersion('0.3')
+    .setVersion('0.4')
     .addBearerAuth()
     .build();
   SwaggerModule.setup(

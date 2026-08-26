@@ -203,7 +203,7 @@ Documind/
 ## 📚 Tài liệu kỹ thuật liên quan
 
 - 📖 [Hướng dẫn tái dựng & chuyển giao theo 5 Main Flow](DocuMind_Team_Reconstruction_Guide.md)
-- 🔌 [Backend API Contract v0.3](backend/docs/api-contract-v0.3.md)
+- 🔌 [Backend API Contract v0.4](backend/docs/api-contract-v0.4.md)
 - 🧪 [Backend API Testing Guide](backend/docs/api-testing-guide.md)
 - 📤 [Document Upload Workflow Integration](backend/docs/upload-workflow-integration-notes.md)
 - 📱 [Mobile Feature & Setup Guide](mobile/README.md)

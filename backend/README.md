@@ -40,7 +40,7 @@ The API runs at `http://localhost:3001/api`. Swagger is available at
 
 Shared integration references:
 
-- [API contract v0.3](docs/api-contract-v0.3.md)
+- [API contract v0.4](docs/api-contract-v0.4.md)
 - [API testing guide](docs/api-testing-guide.md)
 - [Document upload workflow](docs/upload-workflow-integration-notes.md)
 
@@ -66,12 +66,16 @@ keys stored in an environment variable may use escaped newlines (`\n`).
 | `GEMINI_API_KEY`               | Server-side Gemini key                                                                   |
 | `GEMINI_API_KEYS`              | Optional comma-separated backup keys; use keys from independently quota-managed projects |
 | `GEMINI_MOCK`                  | Use mock AI responses when `true`                                                        |
-| `MOCK_AUTH`                    | Local-only authentication bypass; production rejects `true`                             |
+| `MOCK_AUTH`                    | Local-only authentication bypass; production rejects `true`                              |
 | `LLAMA_CLOUD_API_KEY`          | Optional OCR fallback; local PDF extraction runs first                                   |
 | `LLAMA_PARSE_PREMIUM_MODE`     | Opt in to higher-credit premium OCR; defaults to `false`                                 |
 | `OCR_MAX_PAGES`                | Maximum unreadable pages allowed before cloud OCR; defaults to `20`                      |
 | `EXTRACTION_TIMEOUT_MS`        | Extraction timeout; defaults to `240000` so cloud OCR can finish                         |
 | `CORS_ORIGIN`                  | Comma-separated allowed frontend origins                                                 |
+| `RESEND_API_KEY`               | Resend API key used for authentication email delivery                                    |
+| `AUTH_EMAIL_FRONTEND_URL`      | Frontend base URL used for verification and password-reset links                         |
+| `REGISTRATION_EMAIL_FROM`      | Verification sender on a domain verified in Resend                                       |
+| `RESET_PASSWORD_EMAIL_FROM`    | Password-reset sender on a domain verified in Resend                                     |
 
 Production startup validates configuration before NestJS accepts traffic. It rejects
 AI/auth mock modes, missing R2 credentials, missing Resend configuration, missing

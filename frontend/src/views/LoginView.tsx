@@ -64,7 +64,7 @@ export function LoginView() {
     }
   }, [isLoading, redirectAfterLogin, user]);
 
-  if (isLoading || user) {
+  if (user) {
     return (
       <div className="screen-message">
         <span className="loading-line" />
