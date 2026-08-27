@@ -5,6 +5,8 @@ import { PDFParse } from 'pdf-parse';
 
 @Injectable()
 export class PdfExtractorService {
+  private static readonly llamaParseApiBaseUrl =
+    'https://api.cloud.llamaindex.ai/api/v1/parsing';
   private readonly logger = new Logger(PdfExtractorService.name);
   private readonly ocrCache = new Map<string, Promise<string>>();
 
@@ -177,7 +179,7 @@ export class PdfExtractorService {
 
     // 1. Upload job
     const uploadRes = await fetch(
-      'https://api.llamacloud.com/v1/parser/upload',
+      `${PdfExtractorService.llamaParseApiBaseUrl}/upload`,
       {
         method: 'POST',
         headers: {
@@ -194,7 +196,14 @@ export class PdfExtractorService {
       );
     }
 
-    const { id: jobId } = (await uploadRes.json()) as { id: string };
+    const uploadResult = (await uploadRes.json()) as {
+      id?: string;
+      job_id?: string;
+    };
+    const jobId = uploadResult.job_id ?? uploadResult.id;
+    if (!jobId) {
+      throw new Error('LlamaParse upload response did not include a job ID');
+    }
     this.logger.log(`LlamaParse upload success. Job ID: ${jobId}. Polling...`);
 
     // 2. Poll for job completion
@@ -203,7 +212,7 @@ export class PdfExtractorService {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       const jobStatusRes = await fetch(
-        `https://api.llamacloud.com/v1/parser/job/${jobId}`,
+        `${PdfExtractorService.llamaParseApiBaseUrl}/job/${jobId}`,
         {
           headers: { Authorization: `Bearer ${apiKey}` },
         },
@@ -220,7 +229,7 @@ export class PdfExtractorService {
         this.logger.log(`LlamaParse job SUCCESS. Fetching markdown...`);
         // 3. Retrieve markdown result
         const resultRes = await fetch(
-          `https://api.llamacloud.com/v1/parser/job/${jobId}/result/markdown`,
+          `${PdfExtractorService.llamaParseApiBaseUrl}/job/${jobId}/result/markdown`,
           {
             headers: { Authorization: `Bearer ${apiKey}` },
           },

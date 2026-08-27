@@ -168,6 +168,9 @@ describe('PdfExtractorService', () => {
     ).rejects.toThrow('LlamaParse upload failed: HTTP 503');
 
     const request = fetchMock.mock.calls[0]?.[1];
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api.cloud.llamaindex.ai/api/v1/parsing/upload',
+    );
     expect(request?.body).toBeInstanceOf(FormData);
     expect((request?.body as FormData).get('premium_mode')).toBe('true');
     fetchMock.mockRestore();
