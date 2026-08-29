@@ -52,6 +52,7 @@ import { GeminiService } from '../src/ai-chatbot/services/gemini.service';
 import { configureApiContract } from '../src/common/api-contract/configure-api-contract';
 import { FIREBASE_AUTH } from '../src/firebase/firebase.constants';
 import { PdfExtractorService } from '../src/content-extraction/services/pdf-extractor.service';
+import { PaymentsService } from '../src/payments/payments.service';
 
 describe('SRS five business main flows (e2e)', () => {
   let app: INestApplication;
@@ -149,6 +150,11 @@ describe('SRS five business main flows (e2e)', () => {
     generateReply: jest.fn(),
   };
 
+  const mockPaymentsService = {
+    assertCanUpload: jest.fn().mockResolvedValue(undefined),
+    assertCanUseAiChat: jest.fn().mockResolvedValue(undefined),
+  };
+
   const mockFirebaseAuth = {
     verifyIdToken: jest.fn(),
     createSessionCookie: jest.fn(),
@@ -178,6 +184,8 @@ describe('SRS five business main flows (e2e)', () => {
       .useValue(mockStorageService)
       .overrideProvider(GeminiService)
       .useValue(mockGeminiService)
+      .overrideProvider(PaymentsService)
+      .useValue(mockPaymentsService)
       .overrideProvider(FIREBASE_AUTH)
       .useValue(mockFirebaseAuth)
       .overrideProvider(PdfExtractorService)
