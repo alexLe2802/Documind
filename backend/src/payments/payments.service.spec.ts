@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -267,7 +268,9 @@ describe('PaymentsService', () => {
     });
     prisma.chatMessage.count.mockResolvedValue(47);
 
-    await expect(service.getCurrentSubscription(user.id)).resolves.toMatchObject({
+    await expect(
+      service.getCurrentSubscription(user.id),
+    ).resolves.toMatchObject({
       aiChatsUsed: 47,
       aiChatsRemaining: 253,
       uploadsUsed: 12,
@@ -688,5 +691,82 @@ describe('PaymentsService', () => {
     });
     expect(transaction.subscription.update).toHaveBeenCalledTimes(1);
     expect(transaction.auditLog.create).toHaveBeenCalledTimes(2);
+  });
+  describe('quota validation', () => {
+    const availableSubscription = {
+      plan: SubscriptionPlan.FREE,
+      startsAt: '2026-08-01T00:00:00.000Z',
+      expiresAt: null,
+      storageLimitMb: 100,
+      uploadLimit: 10,
+      aiChatLimit: 20,
+      aiChatsUsed: 19,
+      aiChatsRemaining: 1,
+      uploadsUsed: 9,
+      uploadsRemaining: 1,
+      storageUsedMb: 90,
+      storageRemainingMb: 10,
+    };
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('allows an upload that fits both document and storage quotas', async () => {
+      jest
+        .spyOn(service, 'getCurrentSubscription')
+        .mockResolvedValue(availableSubscription);
+
+      await expect(
+        service.assertCanUpload('user-id', 5 * 1024 * 1024),
+      ).resolves.toBeUndefined();
+    });
+
+    it('blocks the next upload when the document quota is exhausted', async () => {
+      jest.spyOn(service, 'getCurrentSubscription').mockResolvedValue({
+        ...availableSubscription,
+        uploadsUsed: 10,
+        uploadsRemaining: 0,
+      });
+
+      await expect(service.assertCanUpload('user-id', 1)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('blocks an upload larger than the remaining subscription storage', async () => {
+      jest
+        .spyOn(service, 'getCurrentSubscription')
+        .mockResolvedValue(availableSubscription);
+
+      await expect(
+        service.assertCanUpload('user-id', 11 * 1024 * 1024),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('blocks AI chat when the quota is exhausted', async () => {
+      jest.spyOn(service, 'getCurrentSubscription').mockResolvedValue({
+        ...availableSubscription,
+        aiChatsUsed: 20,
+        aiChatsRemaining: 0,
+      });
+
+      await expect(service.assertCanUseAiChat('user-id')).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('allows AI chat when the active entitlement is unlimited', async () => {
+      jest.spyOn(service, 'getCurrentSubscription').mockResolvedValue({
+        ...availableSubscription,
+        aiChatLimit: null,
+        aiChatsUsed: 999,
+        aiChatsRemaining: null,
+      });
+
+      await expect(
+        service.assertCanUseAiChat('user-id'),
+      ).resolves.toBeUndefined();
+    });
   });
 });

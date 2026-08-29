@@ -241,14 +241,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       : Colors.white,
                                   borderRadius: BorderRadius.circular(18),
                                 ),
-                                child: Text(
-                                  m.text,
-                                  style: TextStyle(
-                                    color: m.user
-                                        ? Colors.white
-                                        : Colors.black87,
-                                  ),
-                                ),
+                                child: m.user
+                                    ? Text(
+                                        m.text,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : _AiFormattedText(m.text),
                               ),
                             );
                           },
@@ -296,6 +296,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AiFormattedText extends StatelessWidget {
+  const _AiFormattedText(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final spans = <TextSpan>[];
+    final boldPattern = RegExp(r'\*\*(.+?)\*\*', dotAll: true);
+    var cursor = 0;
+
+    for (final match in boldPattern.allMatches(text)) {
+      if (match.start > cursor) {
+        spans.add(TextSpan(text: text.substring(cursor, match.start)));
+      }
+      spans.add(
+        TextSpan(
+          text: match.group(1),
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      );
+      cursor = match.end;
+    }
+    if (cursor < text.length) {
+      spans.add(TextSpan(text: text.substring(cursor)));
+    }
+
+    return Text.rich(
+      TextSpan(
+        style: const TextStyle(color: Colors.black87),
+        children: spans,
       ),
     );
   }

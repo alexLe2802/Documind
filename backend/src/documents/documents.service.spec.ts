@@ -49,6 +49,9 @@ describe('DocumentsService', () => {
       matchedContexts: [],
     }),
   };
+  const paymentsService = {
+    assertCanUpload: jest.fn().mockResolvedValue(undefined),
+  };
   const service = new DocumentsService(
     prisma as never,
     storage as never,
@@ -56,10 +59,12 @@ describe('DocumentsService', () => {
     auditLogService as never,
     notifications as never,
     moderationScanner as never,
+    paymentsService as never,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
+    paymentsService.assertCanUpload.mockResolvedValue(undefined);
   });
 
   it.each([

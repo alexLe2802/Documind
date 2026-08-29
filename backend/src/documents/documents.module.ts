@@ -9,6 +9,7 @@ import { StorageModule } from '../storage/storage.module';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     DownloadLogModule,
     AuditLogModule,
     NotificationsModule,
+    PaymentsModule,
   ],
   controllers: [DocumentsController],
   providers: [DocumentsService],

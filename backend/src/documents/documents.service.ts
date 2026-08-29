@@ -28,6 +28,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentListQueryDto } from './dto/document-list-query.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PaymentsService } from '../payments/payments.service';
 import { ModerationScannerService } from '../content-extraction/moderation-scanner.service';
 
 const documentInclude = {
@@ -81,6 +82,7 @@ export class DocumentsService {
     private readonly auditLogService: AuditLogService,
     private readonly notifications: NotificationsService,
     private readonly moderationScanner: ModerationScannerService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   // Lưu tệp và tạo bản ghi tài liệu; tài liệu công khai luôn chờ admin duyệt.
@@ -90,6 +92,7 @@ export class DocumentsService {
     file: UploadedFile,
   ): Promise<UiReadyDocument> {
     this.validateFile(file);
+    await this.paymentsService.assertCanUpload(ownerId, file.size);
     await this.validateRelations(
       ownerId,
       dto.subjectId,

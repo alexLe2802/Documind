@@ -5,9 +5,11 @@ import { FileSearch, Filter, Library, Sparkles } from "lucide-react";
 import { askLibrary } from "../api/chat.api";
 import { ChatComposer } from "../components/chat/ChatComposer";
 import { CitationList } from "../components/chat/CitationList";
+import { MarkdownMessage } from "../components/chat/MarkdownMessage";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { localize } from "../i18n/localize";
 import type { ChatMessage, Citation } from "../types/chat";
+import { ApiError } from "../lib/http";
 
 // Hiển thị giao diện ask library view.
 export function AskLibraryView() {
@@ -85,16 +87,19 @@ export function AskLibraryView() {
           sources: response.sources,
         },
       ]);
-    } catch {
+    } catch (error) {
       setMessages((current) => [
         ...current,
         {
           id: crypto.randomUUID(),
           sender: "AI",
-          content: text(
-            "Không thể nhận phản hồi AI lúc này. Vui lòng thử lại; hệ thống không dùng câu trả lời mẫu.",
-            "The AI response is unavailable. Please retry; the system does not use a demo answer.",
-          ),
+          content:
+            error instanceof ApiError && error.status === 403
+              ? error.message
+              : text(
+                  "Không thể nhận phản hồi AI lúc này. Vui lòng thử lại; hệ thống không dùng câu trả lời mẫu.",
+                  "The AI response is unavailable. Please retry; the system does not use a demo answer.",
+                ),
           sources: [],
           errorCode: "REQUEST_FAILED",
         },
@@ -176,7 +181,11 @@ export function AskLibraryView() {
                   </span>
                 ) : null}
                 <div>
-                  <p>{message.content}</p>
+                  {message.sender === "AI" ? (
+                    <MarkdownMessage content={message.content} />
+                  ) : (
+                    <p>{message.content}</p>
+                  )}
                   {message.sources.length > 0 ? (
                     <p className="inline-source-links">
                       {message.sources.map((source) => (

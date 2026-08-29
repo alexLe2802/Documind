@@ -6,9 +6,10 @@ import { AiChatbotService } from './ai-chatbot.service';
 import { ChatSourceService } from './services/chat-source.service';
 import { GeminiService } from './services/gemini.service';
 import { PromptBuilderService } from './services/prompt-builder.service';
+import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
-  imports: [AuthModule, AuditLogModule],
+  imports: [AuthModule, AuditLogModule, PaymentsModule],
   controllers: [AiChatbotController],
   providers: [
     AiChatbotService,

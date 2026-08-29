@@ -20,6 +20,7 @@ import {
   UserStatus,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaymentsService } from '../payments/payments.service';
 import { AiAnswerStatus, AiChatResponseDto } from './dto/ai-chat-response.dto';
 import { AskDocumentDto } from './dto/ask-document.dto';
 import { AskLibraryDto } from './dto/ask-library.dto';
@@ -104,6 +105,7 @@ export class AiChatbotService {
     private readonly geminiService: GeminiService,
     private readonly promptBuilder: PromptBuilderService,
     private readonly sourceService: ChatSourceService,
+    private readonly paymentsService: PaymentsService,
     private readonly auditLogService?: AuditLogService,
   ) {}
 
@@ -112,6 +114,7 @@ export class AiChatbotService {
     dto: AskDocumentDto,
     user: AuthenticatedUser,
   ): Promise<AiChatResponseDto> {
+    await this.paymentsService.assertCanUseAiChat(user.id);
     const t0 = performance.now();
     const document = await this.prisma.document.findUnique({
       where: { id: dto.documentId },
@@ -182,6 +185,7 @@ export class AiChatbotService {
     dto: AskLibraryDto,
     user: AuthenticatedUser,
   ): Promise<AiChatResponseDto> {
+    await this.paymentsService.assertCanUseAiChat(user.id);
     const t0 = performance.now();
     const session = await this.resolveSession(
       user.id,

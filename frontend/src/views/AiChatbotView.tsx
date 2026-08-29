@@ -45,6 +45,7 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { localize } from "../i18n/localize";
 import type { ChatMessage, ChatSessionSummary, Citation } from "../types/chat";
 import { ROUTES } from "../lib/routes";
+import { ApiError } from "../lib/http";
 import type { LibraryDocument } from "../types/document";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -899,10 +900,12 @@ export function AiChatbotView() {
             sender: "AI",
             content: isAborted
               ? text("Yêu cầu đã bị hủy.", "The request was cancelled.")
-              : text(
-                  "Không thể nhận phản hồi AI lúc này. Vui lòng thử lại.",
-                  "The AI response is unavailable right now. Please retry.",
-                ),
+              : err instanceof ApiError && err.status === 403
+                ? err.message
+                : text(
+                    "Không thể nhận phản hồi AI lúc này. Vui lòng thử lại.",
+                    "The AI response is unavailable right now. Please retry.",
+                  ),
             sources: [],
             errorCode: "REQUEST_FAILED",
             scope: activeMode,

@@ -225,6 +225,36 @@ export class PaymentsService {
     };
   }
 
+  // Chặn upload khi số lượng tài liệu hoặc tổng dung lượng đã vượt quyền lợi.
+  async assertCanUpload(userId: string, fileSizeBytes: number): Promise<void> {
+    const subscription = await this.getCurrentSubscription(userId);
+    if (subscription.uploadsUsed >= subscription.uploadLimit) {
+      throw new ForbiddenException(
+        `Bạn đã dùng hết quota ${subscription.uploadLimit} tài liệu của gói hiện tại.`,
+      );
+    }
+
+    const fileSizeMb = fileSizeBytes / (1024 * 1024);
+    if (fileSizeMb > subscription.storageRemainingMb) {
+      throw new ForbiddenException(
+        `Dung lượng còn lại của gói chỉ còn ${subscription.storageRemainingMb} MB.`,
+      );
+    }
+  }
+
+  // Chặn yêu cầu AI trước khi gọi nhà cung cấp nếu người dùng đã hết lượt.
+  async assertCanUseAiChat(userId: string): Promise<void> {
+    const subscription = await this.getCurrentSubscription(userId);
+    if (
+      subscription.aiChatLimit !== null &&
+      subscription.aiChatsUsed >= subscription.aiChatLimit
+    ) {
+      throw new ForbiddenException(
+        `Bạn đã dùng hết ${subscription.aiChatLimit} lượt chat AI của gói hiện tại.`,
+      );
+    }
+  }
+
   // Tạo hoặc lưu đơn thanh toán.
   async createCheckout(
     user: AuthenticatedUser,

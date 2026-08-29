@@ -87,6 +87,9 @@ describe('AiChatbotService', () => {
   const auditLogService = {
     logChatbotQuery: jest.fn().mockResolvedValue({ id: 'audit-id' }),
   };
+  const paymentsService = {
+    assertCanUseAiChat: jest.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -95,6 +98,7 @@ describe('AiChatbotService', () => {
       gemini as never,
       promptBuilder as never,
       sourceService as never,
+      paymentsService as never,
       auditLogService as never,
     );
   });
@@ -2756,8 +2760,7 @@ describe('AiChatbotService', () => {
     ]);
     gemini.generateReply.mockResolvedValue({
       success: true,
-      answer:
-        'Bai 6: Suc khoe\nTinh huong 1 gom vai A, vai B va cac mau cau.',
+      answer: 'Bai 6: Suc khoe\nTinh huong 1 gom vai A, vai B va cac mau cau.',
       errorCode: null,
       errorMessage: null,
       isMock: false,
